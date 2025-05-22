@@ -1,0 +1,81 @@
+{% extends 'base.html' %} {% block title %}Access Denied | Restaurant Management
+System{% endblock %} {% block extra_css %}
+<style>
+  .access-denied-container {
+    max-width: 650px;
+    margin: 40px auto;
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+    background-color: #fff;
+    text-align: center;
+  }
+  .error-icon {
+    font-size: 5rem;
+    color: #dc3545;
+    margin-bottom: 20px;
+  }
+  .error-code {
+    font-weight: bold;
+    color: #dc3545;
+    font-size: 1.2rem;
+  }
+  .action-buttons {
+    margin-top: 30px;
+  }
+  .help-text {
+    margin-top: 20px;
+    color: #6c757d;
+    font-size: 0.9rem;
+  }
+</style>
+{% endblock %} {% block content %}
+<div class="access-denied-container">
+  <div class="error-icon">
+    <i class="fas fa-exclamation-circle"></i>
+  </div>
+
+  <h1 class="mb-3">Access Denied</h1>
+  <p class="error-code">Error 403: Forbidden</p>
+
+  <div class="alert alert-danger">
+    <p class="mb-0">
+      <strong>You don't have permission to access this page.</strong>
+    </p>
+  </div>
+
+  <p>
+    This page requires specific permissions that are not associated with your
+    current role. {% if user.is_authenticated %} Your current role is
+    <strong>{{ user.get_role_display }}</strong>. {% else %} You need to log in
+    to access this feature. {% endif %}
+  </p>
+
+  <div class="action-buttons">
+    {% if user.is_authenticated %}
+    <a href="{% url 'users:dashboard' %}" class="btn btn-primary">
+      <i class="fas fa-home"></i> Return to Dashboard
+    </a>
+
+    <a href="{% url 'users:profile' %}" class="btn btn-outline-secondary ms-2">
+      <i class="fas fa-user"></i> View My Profile
+    </a>
+    {% else %}
+    <a href="{% url 'users:login' %}" class="btn btn-primary">
+      <i class="fas fa-sign-in-alt"></i> Log In
+    </a>
+    {% endif %}
+  </div>
+
+  <div class="help-text">
+    <p>
+      If you believe you should have access to this page, please contact your
+      administrator for assistance.
+    </p>
+    <p>
+      <i class="fas fa-envelope"></i> Contact:
+      <a href="mailto:admin@restaurant.com">admin@restaurant.com</a>
+    </p>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,282 @@
+{% extends 'base.html' %} {% block title %}Frontdesk Dashboard | Restaurant
+Management System{% endblock %} {% block extra_css %}
+<style>
+  .dashboard-card {
+    border-radius: 10px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+  }
+  .dashboard-card-header {
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-bottom: 1px solid #dee2e6;
+    font-weight: bold;
+    border-radius: 10px 10px 0 0;
+  }
+  .table-status {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+    color: white;
+    font-weight: bold;
+  }
+  .available {
+    background-color: #28a745;
+  }
+  .occupied {
+    background-color: #dc3545;
+  }
+  .reserved {
+    background-color: #ffc107;
+    color: #212529;
+  }
+  .maintenance {
+    background-color: #6c757d;
+  }
+  .quick-action-btn {
+    margin-bottom: 10px;
+  }
+  .order-badge {
+    padding: 5px 10px;
+    font-size: 0.85rem;
+  }
+</style>
+{% endblock %} {% block content %}
+<div class="row mb-4">
+  <div class="col">
+    <h1 class="h2">
+      <i class="fas fa-concierge-bell"></i> Frontdesk Dashboard
+    </h1>
+    <p class="text-muted">Manage orders, tables, and customer service</p>
+  </div>
+</div>
+
+<div class="row">
+  <!-- Quick Actions -->
+  <div class="col-lg-3">
+    <div class="dashboard-card">
+      <div class="dashboard-card-header">
+        <i class="fas fa-bolt"></i> Quick Actions
+      </div>
+      <div class="card-body">
+        <div class="d-grid gap-2">
+          <button class="btn btn-primary quick-action-btn">
+            <i class="fas fa-plus-circle"></i> New Order
+          </button>
+          <button class="btn btn-success quick-action-btn">
+            <i class="fas fa-user-plus"></i> New Reservation
+          </button>
+          <button class="btn btn-info quick-action-btn">
+            <i class="fas fa-search"></i> Find Customer
+          </button>
+          <button class="btn btn-warning quick-action-btn">
+            <i class="fas fa-phone"></i> Takeout Order
+          </button>
+          <button class="btn btn-danger quick-action-btn">
+            <i class="fas fa-exclamation-circle"></i> Report Issue
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="dashboard-card">
+      <div class="dashboard-card-header">
+        <i class="fas fa-chart-line"></i> Today's Stats
+      </div>
+      <div class="card-body">
+        <ul class="list-group list-group-flush">
+          <li
+            class="list-group-item d-flex justify-content-between align-items-center"
+          >
+            Orders
+            <span class="badge bg-primary rounded-pill">24</span>
+          </li>
+          <li
+            class="list-group-item d-flex justify-content-between align-items-center"
+          >
+            Reservations
+            <span class="badge bg-primary rounded-pill">8</span>
+          </li>
+          <li
+            class="list-group-item d-flex justify-content-between align-items-center"
+          >
+            Takeout
+            <span class="badge bg-primary rounded-pill">12</span>
+          </li>
+          <li
+            class="list-group-item d-flex justify-content-between align-items-center"
+          >
+            Deliveries
+            <span class="badge bg-primary rounded-pill">6</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Table Status -->
+  <div class="col-lg-5">
+    <div class="dashboard-card">
+      <div class="dashboard-card-header">
+        <i class="fas fa-chair"></i> Table Status
+      </div>
+      <div class="card-body">
+        <div class="row text-center">
+          {% for i in "123456" %}
+          <div class="col-4 mb-4">
+            <div class="card h-100">
+              <div class="card-body p-2">
+                <div
+                  class="table-status {% cycle 'available' 'occupied' 'reserved' 'available' 'occupied' 'maintenance' %}"
+                >
+                  {{ i }}
+                </div>
+                <h6 class="mt-2 mb-0">Table {{ i }}</h6>
+                <small class="text-muted"
+                  >{% cycle '4 seats' '2 seats' '6 seats' '8 seats' '4 seats' '2
+                  seats' %}</small
+                >
+                <div class="mt-2">
+                  <small
+                    class="{% cycle 'text-success' 'text-danger' 'text-warning' 'text-success' 'text-danger' 'text-secondary' %}"
+                  >
+                    {% cycle 'Available' 'Occupied (45m)' 'Reserved (7:30PM)'
+                    'Available' 'Occupied (15m)' 'Maintenance' %}
+                  </small>
+                </div>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+
+        <div class="row mt-3">
+          <div class="col-12">
+            <div class="d-flex justify-content-center">
+              <div class="legend-item mx-2">
+                <span class="badge bg-success">&nbsp;</span> Available
+              </div>
+              <div class="legend-item mx-2">
+                <span class="badge bg-danger">&nbsp;</span> Occupied
+              </div>
+              <div class="legend-item mx-2">
+                <span class="badge bg-warning">&nbsp;</span> Reserved
+              </div>
+              <div class="legend-item mx-2">
+                <span class="badge bg-secondary">&nbsp;</span> Maintenance
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card-footer text-end">
+        <button class="btn btn-sm btn-primary">View Full Layout</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Orders -->
+  <div class="col-lg-4">
+    <div class="dashboard-card">
+      <div class="dashboard-card-header">
+        <i class="fas fa-clipboard-list"></i> Recent Orders
+      </div>
+      <div class="card-body p-0">
+        <div class="list-group list-group-flush">
+          <a href="#" class="list-group-item list-group-item-action">
+            <div class="d-flex w-100 justify-content-between">
+              <h6 class="mb-1">Order #1042</h6>
+              <small>5 mins ago</small>
+            </div>
+            <p class="mb-1">Table 3 - 4 items</p>
+            <div>
+              <span class="badge bg-warning order-badge">Preparing</span>
+              <small class="text-muted">$56.40</small>
+            </div>
+          </a>
+          <a href="#" class="list-group-item list-group-item-action">
+            <div class="d-flex w-100 justify-content-between">
+              <h6 class="mb-1">Order #1041</h6>
+              <small>12 mins ago</small>
+            </div>
+            <p class="mb-1">Takeout - 2 items</p>
+            <div>
+              <span class="badge bg-success order-badge">Ready</span>
+              <small class="text-muted">$24.75</small>
+            </div>
+          </a>
+          <a href="#" class="list-group-item list-group-item-action">
+            <div class="d-flex w-100 justify-content-between">
+              <h6 class="mb-1">Order #1040</h6>
+              <small>25 mins ago</small>
+            </div>
+            <p class="mb-1">Table 5 - 7 items</p>
+            <div>
+              <span class="badge bg-info order-badge">Served</span>
+              <small class="text-muted">$89.20</small>
+            </div>
+          </a>
+          <a href="#" class="list-group-item list-group-item-action">
+            <div class="d-flex w-100 justify-content-between">
+              <h6 class="mb-1">Order #1039</h6>
+              <small>32 mins ago</small>
+            </div>
+            <p class="mb-1">Delivery - 3 items</p>
+            <div>
+              <span class="badge bg-primary order-badge">Delivering</span>
+              <small class="text-muted">$42.15</small>
+            </div>
+          </a>
+          <a href="#" class="list-group-item list-group-item-action">
+            <div class="d-flex w-100 justify-content-between">
+              <h6 class="mb-1">Order #1038</h6>
+              <small>45 mins ago</small>
+            </div>
+            <p class="mb-1">Table 2 - 2 items</p>
+            <div>
+              <span class="badge bg-secondary order-badge">Completed</span>
+              <small class="text-muted">$32.90</small>
+            </div>
+          </a>
+        </div>
+      </div>
+      <div class="card-footer text-end">
+        <a href="#" class="btn btn-sm btn-primary">View All Orders</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Customer Management -->
+<div class="row mt-2">
+  <div class="col-12">
+    <div class="dashboard-card">
+      <div class="dashboard-card-header">
+        <i class="fas fa-users"></i> Customer Management
+      </div>
+      <div class="card-body">
+        <div class="alert alert-info">
+          <i class="fas fa-info-circle"></i> This section would include customer
+          management functionality:
+          <ul class="mb-0">
+            <li>Customer database search</li>
+            <li>Loyalty program management</li>
+            <li>Reservation management</li>
+            <li>Customer feedback tracking</li>
+          </ul>
+        </div>
+
+        <div class="text-center">
+          <p class="text-muted">
+            Functionality to be implemented in future updates
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

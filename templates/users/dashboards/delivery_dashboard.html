@@ -1,0 +1,377 @@
+{% extends 'base.html' %} {% block title %}Delivery Dashboard | Restaurant
+Management System{% endblock %} {% block extra_css %}
+<style>
+  .delivery-card {
+    border-radius: 10px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+  }
+  .delivery-card-header {
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-bottom: 1px solid #dee2e6;
+    font-weight: bold;
+    border-radius: 10px 10px 0 0;
+  }
+  .delivery-card-header-primary {
+    background-color: #0d6efd;
+    color: white;
+  }
+  .map-placeholder {
+    background-color: #e9ecef;
+    border-radius: 5px;
+    min-height: 300px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .vehicle-info {
+    border-left: 4px solid #0d6efd;
+    padding-left: 15px;
+  }
+  .status-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 5px;
+  }
+  .status-online {
+    background-color: #28a745;
+  }
+  .status-busy {
+    background-color: #ffc107;
+  }
+  .status-offline {
+    background-color: #dc3545;
+  }
+  .delivery-status {
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-size: 0.85rem;
+  }
+  .delivery-badge {
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    color: white;
+    background-color: #0d6efd;
+  }
+  .delivery-timeline {
+    position: relative;
+    padding-left: 25px;
+  }
+  .timeline-item {
+    position: relative;
+    padding-bottom: 1rem;
+  }
+  .timeline-item:before {
+    content: "";
+    position: absolute;
+    left: -22px;
+    top: 0;
+    height: 100%;
+    width: 2px;
+    background-color: #dee2e6;
+  }
+  .timeline-item:last-child:before {
+    height: 0;
+  }
+  .timeline-dot {
+    position: absolute;
+    left: -28px;
+    top: 0;
+    height: 12px;
+    width: 12px;
+    border-radius: 50%;
+    background-color: #6c757d;
+    border: 2px solid #fff;
+  }
+  .timeline-dot-completed {
+    background-color: #28a745;
+  }
+  .timeline-dot-current {
+    background-color: #0d6efd;
+    animation: pulse 1.5s infinite;
+  }
+  @keyframes pulse {
+    0% {
+      box-shadow: 0 0 0 0 rgba(13, 110, 253, 0.7);
+    }
+    70% {
+      box-shadow: 0 0 0 10px rgba(13, 110, 253, 0);
+    }
+    100% {
+      box-shadow: 0 0 0 0 rgba(13, 110, 253, 0);
+    }
+  }
+</style>
+{% endblock %} {% block content %}
+<div class="row mb-4">
+  <div class="col">
+    <h1 class="h2"><i class="fas fa-truck"></i> Delivery Dashboard</h1>
+    <p class="text-muted">
+      Manage deliveries, track orders, and monitor your performance
+    </p>
+  </div>
+</div>
+
+<div class="row">
+  <!-- Active Deliveries -->
+  <div class="col-lg-8">
+    <div class="delivery-card">
+      <div class="delivery-card-header delivery-card-header-primary">
+        <div class="d-flex justify-content-between align-items-center">
+          <div><i class="fas fa-route"></i> Active Deliveries</div>
+          <div>
+            <span class="badge bg-light text-dark">Today: 8 Deliveries</span>
+          </div>
+        </div>
+      </div>
+      <div class="card-body">
+        <!-- Current Delivery -->
+        <div class="card mb-4">
+          <div class="card-header bg-primary text-white">
+            <div class="d-flex justify-content-between align-items-center">
+              <h5 class="mb-0">
+                <i class="fas fa-shipping-fast"></i> Current Delivery
+              </h5>
+              <span class="badge bg-warning">In Progress</span>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="row">
+              <div class="col-md-6">
+                <h6>Order #1039</h6>
+                <p>
+                  <strong>Customer:</strong> John Smith<br />
+                  <strong>Address:</strong> 123 Main St, Apt 4B<br />
+                  <strong>Phone:</strong> (555) 123-4567<br />
+                  <strong>Items:</strong> 3 items, $42.15<br />
+                  <strong>Estimated Delivery:</strong> 10:45 AM (5 min
+                  remaining)
+                </p>
+
+                <div class="delivery-timeline mt-4">
+                  <div class="timeline-item">
+                    <div class="timeline-dot timeline-dot-completed"></div>
+                    <div class="small text-muted">10:15 AM</div>
+                    <div>Order picked up from restaurant</div>
+                  </div>
+                  <div class="timeline-item">
+                    <div class="timeline-dot timeline-dot-current"></div>
+                    <div class="small text-muted">10:40 AM (now)</div>
+                    <div><strong>En route to customer</strong></div>
+                  </div>
+                  <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <div class="small text-muted">Est. 10:45 AM</div>
+                    <div>Delivery to customer</div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="map-placeholder">
+                  <div class="text-center">
+                    <i class="fas fa-map-marked-alt fa-3x mb-3 text-muted"></i>
+                    <p class="mb-0">Delivery route map would appear here</p>
+                    <small class="text-muted">ETA: 5 minutes</small>
+                  </div>
+                </div>
+
+                <div class="d-grid gap-2 mt-3">
+                  <button class="btn btn-success">
+                    <i class="fas fa-check-circle"></i> Mark as Delivered
+                  </button>
+                  <button class="btn btn-outline-secondary">
+                    <i class="fas fa-phone"></i> Contact Customer
+                  </button>
+                  <button class="btn btn-outline-danger">
+                    <i class="fas fa-exclamation-triangle"></i> Report Issue
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Next Delivery -->
+        <h6 class="mb-3">Upcoming Deliveries</h6>
+        <div class="list-group mb-3">
+          <div class="list-group-item list-group-item-action">
+            <div
+              class="d-flex w-100 justify-content-between align-items-center"
+            >
+              <div>
+                <h6 class="mb-1">
+                  Order #1043
+                  <span class="badge bg-info">Ready for Pickup</span>
+                </h6>
+                <p class="mb-1">
+                  <small>
+                    <i class="fas fa-map-marker-alt"></i> 456 Elm St (2.3 miles)
+                    <span class="mx-2">|</span>
+                    <i class="fas fa-box"></i> 2 items
+                    <span class="mx-2">|</span>
+                    <i class="fas fa-dollar-sign"></i> $28.50
+                  </small>
+                </p>
+              </div>
+              <button class="btn btn-sm btn-primary">Pick Up</button>
+            </div>
+          </div>
+          <div class="list-group-item list-group-item-action">
+            <div
+              class="d-flex w-100 justify-content-between align-items-center"
+            >
+              <div>
+                <h6 class="mb-1">
+                  Order #1046 <span class="badge bg-secondary">Preparing</span>
+                </h6>
+                <p class="mb-1">
+                  <small>
+                    <i class="fas fa-map-marker-alt"></i> 789 Oak Rd (1.5 miles)
+                    <span class="mx-2">|</span>
+                    <i class="fas fa-box"></i> 4 items
+                    <span class="mx-2">|</span>
+                    <i class="fas fa-dollar-sign"></i> $56.75
+                  </small>
+                </p>
+              </div>
+              <div class="text-muted small">Est. ready in 15 min</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Vehicle and Status Information -->
+  <div class="col-lg-4">
+    <!-- Delivery Staff Info -->
+    <div class="delivery-card">
+      <div class="delivery-card-header">
+        <i class="fas fa-id-card"></i> My Delivery Profile
+      </div>
+      <div class="card-body">
+        <div class="d-flex align-items-center mb-3">
+          <div class="delivery-badge me-3">
+            {{ user.first_name.0 }}{{ user.last_name.0 }}
+          </div>
+          <div>
+            <h5 class="mb-0">{{ user.get_full_name }}</h5>
+            <p class="mb-0 text-muted">Staff ID: {{ user.staff_id }}</p>
+            <div>
+              <span class="status-indicator status-online"></span>
+              <small class="text-success">Online</small>
+            </div>
+          </div>
+        </div>
+
+        <div class="vehicle-info mb-3">
+          <h6>Vehicle Information</h6>
+          <div class="row">
+            <div class="col-6">
+              <small class="text-muted d-block">Type:</small>
+              <span>{{ user.vehicle_type|default:"Not specified" }}</span>
+            </div>
+            <div class="col-6">
+              <small class="text-muted d-block">Status:</small>
+              <span class="text-success">Available</span>
+            </div>
+            <div class="col-12 mt-2">
+              <small class="text-muted d-block">Delivery Zone:</small>
+              <span>{{ user.delivery_zone|default:"Not assigned" }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <h6>Today's Stats</h6>
+          <div class="row text-center">
+            <div class="col-4">
+              <div class="h3 mb-0">8</div>
+              <small class="text-muted">Deliveries</small>
+            </div>
+            <div class="col-4">
+              <div class="h3 mb-0">5</div>
+              <small class="text-muted">Completed</small>
+            </div>
+            <div class="col-4">
+              <div class="h3 mb-0">3</div>
+              <small class="text-muted">Pending</small>
+            </div>
+          </div>
+        </div>
+
+        <div class="d-grid gap-2">
+          <button class="btn btn-outline-danger btn-sm">
+            <i class="fas fa-power-off"></i> Go Offline
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Assignment Notifications -->
+    <div class="delivery-card">
+      <div class="delivery-card-header">
+        <i class="fas fa-bell"></i> Notifications
+      </div>
+      <div class="card-body p-0">
+        <div class="list-group list-group-flush">
+          <div class="list-group-item">
+            <div class="d-flex w-100 justify-content-between">
+              <h6 class="mb-1">New Delivery Assignment</h6>
+              <small>Just now</small>
+            </div>
+            <p class="mb-1">You have been assigned Order #1046 for delivery.</p>
+            <div>
+              <button class="btn btn-sm btn-primary">Accept</button>
+              <button class="btn btn-sm btn-outline-secondary">Details</button>
+            </div>
+          </div>
+          <div class="list-group-item">
+            <div class="d-flex w-100 justify-content-between">
+              <h6 class="mb-1">Customer Left Review</h6>
+              <small>30 mins ago</small>
+            </div>
+            <p class="mb-1">
+              5 ★ rating for Order #1037. "Fast delivery, food was still hot!"
+            </p>
+          </div>
+          <div class="list-group-item">
+            <div class="d-flex w-100 justify-content-between">
+              <h6 class="mb-1">Zone Update</h6>
+              <small>1 hour ago</small>
+            </div>
+            <p class="mb-1">
+              Your delivery zone has been updated to include Downtown area.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <!-- Delivery History -->
+  <div class="col-lg-8">
+    <div class="delivery-card">
+      <div class="delivery-card-header">
+        <i class="fas fa-history"></i> Delivery History
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover">
+            <thead></thead>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

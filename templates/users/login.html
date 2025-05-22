@@ -1,0 +1,99 @@
+{% extends 'base.html' %} {% block title %}Login | Restaurant Management
+System{% endblock %} {% block extra_css %}
+<style>
+  .login-container {
+    max-width: 450px;
+    margin: 0 auto;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+    background-color: #fff;
+  }
+  .login-header {
+    text-align: center;
+    margin-bottom: 30px;
+  }
+  .login-header h1 {
+    font-size: 24px;
+    font-weight: bold;
+    color: #333;
+  }
+  .password-reset-link {
+    text-align: right;
+    margin-top: 10px;
+    font-size: 14px;
+  }
+  .form-control:focus {
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+  }
+</style>
+{% endblock %} {% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-6">
+    <div class="login-container">
+      <div class="login-header">
+        <h1><i class="fas fa-utensils"></i> Restaurant App Login</h1>
+        <p class="text-muted">Please sign in to access your dashboard</p>
+      </div>
+
+      <form method="post" novalidate>
+        {% csrf_token %} {% if form.non_field_errors %}
+        <div class="alert alert-danger">
+          {% for error in form.non_field_errors %} {{ error }} {% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="mb-3">
+          <label for="{{ form.username.id_for_label }}" class="form-label">
+            <i class="fas fa-user"></i> Username
+          </label>
+          <input
+            type="text"
+            name="{{ form.username.name }}"
+            class="form-control {% if form.username.errors %}is-invalid{% endif %}"
+            id="{{ form.username.id_for_label }}"
+            required
+            autocomplete="username"
+            autofocus
+          />
+          {% if form.username.errors %}
+          <div class="invalid-feedback">
+            {% for error in form.username.errors %} {{ error }} {% endfor %}
+          </div>
+          {% endif %}
+        </div>
+
+        <div class="mb-3">
+          <label for="{{ form.password.id_for_label }}" class="form-label">
+            <i class="fas fa-lock"></i> Password
+          </label>
+          <input
+            type="password"
+            name="{{ form.password.name }}"
+            class="form-control {% if form.password.errors %}is-invalid{% endif %}"
+            id="{{ form.password.id_for_label }}"
+            required
+            autocomplete="current-password"
+          />
+          {% if form.password.errors %}
+          <div class="invalid-feedback">
+            {% for error in form.password.errors %} {{ error }} {% endfor %}
+          </div>
+          {% endif %}
+        </div>
+
+        <div class="password-reset-link">
+          <a href="{% url 'users:password_reset' %}">Forgot password?</a>
+        </div>
+
+        <div class="d-grid gap-2 mt-4">
+          <button type="submit" class="btn btn-primary btn-lg">
+            <i class="fas fa-sign-in-alt"></i> Login
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
