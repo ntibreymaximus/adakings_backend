@@ -101,13 +101,19 @@ RestaurantApp/
 
 ## Development State
 
-- **Current Version**: v0.1.0
+- **Current Version**: v0.1.2
 - **Current Branch**: feature/v0.1.2-project-restructure
-- **Development Stage**: Initial project setup and structure
+- **Development Stage**: Project restructuring and template system implementation
 
 ### Version History
 
-- **v0.1.0**: Initial Django project setup
+- **v0.1.2**: Project restructuring and template fixes
+  - Reorganized project structure with dedicated apps/ and templates/ directories
+  - Implemented template inheritance system with base.html
+  - Fixed template syntax errors in profile and staff management pages
+  - Improved code organization and maintainability
+- **v0.1.1**: Initial Django project setup and basic configuration
+- **v0.1.0**: Project initialization
 
 ## Usage Instructions
 
