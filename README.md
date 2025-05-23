@@ -126,12 +126,12 @@ RestaurantApp/
   - Created order management interface with status tracking
   - Implemented comprehensive order creation and update workflow
   - Added support for environment variables configuration
-- **v0.1.2**: Project restructuring and template fixes
+- **v0.3.0**: Project restructuring and template fixes
   - Reorganized project structure with dedicated apps/ and templates/ directories
   - Implemented template inheritance system with base.html
   - Fixed template syntax errors in profile and staff management pages
   - Improved code organization and maintainability
-- **v0.1.1**: Initial Django project setup and basic configuration
+- **v0.2.0**: Initial Django project setup and basic configuration
 - **v0.1.0**: Project initialization
 
 ## Usage Instructions
