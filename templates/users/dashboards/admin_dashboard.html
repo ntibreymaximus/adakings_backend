@@ -1,5 +1,7 @@
-{% extends 'base.html' %} {% block title %}Admin Dashboard | Restaurant
-Management System{% endblock %} {% block extra_css %}
+﻿{% extends "base.html" %}
+{% block title %}Admin Dashboard | Restaurant Management System{% endblock %}
+
+{% block extra_css %}
 <style>
   .stats-card {
     border-radius: 10px;
@@ -27,22 +29,10 @@ Management System{% endblock %} {% block extra_css %}
     font-size: 1.8rem;
     font-weight: bold;
   }
-  .admin-card {
-    background-color: #6f42c1;
-    color: white;
-  }
-  .frontdesk-card {
-    background-color: #20c997;
-    color: white;
-  }
-  .kitchen-card {
-    background-color: #fd7e14;
-    color: white;
-  }
-  .delivery-card {
-    background-color: #0d6efd;
-    color: white;
-  }
+  .admin-card { background-color: #6f42c1; color: white; }
+  .frontdesk-card { background-color: #20c997; color: white; }
+  .kitchen-card { background-color: #fd7e14; color: white; }
+  .delivery-card { background-color: #0d6efd; color: white; }
   .action-card {
     border-radius: 10px;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
@@ -54,18 +44,14 @@ Management System{% endblock %} {% block extra_css %}
     border-bottom: 1px solid #dee2e6;
     font-weight: bold;
   }
-  .recent-users-table th,
-  .recent-users-table td {
-    padding: 0.5rem;
-  }
 </style>
-{% endblock %} {% block content %}
+{% endblock %}
+
+{% block content %}
 <div class="row mb-4">
   <div class="col">
     <h1 class="h2"><i class="fas fa-tachometer-alt"></i> Admin Dashboard</h1>
-    <p class="text-muted">
-      Manage staff, monitor system activities, and configure restaurant settings
-    </p>
+    <p class="text-muted">Monitor system activities and staff performance</p>
   </div>
 </div>
 
@@ -129,58 +115,15 @@ Management System{% endblock %} {% block extra_css %}
 </div>
 
 <div class="row">
-  <!-- Quick Links -->
-  <div class="col-lg-4 mb-4">
-    <div class="card action-card">
-      <div class="action-card-header">
-        <i class="fas fa-bolt"></i> Quick Actions
-      </div>
-      <div class="card-body">
-        <div class="list-group">
-          <a
-            href="{% url 'users:staff_register' %}"
-            class="list-group-item list-group-item-action"
-          >
-            <i class="fas fa-user-plus"></i> Add New Staff
-          </a>
-          <a
-            href="{% url 'users:staff_list' %}"
-            class="list-group-item list-group-item-action"
-          >
-            <i class="fas fa-users"></i> Manage Staff
-          </a>
-          <a
-            href="{% url 'admin:index' %}"
-            class="list-group-item list-group-item-action"
-          >
-            <i class="fas fa-tools"></i> Django Admin
-          </a>
-          <a
-            href="{% url 'menu:item_list' %}"
-            class="list-group-item list-group-item-action"
-          >
-            <i class="fas fa-utensils"></i> Menu Management
-          </a>
-          <a href="#" class="list-group-item list-group-item-action">
-            <i class="fas fa-cog"></i> System Settings
-          </a>
-          <a href="#" class="list-group-item list-group-item-action">
-            <i class="fas fa-file-alt"></i> Reports
-          </a>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <!-- Recent Users -->
-  <div class="col-lg-8 mb-4">
+  <div class="col-12 mb-4">
     <div class="card action-card">
       <div class="action-card-header">
         <i class="fas fa-user-clock"></i> Recently Added Staff
       </div>
       <div class="card-body">
         <div class="table-responsive">
-          <table class="table table-hover recent-users-table">
+          <table class="table table-hover">
             <thead>
               <tr>
                 <th>Name</th>
@@ -195,28 +138,21 @@ Management System{% endblock %} {% block extra_css %}
               <tr>
                 <td>{{ user.get_full_name|default:user.username }}</td>
                 <td>
-                  <span
-                    class="badge {% if user.role == 'admin' %}bg-purple{% elif user.role == 'frontdesk' %}bg-success{% elif user.role == 'kitchen' %}bg-warning{% elif user.role == 'delivery' %}bg-primary{% else %}bg-secondary{% endif %}"
-                  >
+                  <span class="badge {% if user.role == "admin" %}bg-purple{% elif user.role == "frontdesk" %}bg-success{% elif user.role == "kitchen" %}bg-warning{% elif user.role == "delivery" %}bg-primary{% else %}bg-secondary{% endif %}">
                     {{ user.get_role_display }}
                   </span>
                 </td>
                 <td>{{ user.staff_id|default:"Not assigned" }}</td>
                 <td>{{ user.date_joined|date:"M d, Y" }}</td>
                 <td>
-                  <a
-                    href="{% url 'users:staff_detail' user.id %}"
-                    class="btn btn-sm btn-info"
-                  >
+                  <a href="{% url "users:staff_detail" user.id %}" class="btn btn-sm btn-info">
                     <i class="fas fa-edit"></i>
                   </a>
                 </td>
               </tr>
               {% empty %}
               <tr>
-                <td colspan="5" class="text-center">
-                  No recent staff additions
-                </td>
+                <td colspan="5" class="text-center">No recent staff additions</td>
               </tr>
               {% endfor %}
             </tbody>
@@ -224,9 +160,7 @@ Management System{% endblock %} {% block extra_css %}
         </div>
       </div>
       <div class="card-footer text-end">
-        <a href="{% url 'users:staff_list' %}" class="btn btn-primary btn-sm"
-          >View All Staff</a
-        >
+        <a href="{% url "users:staff_list" %}" class="btn btn-primary btn-sm">View All Staff</a>
       </div>
     </div>
   </div>
@@ -242,68 +176,29 @@ Management System{% endblock %} {% block extra_css %}
       <div class="card-body">
         <div class="row">
           <div class="col-md-6">
-            <div class="alert alert-info">
-              <i class="fas fa-info-circle"></i> Staff Distribution Chart
-              <p class="mb-0 small">
-                This would display a pie chart showing the proportion of
-                different staff roles in a real implementation.
-              </p>
-            </div>
             <div class="text-center mt-3">
               <p><strong>Total Staff:</strong> {{ total_staff }}</p>
             </div>
           </div>
           <div class="col-md-6">
             <h5 class="mb-3">Role Distribution</h5>
-
             <div class="progress mb-3" style="height: 25px">
-              <div
-                class="progress-bar bg-purple"
-                role="progressbar"
-                style="width: {{ admin_percentage }}%"
-                aria-valuenow="{{ admin_count|default:0 }}"
-                aria-valuemin="0"
-                aria-valuemax="{{ total_staff }}"
-              >
+              <div class="progress-bar bg-purple" role="progressbar" style="width: {{ admin_percentage }}%" aria-valuenow="{{ admin_count|default:0 }}" aria-valuemin="0" aria-valuemax="{{ total_staff }}">
                 Admins ({{ admin_percentage }}%)
               </div>
             </div>
-
             <div class="progress mb-3" style="height: 25px">
-              <div
-                class="progress-bar bg-success"
-                role="progressbar"
-                style="width: {{ frontdesk_percentage }}%"
-                aria-valuenow="{{ frontdesk_count|default:0 }}"
-                aria-valuemin="0"
-                aria-valuemax="{{ total_staff }}"
-              >
+              <div class="progress-bar bg-success" role="progressbar" style="width: {{ frontdesk_percentage }}%" aria-valuenow="{{ frontdesk_count|default:0 }}" aria-valuemin="0" aria-valuemax="{{ total_staff }}">
                 Frontdesk ({{ frontdesk_percentage }}%)
               </div>
             </div>
-
             <div class="progress mb-3" style="height: 25px">
-              <div
-                class="progress-bar bg-warning"
-                role="progressbar"
-                style="width: {{ kitchen_percentage }}%"
-                aria-valuenow="{{ kitchen_count|default:0 }}"
-                aria-valuemin="0"
-                aria-valuemax="{{ total_staff }}"
-              >
+              <div class="progress-bar bg-warning" role="progressbar" style="width: {{ kitchen_percentage }}%" aria-valuenow="{{ kitchen_count|default:0 }}" aria-valuemin="0" aria-valuemax="{{ total_staff }}">
                 Kitchen ({{ kitchen_percentage }}%)
               </div>
             </div>
-
             <div class="progress mb-3" style="height: 25px">
-              <div
-                class="progress-bar bg-primary"
-                role="progressbar"
-                style="width: {{ delivery_percentage }}%"
-                aria-valuenow="{{ delivery_count|default:0 }}"
-                aria-valuemin="0"
-                aria-valuemax="{{ total_staff }}"
-              >
+              <div class="progress-bar bg-primary" role="progressbar" style="width: {{ delivery_percentage }}%" aria-valuenow="{{ delivery_count|default:0 }}" aria-valuemin="0" aria-valuemax="{{ total_staff }}">
                 Delivery ({{ delivery_percentage }}%)
               </div>
             </div>
