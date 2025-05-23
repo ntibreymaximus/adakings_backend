@@ -1,11 +1,11 @@
-﻿<!-- Toast Container -->
-<div class="toast-container position-fixed top-0 end-0 p-3">
+﻿<div class="toast-container position-fixed top-0 end-0 p-3">
   {% if messages %}
     {% for message in messages %}
-      <div class="toast" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="5000">
-        <div class="toast-header {% if message.tags == 'success' %}bg-success{% elif message.tags == 'error' %}bg-danger{% elif message.tags == 'warning' %}bg-warning{% else %}bg-info{% endif %} text-white">
-          <i class="fas {% if message.tags == 'success' %}fa-check-circle{% elif message.tags == 'error' %}fa-exclamation-circle{% elif message.tags == 'warning' %}fa-exclamation-triangle{% else %}fa-info-circle{% endif %} me-2"></i>
+      <div class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="toast-header {% if message.tags == 'success' %}bg-success{% elif message.tags == 'error' or message.tags == 'danger' %}bg-danger{% elif message.tags == 'warning' %}bg-warning{% else %}bg-info{% endif %} text-white">
+          <i class="fas {% if message.tags == 'success' %}fa-check-circle{% elif message.tags == 'error' or message.tags == 'danger' %}fa-exclamation-circle{% elif message.tags == 'warning' %}fa-exclamation-triangle{% else %}fa-info-circle{% endif %} me-2"></i>
           <strong class="me-auto">{{ message.tags|default:"Info"|title }}</strong>
+          <small class="text-white-50">just now</small>
           <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
         </div>
         <div class="toast-body">
@@ -20,10 +20,37 @@
 .toast-container {
   z-index: 1050;
 }
+
 .toast {
   min-width: 300px;
+  background: white;
   margin-bottom: 0.5rem;
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
   opacity: 1 !important;
+}
+
+.toast-header {
+  border-bottom: none;
+  padding: 0.75rem 1rem;
+}
+
+.toast-header .btn-close {
+  margin-right: -0.5rem;
+}
+
+.toast-body {
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.95);
+  border-bottom-left-radius: 0.25rem;
+  border-bottom-right-radius: 0.25rem;
+}
+
+.bg-success, .bg-danger, .bg-warning, .bg-info {
+  color: white;
+}
+
+.bg-warning {
+  color: #212529;
 }
 </style>
 
@@ -31,7 +58,11 @@
 document.addEventListener("DOMContentLoaded", function() {
   var toastElList = document.querySelectorAll(".toast");
   toastElList.forEach(function(toastEl) {
-    var toast = new bootstrap.Toast(toastEl);
+    var toast = new bootstrap.Toast(toastEl, {
+      animation: true,
+      autohide: true,
+      delay: 5000
+    });
     toast.show();
   });
 });
