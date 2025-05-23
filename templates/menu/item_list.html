@@ -1,4 +1,4 @@
-{% extends 'menu/base_menu.html' %}
+﻿{% extends "menu/base_menu.html" %}
 
 {% block menu_title %}Menu Items{% endblock %}
 
@@ -17,29 +17,28 @@
                 </div>
             </div>
 
-
             <!-- Availability Filter -->
             <div class="col-md-3">
                 <select name="availability" class="form-select" onchange="this.form.submit()">
                     <option value="">All Items</option>
-                    <option value="available" {% if selected_availability == 'available' %}selected{% endif %}>Available Only</option>
-                    <option value="unavailable" {% if selected_availability == 'unavailable' %}selected{% endif %}>Unavailable Only</option>
+                    <option value="available" {% if selected_availability == "available" %}selected{% endif %}>Available Only</option>
+                    <option value="unavailable" {% if selected_availability == "unavailable" %}selected{% endif %}>Unavailable Only</option>
                 </select>
             </div>
 
             <!-- Sort -->
             <div class="col-md-3">
                 <select name="sort" class="form-select" onchange="this.form.submit()">
-                    <option value="name" {% if sort_by == 'name' %}selected{% endif %}>Sort by Name</option>
-                    <option value="price" {% if sort_by == 'price' %}selected{% endif %}>Price (Low to High)</option>
-                    <option value="price-desc" {% if sort_by == 'price-desc' %}selected{% endif %}>Price (High to Low)</option>
+                    <option value="name" {% if sort_by == "name" %}selected{% endif %}>Sort by Name</option>
+                    <option value="price" {% if sort_by == "price" %}selected{% endif %}>Price (Low to High)</option>
+                    <option value="price-desc" {% if sort_by == "price-desc" %}selected{% endif %}>Price (High to Low)</option>
                 </select>
             </div>
 
             <!-- Clear Filters -->
-            {% if search_query or selected_availability or sort_by != 'name' %}
+            {% if search_query or selected_availability or sort_by != "name" %}
             <div class="col-md-2">
-                <a href="{% url 'menu:item_list' %}" class="btn btn-outline-secondary">
+                <a href="{% url "menu:item_list" %}" class="btn btn-outline-secondary">
                     <i class="fas fa-times"></i> Clear
                 </a>
             </div>
@@ -56,43 +55,57 @@
             <small class="text-muted">Total: {{ total_items }} item{{ total_items|pluralize }}</small>
         </div>
         {% if is_admin %}
-        <a href="{% url 'admin:menu_menuitem_add' %}" class="btn btn-primary btn-sm">
+        <a href="{% url "admin:menu_menuitem_add" %}" class="btn btn-primary btn-sm">
             <i class="fas fa-plus"></i> Add Menu Item
         </a>
         {% endif %}
     </div>
-    <div class="card-body">
+    <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-hover">
-                <thead>
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
                     <tr>
                         <th>Name</th>
+                        <th>Description</th>
                         <th>Price</th>
-                        <th>Available</th>
+                        <th>Available Extras</th>
+                        <th>Status</th>
                         {% if is_admin %}
-                        <th>Actions</th>
+                        <th class="text-end">Actions</th>
                         {% endif %}
                     </tr>
                 </thead>
                 <tbody>
                     {% for item in items %}
                     <tr>
-                        <td>{{ item.name }}</td>
+                        <td><strong>{{ item.name }}</strong></td>
+                        <td>
+                            <small class="text-muted">{{ item.description|default:"No description" }}</small>
+                        </td>
                         <td>{{ item.get_formatted_price }}</td>
                         <td>
-                            {% if item.is_available %}
-                                <span class="badge bg-success">Yes</span>
+                            {% if item.available_extras.exists %}
+                                {% for extra in item.available_extras.all %}
+                                    <span class="badge bg-info">{{ extra.name }}</span>
+                                {% endfor %}
                             {% else %}
-                                <span class="badge bg-danger">No</span>
+                                <small class="text-muted">No extras available</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.is_available %}
+                                <span class="badge bg-success">Available</span>
+                            {% else %}
+                                <span class="badge bg-danger">Unavailable</span>
                             {% endif %}
                         </td>
                         {% if is_admin %}
-                        <td>
-                            <div class="btn-group">
-                                <a href="{% url 'admin:menu_menuitem_change' item.id %}" class="btn btn-sm btn-outline-primary">
+                        <td class="text-end">
+                            <div class="btn-group btn-group-sm">
+                                <a href="{% url "admin:menu_menuitem_change" item.id %}" class="btn btn-outline-primary" title="Edit">
                                     <i class="fas fa-edit"></i>
                                 </a>
-                                <a href="{% url 'admin:menu_menuitem_delete' item.id %}" class="btn btn-sm btn-outline-danger">
+                                <a href="{% url "admin:menu_menuitem_delete" item.id %}" class="btn btn-outline-danger" title="Delete">
                                     <i class="fas fa-trash"></i>
                                 </a>
                             </div>
@@ -101,23 +114,28 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="{% if is_admin %}4{% else %}3{% endif %}" class="text-center">No menu items found.</td>
+                        <td colspan="{% if is_admin %}6{% else %}5{% endif %}" class="text-center py-4">
+                            <div class="text-muted">
+                                <i class="fas fa-info-circle me-2"></i>No menu items found
+                            </div>
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
     </div>
+
     {% if is_paginated %}
     <div class="card-footer">
         <nav aria-label="Page navigation">
             <ul class="pagination justify-content-center mb-0">
                 {% if page_obj.has_previous %}
                 <li class="page-item">
-                    <a class="page-link" href="?page=1{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">&laquo; First</a>
+                    <a class="page-link" href="?page=1{% for key,value in request.GET.items %}{% if key != "page" %}&{{ key }}={{ value }}{% endif %}{% endfor %}">&laquo; First</a>
                 </li>
                 <li class="page-item">
-                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">Previous</a>
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key,value in request.GET.items %}{% if key != "page" %}&{{ key }}={{ value }}{% endif %}{% endfor %}">Previous</a>
                 </li>
                 {% endif %}
                 <li class="page-item active">
@@ -128,10 +146,10 @@
                 </li>
                 {% if page_obj.has_next %}
                 <li class="page-item">
-                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">Next</a>
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key,value in request.GET.items %}{% if key != "page" %}&{{ key }}={{ value }}{% endif %}{% endfor %}">Next</a>
                 </li>
                 <li class="page-item">
-                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">Last &raquo;</a>
+                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% for key,value in request.GET.items %}{% if key != "page" %}&{{ key }}={{ value }}{% endif %}{% endfor %}">Last &raquo;</a>
                 </li>
                 {% endif %}
             </ul>
