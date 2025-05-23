@@ -37,16 +37,11 @@
 
 {% block content %}
 <div class="row mb-4">
-  <div class="col-md-8">
+  <div class="col">
     <h1 class="h2 mb-0">
       <i class="fas fa-concierge-bell"></i> Frontdesk Dashboard
     </h1>
     <p class="text-muted">Manage orders and customer service</p>
-  </div>
-  <div class="col-md-4 text-md-end">
-    <a href="{% url 'orders:order_create' %}" class="btn btn-primary">
-      <i class="fas fa-plus"></i> New Order
-    </a>
   </div>
 </div>
 
@@ -113,7 +108,7 @@
 <div class="card">
   <div class="card-header d-flex justify-content-between align-items-center">
     <h5 class="mb-0"><i class="fas fa-clock"></i> Recent Orders</h5>
-    <a href="{% url 'orders:order_list' %}" class="btn btn-sm btn-outline-primary">View All Orders</a>
+    <a href="{% url "orders:order_list" %}" class="btn btn-sm btn-outline-primary">View All Orders</a>
   </div>
   <div class="card-body p-0">
     <div class="table-responsive">
@@ -154,13 +149,13 @@
             <td>${{ order.total_price }}</td>
             <td class="text-end">
               <div class="btn-group btn-group-sm">
-                <a href="{% url 'orders:order_detail' order.id %}" class="btn btn-outline-primary" title="View Order">
+                <a href="{% url "orders:order_detail" order.id %}" class="btn btn-outline-primary" title="View Order">
                   <i class="fas fa-eye"></i>
                 </a>
-                <a href="{% url 'orders:order_update' order.id %}" class="btn btn-outline-secondary" title="Edit Order">
+                <a href="{% url "orders:order_update" order.id %}" class="btn btn-outline-secondary" title="Edit Order">
                   <i class="fas fa-edit"></i>
                 </a>
-                <a href="{% url 'orders:order_status_update' order.id %}" class="btn btn-outline-info" title="Update Status">
+                <a href="{% url "orders:order_status_update" order.id %}" class="btn btn-outline-info" title="Update Status">
                   <i class="fas fa-clipboard-check"></i>
                 </a>
               </div>
@@ -172,7 +167,6 @@
               <div class="text-muted">
                 <i class="fas fa-clipboard fa-2x mb-3"></i>
                 <p>No recent orders found</p>
-                <a href="{% url 'orders:order_create' %}" class="btn btn-primary btn-sm">Create New Order</a>
               </div>
             </td>
           </tr>
@@ -182,4 +176,9 @@
     </div>
   </div>
 </div>
+
+<!-- Floating Action Button -->
+<a href="{% url "orders:order_create" %}" class="floating-action-button" title="Create New Order">
+  <i class="fas fa-plus"></i>
+</a>
 {% endblock %}
