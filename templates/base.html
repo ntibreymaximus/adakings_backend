@@ -102,7 +102,36 @@
       .sidebar-content::-webkit-scrollbar-thumb:hover {
         background: rgba(255,255,255,0.3);
       }
-    </style>
+    
+/* Add to the existing CSS in base.html */
+.floating-action-button {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background-color: #1a1a1a;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    transition: all 0.3s ease;
+    z-index: 1000;
+}
+
+.floating-action-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    background-color: #000;
+    color: white;
+}
+
+.floating-action-button i {
+    font-size: 1.5rem;
+}
+</style>
     {% block extra_css %}{% endblock %}
   </head>
   <body>
@@ -126,19 +155,15 @@
         </div>
 
         <!-- Orders Section -->
-        {% if user.is_frontdesk or user.is_admin %}
-        <div class="nav-section">
-          <div class="nav-section-title">Orders</div>
-          <a href="{% url "orders:order_list" %}" class="nav-link {% if "orders/list" in request.path %}active{% endif %}">
-            <i class="fas fa-clipboard-list"></i>
-            <span>View Orders</span>
-          </a>
-          <a href="{% url "orders:order_create" %}" class="nav-link {% if "orders/create" in request.path %}active{% endif %}">
-            <i class="fas fa-plus"></i>
-            <span>New Order</span>
-          </a>
-        </div>
-        {% endif %}
+                  {% if user.is_frontdesk or user.is_admin %}
+          <div class="nav-section">
+            <div class="nav-section-title">Orders</div>
+            <a href="{% url "orders:order_list" %}" class="nav-link {% if "orders" in request.path %}active{% endif %}">
+              <i class="fas fa-clipboard-list"></i>
+              <span>Orders</span>
+            </a>
+          </div>
+          {% endif %}
 
         <!-- Menu Section -->
         <div class="nav-section">
@@ -240,3 +265,5 @@
     {% block extra_js %}{% endblock %}
   </body>
 </html>
+
+
