@@ -1,0 +1,125 @@
+{% extends "payments/base_payments.html" %}
+
+{% block payment_content %}
+<div class="text-center py-5">
+    <div class="mb-4">
+        <i class="fas fa-times-circle text-danger" style="font-size: 80px;"></i>
+    </div>
+    
+    <h2 class="mb-3">Payment Failed</h2>
+    <p class="lead">Unfortunately, your payment could not be processed.</p>
+    
+    <div class="card payment-card mx-auto my-4" style="max-width: 500px;">
+        <div class="card-body p-4">
+            <div class="alert alert-danger mb-4">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                {% if error_message %}
+                    {{ error_message }}
+                {% else %}
+                    Your payment was not successful. Please check your details and try again.
+                {% endif %}
+            </div>
+            
+            {% if payment %}
+            <div class="d-flex justify-content-between mb-3">
+                <span>Status:</span>
+                <span class="badge bg-danger">Failed</span>
+            </div>
+            
+            <div class="d-flex justify-content-between mb-3">
+                <span>Amount:</span>
+                <span class="fw-bold">${{ payment.amount }}</span>
+            </div>
+            
+            <div class="d-flex justify-content-between mb-3">
+                <span>Payment Method:</span>
+                <span>{{ payment.get_payment_method_display }}</span>
+            </div>
+            
+            <div class="d-flex justify-content-between mb-3">
+                <span>Reference:</span>
+                <span><small class="text-muted">{{ payment.reference }}</small></span>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="card payment-card mx-auto mb-4" style="max-width: 500px;">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">Troubleshooting Tips</h5>
+        </div>
+        <div class="card-body">
+            <ul class="text-start">
+                <li>Check if you have sufficient funds in your account</li>
+                <li>Verify that your mobile number is correct</li>
+                <li>Ensure you have enabled mobile money payments on your account</li>
+                <li>If paying with mobile money, make sure your phone is powered on and has network</li>
+                <li>You may need to contact your mobile money provider if problems persist</li>
+            </ul>
+        </div>
+    </div>
+    
+    <div class="d-flex justify-content-center gap-3 mt-4">
+        {% if payment and payment.order %}
+            <a href="{% url 'payments:process_payment' payment.order.id %}" class="btn btn-primary">
+                <i class="fas fa-sync-alt me-2"></i>Try Again
+            </a>
+            
+            <a href="{% url 'orders:order_detail' pk=payment.order.id %}" class="btn btn-outline-secondary">
+                <i class="fas fa-eye me-2"></i>View Order Details
+            </a>
+        {% else %}
+            <a href="{% url 'orders:order_list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-list me-2"></i>Return to Orders
+            </a>
+        {% endif %}
+        
+        <a href="#" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#helpModal">
+            <i class="fas fa-question-circle me-2"></i>Need Help?
+        </a>
+    </div>
+</div>
+
+<!-- Help Modal -->
+<div class="modal fade" id="helpModal" tabindex="-1" aria-labelledby="helpModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="helpModalLabel">Payment Support</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>If you're experiencing issues with your payment, please contact our support team:</p>
+                <div class="d-flex align-items-center mb-3">
+                    <i class="fas fa-phone-alt me-3 text-primary"></i>
+                    <div>
+                        <p class="mb-0 fw-bold">Phone Support</p>
+                        <p class="mb-0">+233 20 123 4567</p>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center mb-3">
+                    <i class="fas fa-envelope me-3 text-primary"></i>
+                    <div>
+                        <p class="mb-0 fw-bold">Email Support</p>
+                        <p class="mb-0">support@adakings.com</p>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-comments me-3 text-primary"></i>
+                    <div>
+                        <p class="mb-0 fw-bold">Live Chat</p>
+                        <p class="mb-0">Available 9 AM - 5 PM (Mon-Fri)</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <a href="mailto:support@adakings.com" class="btn btn-primary">
+                    <i class="fas fa-envelope me-2"></i>Email Support
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

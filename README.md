@@ -8,7 +8,7 @@ This system aims to provide restaurants with an all-in-one solution to manage:
 - Customer reservations and seating
 - Menu management and real-time updates
 - Order processing and tracking
-- Payment handling
+- Payment handling (Cash and Mobile Money via Paystack)
 - Staff scheduling and management
 - Customer data and preferences
 
@@ -63,6 +63,18 @@ This system aims to provide restaurants with an all-in-one solution to manage:
    
    The application will be available at `http://127.0.0.1:8000/`
 
+7. **Configure Environment Variables**
+   
+   Create a `.env` file in the project root with the following variables:
+   ```
+   PAYSTACK_PUBLIC_KEY=your_paystack_public_key
+   PAYSTACK_SECRET_KEY=your_paystack_secret_key
+   ```
+   
+   You can obtain Paystack API keys from your [Paystack Dashboard](https://dashboard.paystack.com/#/settings/developer)
+   
+   For development, you can use test keys to simulate payments without actual charges.
+
 ## Project Structure
 
 ```
@@ -101,12 +113,19 @@ RestaurantApp/
 
 ## Development State
 
-- **Current Version**: v0.1.2
-- **Current Branch**: feature/v0.1.2-project-restructure
-- **Development Stage**: Project restructuring and template system implementation
+- **Current Version**: v0.4.0
+- **Current Branch**: feature/v0.4.0-payments-implementation
+- **Development Stage**: Payment system implementation and orders restructuring
 
 ### Version History
 
+- **v0.4.0**: Payment system implementation and order management updates
+  - Implemented Paystack payment integration for mobile money transactions
+  - Restructured Order model to incorporate customer information directly
+  - Added payment processing, verification, and webhook support
+  - Created order management interface with status tracking
+  - Implemented comprehensive order creation and update workflow
+  - Added support for environment variables configuration
 - **v0.1.2**: Project restructuring and template fixes
   - Reorganized project structure with dedicated apps/ and templates/ directories
   - Implemented template inheritance system with base.html
@@ -135,6 +154,21 @@ RestaurantApp/
 ### Admin Interface
 
 Access the Django admin interface at `http://127.0.0.1:8000/admin/` using the superuser credentials created during setup.
+
+### Payment Processing
+
+The system supports two payment methods:
+
+1. **Cash Payments**: For in-person transactions
+2. **Mobile Money**: Integrated with Paystack for secure mobile payments
+
+To process mobile payments:
+1. Select "Mobile Money" as the payment method when finalizing an order
+2. Enter the customer's phone number in the specified format
+3. The system will redirect to Paystack's payment interface
+4. Payment status will be automatically updated upon completion
+
+For testing, use Paystack's test cards and credentials from their [documentation](https://paystack.com/docs/payments/test-payments/).
 
 ### Development Workflow
 
@@ -170,9 +204,11 @@ Access the Django admin interface at `http://127.0.0.1:8000/admin/` using the su
 [Your contact information]
 
  
-## Branch: feature/v0.1.2-project-restructure 
-## Version: v0.1.0-4-gb334251 
+## Branch: feature/v0.4.0-payments-implementation
+## Version: v0.4.0
 ### Changes in this update: 
-?? version.txt 
-Timestamp: Thu 05/22/2025 16:27:43.61 
+- Implemented payment system with Paystack integration
+- Restructured order management system
+- Fixed email generation for mobile payments
+Timestamp: Fri 05/23/2025 14:14:33.85
  

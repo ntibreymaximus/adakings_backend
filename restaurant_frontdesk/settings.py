@@ -11,6 +11,22 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import os
+import sys
+import logging
+
+# Load environment variables from .env file
+from dotenv import load_dotenv
+
+# Load environment variables from .env file (if it exists)
+env_path = Path(__file__).resolve().parent.parent / '.env'
+if env_path.exists():
+    load_dotenv(env_path)
+else:
+    logging.warning(
+        "No .env file found. Environment variables must be set manually. "
+        "See .env.example for required variables."
+    )
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -42,6 +58,7 @@ INSTALLED_APPS = [
     'apps.users',
     'apps.menu',
     'apps.orders',
+    'apps.payments',
 ]
 
 # Custom user model
@@ -140,3 +157,27 @@ LOGOUT_REDIRECT_URL = '/users/login/'
 
 # Email settings for password reset (using console backend for development)
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+# Payment settings
+# ==============================================================================
+
+# Paystack API configuration
+# Get your API keys from your Paystack dashboard: https://dashboard.paystack.com/#/settings/developer
+PAYSTACK_PUBLIC_KEY = os.environ.get('PAYSTACK_PUBLIC_KEY', '')
+PAYSTACK_SECRET_KEY = os.environ.get('PAYSTACK_SECRET_KEY', '')
+PAYSTACK_BASE_URL = 'https://api.paystack.co'
+
+# Payment configuration
+PAYMENT_CURRENCY = 'GHS'  # Ghana Cedis
+
+# Function to check if Paystack is properly configured
+def is_paystack_configured():
+    """Check if Paystack API keys are properly configured."""
+    return PAYSTACK_PUBLIC_KEY and PAYSTACK_SECRET_KEY
+
+# Log a warning if Paystack is not configured
+if not is_paystack_configured():
+    logging.warning(
+        "Paystack API keys are not configured. Mobile money payments will not work. "
+        "Please set PAYSTACK_PUBLIC_KEY and PAYSTACK_SECRET_KEY environment variables."
+    )

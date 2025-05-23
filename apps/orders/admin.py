@@ -1,31 +1,8 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import Customer, Order, OrderItem, OrderItemExtra
+from .models import Order, OrderItem, OrderItemExtra
 
 # Register your models here.
-class CustomerAdmin(admin.ModelAdmin):
-    list_display = ('name', 'phone_number', 'delivery_type', 'location_display', 'created_at')
-    list_filter = ('delivery_type', 'created_at')
-    search_fields = ('name', 'phone_number', 'location')
-    readonly_fields = ('created_at', 'updated_at')
-    fieldsets = (
-        ('Customer Information', {
-            'fields': ('name', 'phone_number')
-        }),
-        ('Delivery Details', {
-            'fields': ('delivery_type', 'location')
-        }),
-        ('Metadata', {
-            'fields': ('created_at', 'updated_at'),
-            'classes': ('collapse',)
-        }),
-    )
-    
-    def location_display(self, obj):
-        if obj.delivery_type == 'Pickup':
-            return format_html('<span style="color: #999;">Pickup</span>')
-        return obj.location
-    location_display.short_description = 'Location'
 
 
 class OrderItemExtraInline(admin.TabularInline):
@@ -56,13 +33,16 @@ class OrderItemInline(admin.TabularInline):
 class OrderAdmin(admin.ModelAdmin):
     list_display = ('id', 'customer_name', 'customer_phone', 'delivery_info', 
                    'formatted_total_price', 'status', 'created_at')
-    list_filter = ('status', 'created_at', 'customer__delivery_type')
-    search_fields = ('customer__name', 'customer__phone_number', 'customer__location')
+    list_filter = ('status', 'created_at', 'delivery_type')
+    search_fields = ('customer_name', 'customer_phone', 'delivery_location')
     readonly_fields = ('total_price', 'created_at', 'updated_at')
     inlines = [OrderItemInline]
     fieldsets = (
-        ('Customer', {
-            'fields': ('customer',)
+        ('Customer Information', {
+            'fields': ('customer_name', 'customer_phone')
+        }),
+        ('Delivery Details', {
+            'fields': ('delivery_type', 'delivery_location')
         }),
         ('Order Details', {
             'fields': ('status', 'total_price', 'notes')
@@ -75,17 +55,17 @@ class OrderAdmin(admin.ModelAdmin):
     actions = ['mark_as_confirmed', 'mark_as_processing', 'mark_as_ready', 'mark_as_delivered', 'mark_as_cancelled']
     
     def customer_name(self, obj):
-        return obj.customer.name
+        return obj.customer_name
     customer_name.short_description = 'Customer'
     
     def customer_phone(self, obj):
-        return obj.customer.phone_number
+        return obj.customer_phone
     customer_phone.short_description = 'Phone'
     
     def delivery_info(self, obj):
-        if obj.customer.delivery_type == 'Pickup':
+        if obj.delivery_type == 'Pickup':
             return format_html('<span style="background-color: #f9f9f9; padding: 2px 6px; border-radius: 3px;">Pickup</span>')
-        return format_html('<span style="background-color: #e8f4f8; padding: 2px 6px; border-radius: 3px;">Delivery to: {}</span>', obj.customer.location)
+        return format_html('<span style="background-color: #e8f4f8; padding: 2px 6px; border-radius: 3px;">Delivery to: {}</span>', obj.delivery_location)
     delivery_info.short_description = 'Delivery Info'
     
     def formatted_total_price(self, obj):
@@ -116,7 +96,7 @@ class OrderAdmin(admin.ModelAdmin):
 class OrderItemAdmin(admin.ModelAdmin):
     list_display = ('id', 'order_id', 'menu_item_name', 'quantity', 'unit_price', 'subtotal')
     list_filter = ('order__status',)
-    search_fields = ('order__customer__name', 'menu_item__name')
+    search_fields = ('order__customer_name', 'menu_item__name')
     readonly_fields = ('subtotal',)
     inlines = [OrderItemExtraInline]
     
@@ -130,7 +110,6 @@ class OrderItemAdmin(admin.ModelAdmin):
 
 
 # Register the models with their custom admin classes
-admin.site.register(Customer, CustomerAdmin)
 admin.site.register(Order, OrderAdmin)
 admin.site.register(OrderItem, OrderItemAdmin)
 admin.site.register(OrderItemExtra)

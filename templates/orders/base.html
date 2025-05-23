@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+
+{% block title %}Order Management - Adakings Restaurant{% endblock %}
+
+{% block extra_css %}
+<style>
+    .order-nav {
+        background-color: #f8f9fa;
+        border-radius: 5px;
+        padding: 10px;
+        margin-bottom: 20px;
+    }
+    
+    .status-pending {
+        background-color: #ffc107;
+        color: #212529;
+    }
+    
+    .status-confirmed {
+        background-color: #17a2b8;
+        color: white;
+    }
+    
+    .status-processing {
+        background-color: #007bff;
+        color: white;
+    }
+    
+    .status-ready {
+        background-color: #28a745;
+        color: white;
+    }
+    
+    .status-delivered {
+        background-color: #6c757d;
+        color: white;
+    }
+    
+    .status-cancelled {
+        background-color: #dc3545;
+        color: white;
+    }
+    
+    .price-display {
+        font-weight: bold;
+        color: #28a745;
+    }
+    
+    .form-container {
+        background-color: #f8f9fa;
+        border-radius: 5px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .order-item {
+        border-left: 4px solid #007bff;
+        padding-left: 10px;
+        margin-bottom: 10px;
+    }
+    
+    .order-item-extra {
+        margin-left: 20px;
+        border-left: 2px dashed #6c757d;
+        padding-left: 10px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Sidebar -->
+    <div class="col-md-3 col-lg-2 sidebar py-3">
+        <div class="list-group mb-4">
+            <span class="list-group-item bg-primary text-white">
+                <i class="fas fa-utensils me-2"></i> Order Management
+            </span>
+            <a href="{% url 'orders:order_list' %}" class="list-group-item list-group-item-action {% if request.resolver_match.url_name == 'order_list' %}active{% endif %}">
+                <i class="fas fa-list me-2"></i> All Orders
+            </a>
+            <a href="{% url 'orders:order_create' %}" class="list-group-item list-group-item-action {% if request.resolver_match.url_name == 'order_create' %}active{% endif %}">
+                <i class="fas fa-plus me-2"></i> New Order
+            </a>
+        </div>
+    </div>
+    
+    <!-- Main Content -->
+    <div class="col-md-9 col-lg-10">
+        {% if messages %}
+            <div class="messages">
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+        
+        {% block orders_content %}{% endblock %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Function to toggle location field based on delivery type
+    function toggleLocationField(deliveryType) {
+        const locationField = document.getElementById('id_location').closest('.mb-3');
+        if (deliveryType === 'Delivery') {
+            locationField.style.display = 'block';
+            document.getElementById('id_location').setAttribute('required', 'required');
+        } else {
+            locationField.style.display = 'none';
+            document.getElementById('id_location').removeAttribute('required');
+        }
+    }
+    
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        const deliverySelect = document.getElementById('id_delivery_type');
+        if (deliverySelect) {
+            toggleLocationField(deliverySelect.value);
+        }
+    });
+</script>
+{% endblock %}
+

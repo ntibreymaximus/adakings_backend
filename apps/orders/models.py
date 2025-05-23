@@ -13,13 +13,18 @@ phone_regex = RegexValidator(
 )
 
 
-class Customer(models.Model):
-    """Model for storing customer information for orders"""
-    name = models.CharField(max_length=255)
-    phone_number = models.CharField(
+class Order(models.Model):
+    """Model for tracking customer orders with customer information"""
+    # Customer information fields
+    customer_name = models.CharField(
+        max_length=255,
+        default="Unknown Customer"
+    )
+    customer_phone = models.CharField(
         max_length=15,
         validators=[phone_regex],
-        help_text="Ghanaian phone number in format +233XXXXXXXXX or 0XXXXXXXXX"
+        help_text="Ghanaian phone number in format +233XXXXXXXXX or 0XXXXXXXXX",
+        default="0000000000"
     )
     DELIVERY_CHOICES = [
         ('Pickup', 'Pickup'),
@@ -30,38 +35,9 @@ class Customer(models.Model):
         choices=DELIVERY_CHOICES,
         default='Pickup'
     )
-    location = models.TextField(
+    delivery_location = models.TextField(
         blank=True,
         help_text="Required for delivery orders, leave blank for pickup"
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        verbose_name = 'Customer'
-        verbose_name_plural = 'Customers'
-        ordering = ['-created_at']
-
-    def __str__(self):
-        return f"{self.name} ({self.phone_number})"
-
-    def clean(self):
-        # Location is required for delivery orders
-        if self.delivery_type == 'Delivery' and not self.location:
-            raise ValidationError({'location': 'Location is required for delivery orders.'})
-        super().clean()
-
-    def save(self, *args, **kwargs):
-        self.full_clean()
-        super().save(*args, **kwargs)
-
-
-class Order(models.Model):
-    """Model for tracking customer orders"""
-    customer = models.ForeignKey(
-        Customer,
-        on_delete=models.CASCADE,
-        related_name='orders'
     )
     STATUS_CHOICES = [
         ('Pending', 'Pending'),
@@ -92,10 +68,16 @@ class Order(models.Model):
         ordering = ['-created_at']
 
     def __str__(self):
-        return f"Order #{self.id} - {self.customer.name} ({self.status})"
+        return f"Order #{self.id} - {self.customer_name} ({self.status})"
 
     def get_formatted_total_price(self):
         return f"${self.total_price:.2f}"
+
+    def clean(self):
+        # Location is required for delivery orders
+        if self.delivery_type == 'Delivery' and not self.delivery_location:
+            raise ValidationError({'delivery_location': 'Location is required for delivery orders.'})
+        super().clean()
 
     def calculate_total(self):
         """Calculate total price based on all order items and their extras"""
@@ -105,10 +87,15 @@ class Order(models.Model):
         return self.total_price
 
     def save(self, *args, **kwargs):
+        # Validate fields
+        self.full_clean()
+        
         # First save to get an ID if this is a new order
         super().save(*args, **kwargs)
+        
         # Calculate the total price and save again
         self.total_price = self.calculate_total()
+        
         # Avoid potential recursion by using update instead of save
         if self.pk:
             Order.objects.filter(pk=self.pk).update(total_price=self.total_price)
@@ -225,7 +212,3 @@ class OrderItemExtra(models.Model):
         # Update the parent order item's subtotal
         if self.order_item:
             self.order_item.save()
-
-from django.db import models
-
-# Create your models here.

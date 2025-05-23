@@ -1,0 +1,676 @@
+{% extends "orders/base.html" %}
+
+{% block extra_css %}
+{{ block.super }}
+<style>
+    .extra-item {
+        margin-left: 30px;
+        padding-left: 10px;
+        border-left: 2px dashed #ccc;
+    }
+    .item-row {
+        border-bottom: 1px solid #eee;
+        padding-bottom: 15px;
+        margin-bottom: 15px;
+    }
+    .section-card {
+        margin-bottom: 25px;
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    }
+    .form-label {
+        font-weight: 500;
+    }
+    .required-field::after {
+        content: "*";
+        color: red;
+        margin-left: 3px;
+    }
+</style>
+{% endblock %}
+
+{% block orders_content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>{{ title }}</h1>
+    <a href="{% url 'orders:order_detail' order.pk %}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left me-2"></i>Back to Order Details
+    </a>
+</div>
+
+<form method="post" id="order-form">
+    {% csrf_token %}
+    
+    {% if form.non_field_errors %}
+    <div class="alert alert-danger">
+        {% for error in form.non_field_errors %}
+            {{ error }}
+        {% endfor %}
+    </div>
+    {% endif %}
+    
+    <!-- Customer Information Section -->
+    <div class="card section-card">
+        <div class="card-header bg-light">
+            <h5 class="card-title mb-0">
+                <i class="fas fa-user me-2"></i>Customer Information
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <!-- Customer Name Field -->
+                <div class="col-md-6 mb-3">
+                    <label for="{{ form.customer_name.id_for_label }}" class="form-label required-field">
+                        Customer Name
+                    </label>
+                    {{ form.customer_name }}
+                    {% if form.customer_name.errors %}
+                        <div class="invalid-feedback d-block">
+                            {% for error in form.customer_name.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Phone Number Field -->
+                <div class="col-md-6 mb-3">
+                    <label for="{{ form.customer_phone.id_for_label }}" class="form-label required-field">
+                        Phone Number
+                    </label>
+                    {{ form.customer_phone }}
+                    {% if form.customer_phone.errors %}
+                        <div class="invalid-feedback d-block">
+                            {% for error in form.customer_phone.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                    <small class="text-muted">Ghanaian format: +233XXXXXXXXX or 0XXXXXXXXX</small>
+                </div>
+                
+                <!-- Delivery Type Field -->
+                <div class="col-md-6 mb-3">
+                    <label for="{{ form.delivery_type.id_for_label }}" class="form-label required-field">
+                        Delivery Type
+                    </label>
+                    {{ form.delivery_type }}
+                    {% if form.delivery_type.errors %}
+                        <div class="invalid-feedback d-block">
+                            {% for error in form.delivery_type.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Delivery Location Field -->
+                <div class="col-md-6 mb-3" id="delivery-location-container">
+                    <label for="{{ form.delivery_location.id_for_label }}" class="form-label" id="location-label">
+                        Delivery Location
+                    </label>
+                    {{ form.delivery_location }}
+                    {% if form.delivery_location.errors %}
+                        <div class="invalid-feedback d-block">
+                            {% for error in form.delivery_location.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                    <small class="text-muted">Required for delivery orders</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Order Details Section -->
+    <div class="card section-card">
+        <div class="card-header bg-light">
+            <h5 class="card-title mb-0">
+                <i class="fas fa-clipboard-list me-2"></i>Order Details
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <!-- Order Status Field -->
+                <div class="col-md-6 mb-3">
+                    <label for="{{ form.status.id_for_label }}" class="form-label required-field">
+                        Status
+                    </label>
+                    {{ form.status }}
+                    {% if form.status.errors %}
+                        <div class="invalid-feedback d-block">
+                            {% for error in form.status.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Order Notes Field -->
+                <div class="col-12 mb-3">
+                    <label for="{{ form.notes.id_for_label }}" class="form-label">
+                        Order Notes
+                    </label>
+                    {{ form.notes }}
+                    {% if form.notes.errors %}
+                        <div class="invalid-feedback d-block">
+                            {% for error in form.notes.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                    <small class="text-muted">Add any special instructions or notes for this order</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Order Items Section -->
+    <div class="card section-card">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">
+                <i class="fas fa-shopping-cart me-2"></i>Order Items
+            </h5>
+            <button type="button" id="add-item" class="btn btn-sm btn-success">
+                <i class="fas fa-plus-circle me-1"></i>Add Item
+            </button>
+        </div>
+        <div class="card-body">
+            <!-- Order Items Formset -->
+            {{ formset.management_form }}
+            <div id="order-items">
+                {% for form in formset.forms %}
+                <div class="item-row {% if forloop.last and not form.instance.pk %}item-template{% endif %}" id="item-{{ forloop.counter0 }}">
+                    <div class="row mb-3">
+                        <!-- Item Selection -->
+                        <div class="col-md-6">
+                            <label class="form-label required-field">Menu Item</label>
+                            {{ form.menu_item }}
+                            {% if form.menu_item.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.menu_item.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Quantity -->
+                        <div class="col-md-2">
+                            <label class="form-label required-field">Quantity</label>
+                            {{ form.quantity }}
+                            {% if form.quantity.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.quantity.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Item Price Display -->
+                        <div class="col-md-2">
+                            <label class="form-label">Unit Price</label>
+                            <input type="text" class="form-control item-price" readonly value="${{ form.instance.unit_price|default:'0.00' }}">
+                        </div>
+                        
+                        <!-- Remove Button -->
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button type="button" class="btn btn-outline-danger mb-3 remove-item">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                            {{ form.DELETE }}
+                        </div>
+                    </div>
+                    
+                    <!-- Extras Section -->
+                    <div class="extras-container">
+                        <div class="row mb-2">
+                            <div class="col-md-10">
+                                <label class="form-label">Extras</label>
+                            </div>
+                            <div class="col-md-2 text-end">
+                                <button type="button" class="btn btn-sm btn-outline-primary add-extra">
+                                    <i class="fas fa-plus-circle"></i> Add Extra
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Extra items will be added here dynamically -->
+                        <div class="extras-list">
+                            {% if form.instance.pk %}
+                                {% for extra in form.instance.extras.all %}
+                                <div class="extra-item row mb-2">
+                                    <div class="col-md-5">
+                                        <select name="item_{{ forloop.parentloop.counter0 }}_extras" class="form-select extra-select">
+                                            <option value="">Select an extra</option>
+                                            <!-- Will be populated by JavaScript -->
+                                        </select>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <input type="number" name="item_{{ forloop.parentloop.counter0 }}_quantities" class="form-control extra-quantity" min="1" value="{{ extra.quantity }}">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <input type="text" class="form-control extra-price" readonly value="${{ extra.unit_price }}">
+                                    </div>
+                                    <div class="col-md-2">
+                                        <button type="button" class="btn btn-outline-danger remove-extra">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Hidden fields -->
+                    {{ form.id }}
+                    {{ form.order }}
+                    
+                    <hr>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <!-- Order Totals -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-8 offset-md-2">
+                            <table class="table">
+                                <tr>
+                                    <td>Items Subtotal:</td>
+                                    <td class="text-end price-display" id="items-subtotal">$0.00</td>
+                                </tr>
+                                <tr>
+                                    <td>Extras Subtotal:</td>
+                                    <td class="text-end price-display" id="extras-subtotal">$0.00</td>
+                                </tr>
+                                <tr class="table-light">
+                                    <th>Total:</th>
+                                    <th class="text-end price-display" id="order-total">$0.00</th>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="d-flex justify-content-between">
+                <a href="{% url 'orders:order_detail' order.pk %}" class="btn btn-outline-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-check me-2"></i>Update Order
+                </button>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize toggle for delivery location
+        const deliveryTypeSelect = document.getElementById('id_delivery_type');
+        const deliveryLocationContainer = document.getElementById('delivery-location-container');
+        const deliveryLocationInput = document.getElementById('id_delivery_location');
+        const locationLabel = document.getElementById('location-label');
+        
+        function toggleDeliveryLocation() {
+            if (deliveryTypeSelect.value === 'Delivery') {
+                deliveryLocationContainer.style.display = 'block';
+                locationLabel.classList.add('required-field');
+                deliveryLocationInput.setAttribute('required', 'required');
+            } else {
+                deliveryLocationContainer.style.display = 'none';
+                locationLabel.classList.remove('required-field');
+                deliveryLocationInput.removeAttribute('required');
+            }
+        }
+        
+        if (deliveryTypeSelect) {
+            deliveryTypeSelect.addEventListener('change', toggleDeliveryLocation);
+            // Initialize on page load
+            toggleDeliveryLocation();
+        }
+        
+        // Order Items management
+        const addItemButton = document.getElementById('add-item');
+        if (addItemButton) {
+            addItemButton.addEventListener('click', function() {
+                // Clone the template item
+                const template = document.querySelector('.item-template');
+                if (template) {
+                    const newItem = template.cloneNode(true);
+                    newItem.classList.remove('item-template');
+                    
+                    // Update IDs and names for the new item
+                    const itemCount = document.querySelectorAll('.item-row').length;
+                    updateElementAttributes(newItem, itemCount);
+                    
+                    // Add the new item to the form
+                    const orderItems = document.getElementById('order-items');
+                    orderItems.appendChild(newItem);
+                    
+                    // Update the management form count
+                    const totalFormsInput = document.querySelector('[name="items-TOTAL_FORMS"]');
+                    totalFormsInput.value = parseInt(totalFormsInput.value) + 1;
+                    
+                    // Initialize the new item's event listeners
+                    initializeItemEvents(newItem);
+                    
+                    // Update totals
+                    updateTotals();
+                }
+            });
+            
+            // Initialize event listeners for initial items
+            document.querySelectorAll('.item-row').forEach(item => {
+                initializeItemEvents(item);
+            });
+            
+            // Initial totals calculation
+            updateTotals();
+        }
+        
+        // Initialize item events
+        function initializeItemEvents(item) {
+            // Menu item selection change
+            const menuItemSelect = item.querySelector('.menu-item-select');
+            if (menuItemSelect) {
+                menuItemSelect.addEventListener('change', function() {
+                    updateItemPrice(item);
+                    updateTotals();
+                });
+            }
+            
+            // Quantity change
+            const quantityInput = item.querySelector('.quantity-input');
+            if (quantityInput) {
+                quantityInput.addEventListener('change', function() {
+                    updateTotals();
+                });
+            }
+            
+            // Remove item button
+            const removeButton = item.querySelector('.remove-item');
+            if (removeButton) {
+                removeButton.addEventListener('click', function() {
+                    const deleteCheckbox = item.querySelector('[name$="-DELETE"]');
+                    if (deleteCheckbox) {
+                        deleteCheckbox.checked = true;
+                        item.style.display = 'none';
+                        updateTotals();
+                    }
+                });
+            }
+            
+            // Add extra button
+            const addExtraButton = item.querySelector('.add-extra');
+            if (addExtraButton) {
+                addExtraButton.addEventListener('click', function() {
+                    addExtraToItem(item);
+                });
+            }
+            
+            // Initialize existing extras
+            item.querySelectorAll('.extra-item').forEach(extraItem => {
+                initializeExtraItem(extraItem);
+            });
+            
+            // Set initial price
+            updateItemPrice(item);
+        }
+        
+        // Initialize extra item
+        function initializeExtraItem(extraItem) {
+            const extraSelect = extraItem.querySelector('.extra-select');
+            const extraQuantity = extraItem.querySelector('.extra-quantity');
+            const removeExtraButton = extraItem.querySelector('.remove-extra');
+            
+            // Populate the extras dropdown if empty
+            if (extraSelect && extraSelect.options.length <= 1) {
+                populateExtrasDropdown(extraSelect);
+                
+                // If this is an existing extra, select the correct option
+                const extraPrice = extraItem.querySelector('.extra-price');
+                if (extraPrice && extraPrice.value) {
+                    const priceValue = parseFloat(extraPrice.value.replace('$', ''));
+                    for (let i = 0; i < extraSelect.options.length; i++) {
+                        const option = extraSelect.options[i];
+                        if (option.dataset.price && Math.abs(parseFloat(option.dataset.price) - priceValue) < 0.01) {
+                            extraSelect.selectedIndex = i;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            // Add event listeners
+            if (extraSelect) {
+                extraSelect.addEventListener('change', function() {
+                    updateExtraPrice(extraItem);
+                    updateTotals();
+                });
+            }
+            
+            if (extraQuantity) {
+                extraQuantity.addEventListener('change', function() {
+                    updateTotals();
+                });
+            }
+            
+            if (removeExtraButton) {
+                removeExtraButton.addEventListener('click', function() {
+                    extraItem.remove();
+                    updateTotals();
+                });
+            }
+        }
+        
+        // Update item price display
+        function updateItemPrice(item) {
+            const menuItemSelect = item.querySelector('.menu-item-select');
+            const priceDisplay = item.querySelector('.item-price');
+            
+            if (menuItemSelect && priceDisplay) {
+                const selectedOption = menuItemSelect.options[menuItemSelect.selectedIndex];
+                const text = selectedOption ? selectedOption.text : '';
+                const priceMatch = text.match(/\$(\d+\.\d+)/);
+                
+                if (priceMatch && priceMatch[1]) {
+                    priceDisplay.value = '$' + priceMatch[1];
+                } else {
+                    priceDisplay.value = '$0.00';
+                }
+            }
+        }
+        
+        // Add extra to item
+        function addExtraToItem(item) {
+            const extrasList = item.querySelector('.extras-list');
+            const itemId = item.id.replace('item-', '');
+            const extraCount = extrasList.querySelectorAll('.extra-item').length;
+            
+            const extraItem = document.createElement('div');
+            extraItem.className = 'extra-item row mb-2';
+            extraItem.innerHTML = `
+                <div class="col-md-5">
+                    <select name="item_${itemId}_extras" class="form-select extra-select">
+                        <option value="">Select an extra</option>
+                        <!-- Extras will be populated dynamically -->
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <input type="number" name="item_${itemId}_quantities" class="form-control extra-quantity" min="1" value="1">
+                </div>
+                <div class="col-md-3">
+                    <input type="text" class="form-control extra-price" readonly value="$0.00">
+                </div>
+                <div class="col-md-2">
+                    <button type="button" class="btn btn-outline-danger remove-extra">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `;
+            
+            extrasList.appendChild(extraItem);
+            initializeExtraItem(extraItem);
+            updateTotals();
+        }
+        
+        // Populate extras dropdown
+        function populateExtrasDropdown(selectElement) {
+            // This would normally fetch extras from an API or be populated by the server
+            // For demo purposes, we'll add some placeholder extras
+            const extras = [
+                { id: 1, name: 'Extra Cheese', price: 1.50 },
+                { id: 2, name: 'Bacon', price: 2.00 },
+                { id: 3, name: 'Avocado', price: 1.75 },
+                { id: 4, name: 'Extra Sauce', price: 0.75 },
+                { id: 5, name: 'Fried Egg', price: 1.25 }
+            ];
+            
+            extras.forEach(extra => {
+                const option = document.createElement('option');
+                option.value = extra.id;
+                option.textContent = `${extra.name} ($${extra.price.toFixed(2)})`;
+                option.dataset.price = extra.price.toFixed(2);
+                selectElement.appendChild(option);
+            });
+        }
+        
+        // Update extra price display
+        function updateExtraPrice(extraItem) {
+            const extraSelect = extraItem.querySelector('.extra-select');
+            const priceDisplay = extraItem.querySelector('.extra-price');
+            
+            if (extraSelect && priceDisplay) {
+                const selectedOption = extraSelect.options[extraSelect.selectedIndex];
+                if (selectedOption && selectedOption.dataset.price) {
+                    priceDisplay.value = '$' + selectedOption.dataset.price;
+                } else {
+                    priceDisplay.value = '$0.00';
+                }
+            }
+        }
+        
+        // Update element attributes for new items
+        function updateElementAttributes(element, index) {
+            // Update ID attributes
+            element.id = element.id.replace(/\d+/, index);
+            
+            // Update name attributes
+            element.querySelectorAll('[name]').forEach(input => {
+                input.name = input.name.replace(/\d+/, index);
+            });
+            
+            // Update id attributes
+            element.querySelectorAll('[id]').forEach(input => {
+                if (input.id.includes('-')) {
+                    input.id = input.id.replace(/\d+/, index);
+                }
+            });
+            
+            // Update for attributes in labels
+            element.querySelectorAll('label[for]').forEach(label => {
+                if (label.getAttribute('for').includes('-')) {
+                    label.setAttribute('for', label.getAttribute('for').replace(/\d+/, index));
+                }
+            });
+        }
+        
+        // Calculate and update totals
+        function updateTotals() {
+            let itemsSubtotal = 0;
+            let extrasSubtotal = 0;
+            
+            // Calculate items subtotal
+            document.querySelectorAll('.item-row:not([style*="display: none"])').forEach(item => {
+                const priceDisplay = item.querySelector('.item-price');
+                const quantityInput = item.querySelector('.quantity-input');
+                
+                if (priceDisplay && quantityInput) {
+                    const price = parseFloat(priceDisplay.value.replace('$', '')) || 0;
+                    const quantity = parseInt(quantityInput.value) || 0;
+                    itemsSubtotal += price * quantity;
+                }
+                
+                // Calculate extras subtotal for this item
+                item.querySelectorAll('.extra-item').forEach(extraItem => {
+                    const extraPrice = extraItem.querySelector('.extra-price');
+                    const extraQuantity = extraItem.querySelector('.extra-quantity');
+                    
+                    if (extraPrice && extraQuantity) {
+                        const price = parseFloat(extraPrice.value.replace('$', '')) || 0;
+                        const quantity = parseInt(extraQuantity.value) || 0;
+                        extrasSubtotal += price * quantity;
+                    }
+                });
+            });
+            
+            // Update display
+            const itemsSubtotalDisplay = document.getElementById('items-subtotal');
+            const extrasSubtotalDisplay = document.getElementById('extras-subtotal');
+            const orderTotalDisplay = document.getElementById('order-total');
+            
+            if (itemsSubtotalDisplay) {
+                itemsSubtotalDisplay.textContent = '$' + itemsSubtotal.toFixed(2);
+            }
+            
+            if (extrasSubtotalDisplay) {
+                extrasSubtotalDisplay.textContent = '$' + extrasSubtotal.toFixed(2);
+            }
+            
+            if (orderTotalDisplay) {
+                const total = itemsSubtotal + extrasSubtotal;
+                orderTotalDisplay.textContent = '$' + total.toFixed(2);
+            }
+        }
+        
+        // Form validation before submit
+        const orderForm = document.querySelector('#order-form');
+        if (orderForm) {
+            orderForm.addEventListener('submit', function(event) {
+                let isValid = true;
+                
+                // Check if there are any visible items
+                const visibleItems = document.querySelectorAll('.item-row:not([style*="display: none"])');
+                if (visibleItems.length === 0) {
+                    alert('Please add at least one item to the order.');
+                    isValid = false;
+                }
+                
+                // Check if items have menu items selected
+                visibleItems.forEach(item => {
+                    const menuItemSelect = item.querySelector('.menu-item-select');
+                    if (menuItemSelect && (!menuItemSelect.value || menuItemSelect.value === '')) {
+                        menuItemSelect.classList.add('is-invalid');
+                        isValid = false;
+                    } else if (menuItemSelect) {
+                        menuItemSelect.classList.remove('is-invalid');
+                    }
+                });
+                
+                // Check delivery location if delivery is selected
+                if (deliveryTypeSelect && deliveryTypeSelect.value === 'Delivery') {
+                    if (!deliveryLocationInput || !deliveryLocationInput.value) {
+                        if (deliveryLocationInput) {
+                            deliveryLocationInput.classList.add('is-invalid');
+                        }
+                        isValid = false;
+                    } else if (deliveryLocationInput) {
+                        deliveryLocationInput.classList.remove('is-invalid');
+                    }
+                }
+                
+                if (!isValid) {
+                    event.preventDefault();
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}
+

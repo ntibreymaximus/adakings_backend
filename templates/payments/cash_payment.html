@@ -1,0 +1,143 @@
+{% extends "payments/base_payments.html" %}
+
+{% block payment_content %}
+<div class="card mb-4">
+    <div class="card-header bg-primary text-white">
+        <h5 class="card-title mb-0">
+            <i class="fas fa-money-bill-wave me-2"></i>Cash Payment
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>Customer is paying <strong>${{ payment.amount }}</strong> in cash for Order #{{ payment.order.id }}
+        </div>
+        
+        <div class="row mb-4">
+            <!-- Order Details -->
+            <div class="col-md-6">
+                <div class="card payment-card h-100">
+                    <div class="card-header bg-light">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-shopping-cart me-2"></i>Order Details
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Order #:</span>
+                            <span class="fw-bold">{{ payment.order.id }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Date:</span>
+                            <span>{{ payment.order.created_at|date:"F j, Y, g:i a" }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Customer:</span>
+                            <span>{{ payment.order.customer_name }}</span>
+                        </div>
+                        {% if payment.order.customer_phone %}
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Phone:</span>
+                            <span>{{ payment.order.customer_phone }}</span>
+                        </div>
+                        {% endif %}
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Status:</span>
+                            <span>
+                                <span class="badge bg-{{ payment.order.status|lower }}">{{ payment.order.status }}</span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Payment Details -->
+            <div class="col-md-6">
+                <div class="card payment-card h-100">
+                    <div class="card-header bg-light">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-credit-card me-2"></i>Payment Details
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="text-center mb-4">
+                            <div class="payment-icon">
+                                <i class="fas fa-money-bill-wave text-success fa-3x"></i>
+                            </div>
+                            <h3>${{ payment.amount }}</h3>
+                            <p class="text-muted">Cash Payment</p>
+                            <p class="mb-0"><strong>Reference:</strong> {{ payment.reference }}</p>
+                        </div>
+                        
+                        <div class="text-center">
+                            <div class="alert alert-{{ payment.status }} py-2">
+                                {% if payment.status == 'completed' %}
+                                    <i class="fas fa-check-circle me-2"></i>Payment Completed
+                                {% elif payment.status == 'pending' %}
+                                    <i class="fas fa-clock me-2"></i>Payment Pending
+                                {% elif payment.status == 'failed' %}
+                                    <i class="fas fa-times-circle me-2"></i>Payment Failed
+                                {% else %}
+                                    <i class="fas fa-info-circle me-2"></i>{{ payment.get_status_display }}
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Staff Actions -->
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-user-check me-2"></i>Staff Actions
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if payment.status == 'pending' or payment.status == 'processing' %}
+                <form method="post" class="text-center">
+                    {% csrf_token %}
+                    
+                    <div class="form-check mb-3 d-inline-block text-start">
+                        <input class="form-check-input" type="checkbox" id="confirmCheck" required>
+                        <label class="form-check-label" for="confirmCheck">
+                            I confirm that I have received <strong>${{ payment.amount }}</strong> in cash from the customer.
+                        </label>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-center">
+                        <button type="submit" class="btn btn-success btn-lg">
+                            <i class="fas fa-check-circle me-2"></i>Mark as Paid
+                        </button>
+                    </div>
+                </form>
+                {% else %}
+                <div class="text-center">
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle me-2"></i>Payment has been marked as completed.
+                    </div>
+                    
+                    <a href="{% url 'orders:order_detail' pk=payment.order.id %}" class="btn btn-primary">
+                        <i class="fas fa-eye me-2"></i>View Order Details
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Navigation Buttons -->
+        <div class="d-flex justify-content-between">
+            <a href="{% url 'orders:order_detail' pk=payment.order.id %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Back to Order
+            </a>
+            
+            {% if payment.status == 'completed' %}
+            <a href="{% url 'orders:order_list' %}" class="btn btn-outline-primary">
+                <i class="fas fa-list me-2"></i>Return to Orders
+            </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+

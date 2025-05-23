@@ -37,6 +37,12 @@ urlpatterns = [
     # Menu app URLs
     path('menu/', include('apps.menu.urls')),
     
+    # Orders app URLs
+    path('orders/', include('apps.orders.urls')),
+    
+    # Payments app URLs
+    path('payments/', include('apps.payments.urls', namespace='payments')),
+    
     # Root URL redirects to dashboard or login page
     path('', home_redirect, name='home'),
     

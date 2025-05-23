@@ -1,0 +1,171 @@
+{% extends "payments/base_payments.html" %}
+
+{% block payment_content %}
+<div class="card mb-4">
+    <div class="card-header bg-primary text-white">
+        <h5 class="card-title mb-0">
+            <i class="fas fa-mobile-alt me-2"></i>Mobile Money Payment
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>You're paying <strong>${{ payment.amount }}</strong> for Order #{{ order.id }}
+        </div>
+        
+        {% if messages %}
+        <div class="messages mb-4">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        
+        {% if form.errors %}
+        <div class="alert alert-danger mb-4">
+            <h6><i class="fas fa-exclamation-circle me-2"></i>Form Errors:</h6>
+            <ul class="mb-0">
+                {% for field, errors in form.errors.items %}
+                    {% for error in errors %}
+                        <li>{% if field != '__all__' %}{{ field }}: {% endif %}{{ error }}</li>
+                    {% endfor %}
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+        
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card payment-card h-100">
+                    <div class="card-header bg-light">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-info-circle me-2"></i>Payment Instructions
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mobile-instruction">
+                            <ol class="mb-0">
+                                <li class="mb-2">Enter your Ghana mobile money number in the format: <code>024XXXXXXX</code> or <code>+233XXXXXXXXX</code></li>
+                                <li class="mb-2">Click "Continue to Payment" to proceed</li>
+                                <li class="mb-2">You'll be redirected to the Paystack payment page</li>
+                                <li class="mb-2">Enter your mobile money PIN when prompted</li>
+                                <li class="mb-2">After payment is confirmed, you'll be redirected back to this site</li>
+                            </ol>
+                        </div>
+                        
+                        <div class="mt-4">
+                            <h6 class="mb-3">Supported Mobile Money Providers:</h6>
+                            <div class="d-flex justify-content-around">
+                                <div class="text-center">
+                                    <i class="fas fa-mobile-alt fa-2x text-warning mb-2"></i>
+                                    <p class="mb-0">MTN Mobile Money</p>
+                                </div>
+                                <div class="text-center">
+                                    <i class="fas fa-mobile-alt fa-2x text-danger mb-2"></i>
+                                    <p class="mb-0">Vodafone Cash</p>
+                                </div>
+                                <div class="text-center">
+                                    <i class="fas fa-mobile-alt fa-2x text-primary mb-2"></i>
+                                    <p class="mb-0">AirtelTigo Money</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card payment-card h-100">
+                    <div class="card-header bg-light">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-credit-card me-2"></i>Payment Details
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="text-center mb-4">
+                            <div class="payment-icon">
+                                <i class="fas fa-mobile-alt text-primary fa-3x"></i>
+                            </div>
+                            <h3>${{ payment.amount }}</h3>
+                            <p class="text-muted">Mobile Money Payment</p>
+                            <p class="mb-0"><strong>Order:</strong> #{{ order.id }}</p>
+                            <p class="mb-0"><strong>Reference:</strong> {{ payment.reference }}</p>
+                        </div>
+                        
+                        <form method="post" id="mobile-payment-form">
+                            {% csrf_token %}
+                            
+                            <div class="form-group mb-4">
+                                <label for="{{ form.phone_number.id_for_label }}" class="form-label">Mobile Number</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-phone"></i></span>
+                                    {{ form.phone_number }}
+                                </div>
+                                <div class="form-text">
+                                    Enter the mobile number linked to your Mobile Money account<br>
+                                    <small class="text-muted">Example: 0551234567 (MTN), 0271234567 (Vodafone), 0261234567 (AirtelTigo)</small>
+                                </div>
+                            </div>
+                            
+                            <div class="form-check mb-4">
+                                <input class="form-check-input" type="checkbox" id="confirmCheck" required>
+                                <label class="form-check-label" for="confirmCheck">
+                                    I confirm that I want to pay <strong>${{ payment.amount }}</strong> for this order
+                                </label>
+                            </div>
+                            
+                            <div class="d-flex justify-content-between">
+                                <a href="{% url 'orders:order_detail' pk=order.id %}" class="btn btn-outline-secondary">
+                                    <i class="fas fa-arrow-left me-2"></i>Cancel
+                                </a>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-check me-2"></i>Continue to Payment
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="text-center text-muted">
+            <div class="mb-3">
+                <img src="https://paystack.com/assets/payment-badges/badges-gh.png" alt="Paystack Payment Options" style="max-width: 300px;">
+            </div>
+            <p class="mb-0"><small>Secured by Paystack</small></p>
+            <p class="mb-0"><small>By proceeding, you agree to Paystack's <a href="https://paystack.com/terms" target="_blank">Terms and Conditions</a></small></p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Format and validate phone number as user types
+    document.addEventListener('DOMContentLoaded', function() {
+        const phoneInput = document.getElementById('{{ form.phone_number.id_for_label }}');
+        
+        phoneInput.addEventListener('input', function() {
+            let value = this.value.replace(/\D/g, '');
+            
+            // Handle international format
+            if (value.startsWith('233')) {
+                // Already in international format
+            } else if (value.startsWith('0') && value.length > 1) {
+                // Convert local format to international
+                value = '233' + value.substring(1);
+            }
+            
+            // Format for display (optional)
+            if (value.startsWith('233') && value.length > 3) {
+                const formatted = '+' + value;
+                if (formatted !== this.value) {
+                    this.value = formatted;
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

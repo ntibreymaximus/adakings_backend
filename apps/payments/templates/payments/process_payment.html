@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+
+{% block title %}Process Payment | {{ order.customer_name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h2 class="mb-0">Process Payment</h2>
+                </div>
+                <div class="card-body">
+                    <h3>Order Details</h3>
+                    <div class="card mb-4">
+                        <div class="card-body">
+                            <h5>Order #{{ order.id }}</h5>
+                            <p><strong>Customer:</strong> {{ order.customer_name }}</p>
+                            <p><strong>Phone:</strong> {{ order.customer_phone }}</p>
+                            <p><strong>Status:</strong> {{ order.get_status_display }}</p>
+                            <p><strong>Total Amount:</strong> GHS {{ order.total_price }}</p>
+                            <p><strong>Date:</strong> {{ order.created_at|date:"F j, Y, g:i a" }}</p>
+                        </div>
+                    </div>
+
+                    <h3>Choose Payment Method</h3>
+                    <form method="POST">
+                        {% csrf_token %}
+                        <div class="form-group mb-4">
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="radio" name="payment_method" id="cashPayment" value="Cash" checked>
+                                <label class="form-check-label" for="cashPayment">
+                                    Cash Payment
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="payment_method" id="mobilePayment" value="Mobile">
+                                <label class="form-check-label" for="mobilePayment">
+                                    Mobile Payment (Paystack)
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <!-- Mobile Payment Details (show/hide with JavaScript) -->
+                        <div id="mobilePaymentDetails" class="mb-4" style="display: none;">
+                            <div class="form-group mb-3">
+                                <label for="mobile_number">Mobile Number</label>
+                                <input type="text" class="form-control" id="mobile_number" name="mobile_number" placeholder="Enter mobile number (e.g., 0551234567)">
+                                <small class="form-text text-muted">Enter the mobile number linked to your mobile money account.</small>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group mb-3">
+                            <button type="submit" class="btn btn-primary btn-lg">Process Payment</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Show/hide mobile payment details based on selection
+    document.addEventListener('DOMContentLoaded', function() {
+        const cashPayment = document.getElementById('cashPayment');
+        const mobilePayment = document.getElementById('mobilePayment');
+        const mobilePaymentDetails = document.getElementById('mobilePaymentDetails');
+        
+        function toggleMobilePaymentDetails() {
+            if (mobilePayment.checked) {
+                mobilePaymentDetails.style.display = 'block';
+            } else {
+                mobilePaymentDetails.style.display = 'none';
+            }
+        }
+        
+        // Initial check
+        toggleMobilePaymentDetails();
+        
+        // Add event listeners
+        cashPayment.addEventListener('change', toggleMobilePaymentDetails);
+        mobilePayment.addEventListener('change', toggleMobilePaymentDetails);
+    });
+</script>
+{% endblock %}
