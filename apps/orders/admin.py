@@ -1,35 +1,29 @@
-from django.contrib import admin
+﻿from django.contrib import admin
 from django.utils.html import format_html
+from django.urls import reverse
+from django.utils.http import urlencode
 from .models import Order, OrderItem, OrderItemExtra
-
-# Register your models here.
-
 
 class OrderItemExtraInline(admin.TabularInline):
     model = OrderItemExtra
     extra = 0
-    readonly_fields = ('subtotal',)
     fields = ('extra', 'quantity', 'unit_price', 'subtotal')
+    readonly_fields = ('subtotal',)
     
-    def get_readonly_fields(self, request, obj=None):
-        if obj and obj.pk:  # If this is an edit (not an add)
-            return self.readonly_fields + ('extra',)
-        return self.readonly_fields
-
+    def has_delete_permission(self, request, obj=None):
+        return True
 
 class OrderItemInline(admin.TabularInline):
     model = OrderItem
     extra = 0
+    fields = ('menu_item', 'quantity', 'unit_price', 'subtotal', 'notes')
     readonly_fields = ('subtotal',)
-    fields = ('menu_item', 'quantity', 'unit_price', 'subtotal')
-    show_change_link = True
+    inlines = [OrderItemExtraInline]
     
-    def get_readonly_fields(self, request, obj=None):
-        if obj and obj.pk:  # If this is an edit (not an add)
-            return self.readonly_fields + ('menu_item',)
-        return self.readonly_fields
+    def has_delete_permission(self, request, obj=None):
+        return True
 
-
+@admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
     list_display = ('id', 'customer_name', 'customer_phone', 'delivery_info', 
                    'formatted_total_price', 'status', 'created_at')
@@ -52,6 +46,7 @@ class OrderAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
+    
     actions = ['mark_as_confirmed', 'mark_as_processing', 'mark_as_ready', 'mark_as_delivered', 'mark_as_cancelled']
     
     def customer_name(self, obj):
@@ -69,8 +64,8 @@ class OrderAdmin(admin.ModelAdmin):
     delivery_info.short_description = 'Delivery Info'
     
     def formatted_total_price(self, obj):
-        return format_html('<b>${:.2f}</b>', obj.total_price)
-    formatted_total_price.short_description = 'Total'
+        return format_html('${:.2f}', float(obj.total_price))
+    formatted_total_price.short_description = 'Total Price'
     
     def mark_as_confirmed(self, request, queryset):
         queryset.update(status='Confirmed')
@@ -92,7 +87,7 @@ class OrderAdmin(admin.ModelAdmin):
         queryset.update(status='Cancelled')
     mark_as_cancelled.short_description = "Mark selected orders as cancelled"
 
-
+@admin.register(OrderItem)
 class OrderItemAdmin(admin.ModelAdmin):
     list_display = ('id', 'order_id', 'menu_item_name', 'quantity', 'unit_price', 'subtotal')
     list_filter = ('order__status',)
@@ -101,15 +96,11 @@ class OrderItemAdmin(admin.ModelAdmin):
     inlines = [OrderItemExtraInline]
     
     def order_id(self, obj):
-        return f"Order #{obj.order.id}"
+        return f"#{obj.order.id}"
     order_id.short_description = 'Order'
     
     def menu_item_name(self, obj):
         return obj.menu_item.name
     menu_item_name.short_description = 'Menu Item'
 
-
-# Register the models with their custom admin classes
-admin.site.register(Order, OrderAdmin)
-admin.site.register(OrderItem, OrderItemAdmin)
 admin.site.register(OrderItemExtra)
