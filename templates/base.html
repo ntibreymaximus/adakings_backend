@@ -9,24 +9,46 @@
     <style>
       :root { --sidebar-width: 280px; }
       body { min-height: 100vh; background-color: #f5f5f5; }
+      
       .sidebar {
-        position: fixed; top: 0; left: 0; bottom: 0;
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
         width: var(--sidebar-width);
         background: #1a1a1a;
-        padding: 0;
-        transition: all 0.3s ease;
+        display: flex;
+        flex-direction: column;
         z-index: 1000;
       }
+
+      .sidebar-header {
+        padding: 1rem;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+      }
+
+      .sidebar-content {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1rem;
+      }
+
+      .sidebar-footer {
+        padding: 1rem;
+        border-top: 1px solid rgba(255,255,255,0.1);
+      }
+
       .main-wrapper {
         margin-left: var(--sidebar-width);
         min-height: 100vh;
         display: flex;
         flex-direction: column;
       }
+
       .nav-section {
-        margin: 1rem 0;
-        padding: 0 1rem;
+        margin-bottom: 1.5rem;
       }
+
       .nav-section-title {
         color: rgba(255,255,255,0.4);
         font-size: 0.75rem;
@@ -35,25 +57,50 @@
         padding: 0.5rem 0;
         margin-bottom: 0.5rem;
       }
+
       .nav-link {
         color: rgba(255,255,255,0.8);
         padding: 0.5rem 1rem;
         margin: 0.2rem 0;
         border-radius: 0.25rem;
         transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
       }
+
       .nav-link:hover {
         color: #fff;
         background: rgba(255,255,255,0.1);
       }
+
       .nav-link.active {
         color: #fff;
         background: rgba(255,255,255,0.2);
       }
+
       @media (max-width: 768px) {
         .sidebar { transform: translateX(-100%); }
         .sidebar.show { transform: translateX(0); }
         .main-wrapper { margin-left: 0; }
+      }
+
+      /* Custom scrollbar for sidebar */
+      .sidebar-content::-webkit-scrollbar {
+        width: 6px;
+      }
+
+      .sidebar-content::-webkit-scrollbar-track {
+        background: rgba(255,255,255,0.1);
+      }
+
+      .sidebar-content::-webkit-scrollbar-thumb {
+        background: rgba(255,255,255,0.2);
+        border-radius: 3px;
+      }
+
+      .sidebar-content::-webkit-scrollbar-thumb:hover {
+        background: rgba(255,255,255,0.3);
       }
     </style>
     {% block extra_css %}{% endblock %}
@@ -61,19 +108,20 @@
   <body>
     {% if user.is_authenticated %}
     <nav class="sidebar" id="sidebar">
-      <div class="p-3">
-        <a href="/" class="d-flex align-items-center mb-3 mb-md-0 me-md-auto text-white text-decoration-none">
+      <div class="sidebar-header">
+        <a href="/" class="d-flex align-items-center text-white text-decoration-none">
           <i class="fas fa-utensils me-2"></i>
           <span class="fs-4">Restaurant App</span>
         </a>
-        <hr class="text-white-50">
-        
+      </div>
+
+      <div class="sidebar-content">
         <!-- Dashboard Section -->
         <div class="nav-section">
           <div class="nav-section-title">Main</div>
           <a href="{% url "users:dashboard" %}" class="nav-link {% if request.resolver_match.url_name == "dashboard" %}active{% endif %}">
-            <i class="fas fa-home me-2"></i>
-            Dashboard
+            <i class="fas fa-home"></i>
+            <span>Dashboard</span>
           </a>
         </div>
 
@@ -82,12 +130,12 @@
         <div class="nav-section">
           <div class="nav-section-title">Orders</div>
           <a href="{% url "orders:order_list" %}" class="nav-link {% if "orders/list" in request.path %}active{% endif %}">
-            <i class="fas fa-clipboard-list me-2"></i>
-            View Orders
+            <i class="fas fa-clipboard-list"></i>
+            <span>View Orders</span>
           </a>
           <a href="{% url "orders:order_create" %}" class="nav-link {% if "orders/create" in request.path %}active{% endif %}">
-            <i class="fas fa-plus me-2"></i>
-            New Order
+            <i class="fas fa-plus"></i>
+            <span>New Order</span>
           </a>
         </div>
         {% endif %}
@@ -96,12 +144,12 @@
         <div class="nav-section">
           <div class="nav-section-title">Menu</div>
           <a href="{% url "menu:item_list" %}" class="nav-link {% if "menu/items" in request.path %}active{% endif %}">
-            <i class="fas fa-utensils me-2"></i>
-            Menu Items
+            <i class="fas fa-utensils"></i>
+            <span>Menu Items</span>
           </a>
           <a href="{% url "menu:extra_list" %}" class="nav-link {% if "menu/extras" in request.path %}active{% endif %}">
-            <i class="fas fa-plus-circle me-2"></i>
-            Extras
+            <i class="fas fa-plus-circle"></i>
+            <span>Extras</span>
           </a>
         </div>
 
@@ -110,12 +158,12 @@
         <div class="nav-section">
           <div class="nav-section-title">Staff</div>
           <a href="{% url "users:staff_list" %}" class="nav-link {% if "staff/list" in request.path %}active{% endif %}">
-            <i class="fas fa-users me-2"></i>
-            Manage Staff
+            <i class="fas fa-users"></i>
+            <span>Manage Staff</span>
           </a>
           <a href="{% url "users:staff_register" %}" class="nav-link {% if "staff/register" in request.path %}active{% endif %}">
-            <i class="fas fa-user-plus me-2"></i>
-            Add Staff
+            <i class="fas fa-user-plus"></i>
+            <span>Add Staff</span>
           </a>
         </div>
 
@@ -123,32 +171,33 @@
         <div class="nav-section">
           <div class="nav-section-title">System</div>
           <a href="#" class="nav-link">
-            <i class="fas fa-chart-bar me-2"></i>
-            Reports
+            <i class="fas fa-chart-bar"></i>
+            <span>Reports</span>
           </a>
           <a href="#" class="nav-link">
-            <i class="fas fa-cog me-2"></i>
-            Settings
+            <i class="fas fa-cog"></i>
+            <span>Settings</span>
           </a>
           <a href="{% url "admin:index" %}" class="nav-link">
-            <i class="fas fa-tools me-2"></i>
-            Django Admin
+            <i class="fas fa-tools"></i>
+            <span>Django Admin</span>
           </a>
         </div>
         {% endif %}
+      </div>
 
-        <!-- User Section -->
-        <div class="nav-section mt-auto">
+      <div class="sidebar-footer">
+        <div class="nav-section">
           <div class="nav-section-title">Account</div>
           <a href="{% url "users:profile" %}" class="nav-link">
-            <i class="fas fa-user me-2"></i>
-            Profile
+            <i class="fas fa-user"></i>
+            <span>Profile</span>
           </a>
           <form method="post" action="{% url "users:logout" %}" class="m-0">
             {% csrf_token %}
             <button type="submit" class="nav-link border-0 bg-transparent w-100 text-start">
-              <i class="fas fa-sign-out-alt me-2"></i>
-              Sign out
+              <i class="fas fa-sign-out-alt"></i>
+              <span>Sign out</span>
             </button>
           </form>
         </div>
