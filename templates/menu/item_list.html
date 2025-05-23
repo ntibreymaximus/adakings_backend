@@ -1,0 +1,142 @@
+{% extends 'menu/base_menu.html' %}
+
+{% block menu_title %}Menu Items{% endblock %}
+
+{% block menu_content %}
+<!-- Search and Filters -->
+<div class="card mb-3">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <!-- Search -->
+            <div class="col-md-4">
+                <div class="input-group">
+                    <input type="text" class="form-control" name="search" placeholder="Search menu items..." value="{{ search_query }}">
+                    <button class="btn btn-outline-secondary" type="submit">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+            </div>
+
+
+            <!-- Availability Filter -->
+            <div class="col-md-3">
+                <select name="availability" class="form-select" onchange="this.form.submit()">
+                    <option value="">All Items</option>
+                    <option value="available" {% if selected_availability == 'available' %}selected{% endif %}>Available Only</option>
+                    <option value="unavailable" {% if selected_availability == 'unavailable' %}selected{% endif %}>Unavailable Only</option>
+                </select>
+            </div>
+
+            <!-- Sort -->
+            <div class="col-md-3">
+                <select name="sort" class="form-select" onchange="this.form.submit()">
+                    <option value="name" {% if sort_by == 'name' %}selected{% endif %}>Sort by Name</option>
+                    <option value="price" {% if sort_by == 'price' %}selected{% endif %}>Price (Low to High)</option>
+                    <option value="price-desc" {% if sort_by == 'price-desc' %}selected{% endif %}>Price (High to Low)</option>
+                </select>
+            </div>
+
+            <!-- Clear Filters -->
+            {% if search_query or selected_availability or sort_by != 'name' %}
+            <div class="col-md-2">
+                <a href="{% url 'menu:item_list' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-times"></i> Clear
+                </a>
+            </div>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<!-- Menu Items Table -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <div>
+            <h5 class="mb-0">Menu Items</h5>
+            <small class="text-muted">Total: {{ total_items }} item{{ total_items|pluralize }}</small>
+        </div>
+        {% if is_admin %}
+        <a href="{% url 'admin:menu_menuitem_add' %}" class="btn btn-primary btn-sm">
+            <i class="fas fa-plus"></i> Add Menu Item
+        </a>
+        {% endif %}
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Price</th>
+                        <th>Available</th>
+                        {% if is_admin %}
+                        <th>Actions</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr>
+                        <td>{{ item.name }}</td>
+                        <td>{{ item.get_formatted_price }}</td>
+                        <td>
+                            {% if item.is_available %}
+                                <span class="badge bg-success">Yes</span>
+                            {% else %}
+                                <span class="badge bg-danger">No</span>
+                            {% endif %}
+                        </td>
+                        {% if is_admin %}
+                        <td>
+                            <div class="btn-group">
+                                <a href="{% url 'admin:menu_menuitem_change' item.id %}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a href="{% url 'admin:menu_menuitem_delete' item.id %}" class="btn btn-sm btn-outline-danger">
+                                    <i class="fas fa-trash"></i>
+                                </a>
+                            </div>
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="{% if is_admin %}4{% else %}3{% endif %}" class="text-center">No menu items found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% if is_paginated %}
+    <div class="card-footer">
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center mb-0">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page=1{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">&laquo; First</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">Previous</a>
+                </li>
+                {% endif %}
+                <li class="page-item active">
+                    <span class="page-link">
+                        Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                        <span class="badge bg-light text-dark ms-1">{{ page_obj.start_index }}-{{ page_obj.end_index }} of {{ paginator.count }}</span>
+                    </span>
+                </li>
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">Next</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">Last &raquo;</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

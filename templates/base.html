@@ -113,9 +113,16 @@
                 </li>
                 <li><hr class="dropdown-divider" /></li>
                 <li>
-                  <form method="post" action="{% url 'users:logout' %}" class="m-0">
+                  <form
+                    method="post"
+                    action="{% url 'users:logout' %}"
+                    class="m-0"
+                  >
                     {% csrf_token %}
-                    <button type="submit" class="dropdown-item w-100 text-start">
+                    <button
+                      type="submit"
+                      class="dropdown-item w-100 text-start"
+                    >
                       <i class="fas fa-sign-out-alt"></i> Logout
                     </button>
                   </form>

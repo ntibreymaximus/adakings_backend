@@ -1,0 +1,168 @@
+{% extends 'menu/base_menu.html' %}
+
+{% block menu_title %}Menu Extras{% endblock %}
+
+{% block menu_content %}
+<!-- Search and Filters -->
+<div class="card mb-3">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <!-- Search -->
+            <div class="col-md-4">
+                <div class="input-group">
+                    <input type="text" class="form-control" name="search" placeholder="Search extras..." value="{{ search_query }}">
+                    <button class="btn btn-outline-secondary" type="submit">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+            </div>
+
+
+            <!-- Availability Filter -->
+            <div class="col-md-3">
+                <select name="availability" class="form-select" onchange="this.form.submit()">
+                    <option value="">All Items</option>
+                    <option value="available" {% if selected_availability == 'available' %}selected{% endif %}>Available Only</option>
+                    <option value="unavailable" {% if selected_availability == 'unavailable' %}selected{% endif %}>Unavailable Only</option>
+                </select>
+            </div>
+
+            <!-- Sort -->
+            <div class="col-md-3">
+                <select name="sort" class="form-select" onchange="this.form.submit()">
+                    <option value="name" {% if sort_by == 'name' or not sort_by %}selected{% endif %}>Sort by Name</option>
+                    <option value="price" {% if sort_by == 'price' %}selected{% endif %}>Price (Low to High)</option>
+                    <option value="price-desc" {% if sort_by == 'price-desc' %}selected{% endif %}>Price (High to Low)</option>
+                </select>
+            </div>
+
+            <!-- Clear Filters -->
+            {% if search_query or selected_availability or sort_by != 'name' %}
+            <div class="col-md-1">
+                <a href="{% url 'menu:extra_list' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-times"></i> Clear
+                </a>
+            </div>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<!-- Extras Table -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <div>
+            <h5 class="mb-0">Extra Items</h5>
+            <small class="text-muted">Total: {{ total_extras }} item{{ total_extras|pluralize }}</small>
+        </div>
+        {% if is_admin %}
+        <a href="{% url 'admin:menu_extra_add' %}" class="btn btn-primary btn-sm">
+            <i class="fas fa-plus"></i> Add Extra
+        </a>
+        {% endif %}
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Price</th>
+                        <th>Available</th>
+                        <th>Used In</th>
+                        {% if is_admin %}
+                        <th>Actions</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for extra in extras %}
+                    <tr>
+                        <td>{{ extra.name }}</td>
+                        <td>{{ extra.get_formatted_price }}</td>
+                        <td>
+                            {% if extra.is_available %}
+                                <span class="badge bg-success">Yes</span>
+                            {% else %}
+                                <span class="badge bg-danger">No</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% with menu_items=extra.menu_items.all %}
+                            {% if menu_items %}
+                            <button class="btn btn-sm btn-outline-info" type="button" data-bs-toggle="collapse" data-bs-target="#items-{{ extra.id }}" aria-expanded="false">
+                                {{ menu_items|length }} Item{{ menu_items|length|pluralize }}
+                            </button>
+                            <div class="collapse mt-2" id="items-{{ extra.id }}">
+                                <div class="card card-body p-2">
+                                    <ul class="list-unstyled mb-0">
+                                        {% for item in menu_items %}
+                                        <li>
+                                            <small>
+                                                <i class="fas fa-utensils text-info"></i>
+                                                {{ item.name }} ({{ item.category.name }})
+                                            </small>
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            </div>
+                            {% else %}
+                            <small class="text-muted">Not used in any items</small>
+                            {% endif %}
+                            {% endwith %}
+                        </td>
+                        {% if is_admin %}
+                        <td>
+                            <div class="btn-group">
+                                <a href="{% url 'admin:menu_extra_change' extra.id %}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a href="{% url 'admin:menu_extra_delete' extra.id %}" class="btn btn-sm btn-outline-danger">
+                                    <i class="fas fa-trash"></i>
+                                </a>
+                            </div>
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="{% if is_admin %}5{% else %}4{% endif %}" class="text-center">No extras found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% if is_paginated %}
+    <div class="card-footer">
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center mb-0">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page=1{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">&laquo; First</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">Previous</a>
+                </li>
+                {% endif %}
+                <li class="page-item active">
+                    <span class="page-link">
+                        Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                        <span class="badge bg-light text-dark ms-1">{{ page_obj.start_index }}-{{ page_obj.end_index }} of {{ paginator.count }}</span>
+                    </span>
+                </li>
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">Next</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">Last &raquo;</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

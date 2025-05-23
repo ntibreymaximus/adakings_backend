@@ -155,6 +155,12 @@ Management System{% endblock %} {% block extra_css %}
           >
             <i class="fas fa-tools"></i> Django Admin
           </a>
+          <a
+            href="{% url 'menu:item_list' %}"
+            class="list-group-item list-group-item-action"
+          >
+            <i class="fas fa-utensils"></i> Menu Management
+          </a>
           <a href="#" class="list-group-item list-group-item-action">
             <i class="fas fa-cog"></i> System Settings
           </a>

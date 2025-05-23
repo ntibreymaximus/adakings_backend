@@ -34,6 +34,9 @@ urlpatterns = [
     # Users app URLs
     path('users/', include('apps.users.urls')),
     
+    # Menu app URLs
+    path('menu/', include('apps.menu.urls')),
+    
     # Root URL redirects to dashboard or login page
     path('', home_redirect, name='home'),
     
