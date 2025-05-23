@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     # Custom apps
     'apps.users',
     'apps.menu',
+    'apps.orders',
 ]
 
 # Custom user model
