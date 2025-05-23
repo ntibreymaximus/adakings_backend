@@ -67,14 +67,6 @@
               Menu
             </a>
           </li>
-          {% if user.is_frontdesk or user.is_admin %}
-          <li>
-            <a href="{% url "payments:payment_list" %}" class="nav-link text-white {% if "payments" in request.path %}active{% endif %}">
-              <i class="fas fa-money-bill-wave me-2"></i>
-              Payments
-            </a>
-          </li>
-          {% endif %}
           {% if user.is_admin %}
           <li>
             <a href="{% url "users:staff_list" %}" class="nav-link text-white {% if "staff" in request.path %}active{% endif %}">
