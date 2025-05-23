@@ -1,0 +1,38 @@
+﻿<!-- Toast Container -->
+<div class="toast-container position-fixed top-0 end-0 p-3">
+  {% if messages %}
+    {% for message in messages %}
+      <div class="toast" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="5000">
+        <div class="toast-header {% if message.tags == 'success' %}bg-success{% elif message.tags == 'error' %}bg-danger{% elif message.tags == 'warning' %}bg-warning{% else %}bg-info{% endif %} text-white">
+          <i class="fas {% if message.tags == 'success' %}fa-check-circle{% elif message.tags == 'error' %}fa-exclamation-circle{% elif message.tags == 'warning' %}fa-exclamation-triangle{% else %}fa-info-circle{% endif %} me-2"></i>
+          <strong class="me-auto">{{ message.tags|default:"Info"|title }}</strong>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+        <div class="toast-body">
+          {{ message }}
+        </div>
+      </div>
+    {% endfor %}
+  {% endif %}
+</div>
+
+<style>
+.toast-container {
+  z-index: 1050;
+}
+.toast {
+  min-width: 300px;
+  margin-bottom: 0.5rem;
+  opacity: 1 !important;
+}
+</style>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  var toastElList = document.querySelectorAll(".toast");
+  toastElList.forEach(function(toastEl) {
+    var toast = new bootstrap.Toast(toastEl);
+    toast.show();
+  });
+});
+</script>

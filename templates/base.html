@@ -204,6 +204,8 @@
       </div>
     </nav>
 
+    {% include "toasts.html" %}
+
     <div class="main-wrapper">
       <div class="container-fluid py-3">
         <div class="d-flex justify-content-between align-items-center mb-3">
@@ -212,21 +214,12 @@
           </button>
           <h1 class="h3">{% block page_title %}{% endblock %}</h1>
         </div>
-        {% if messages %}
-        <div class="messages">
-          {% for message in messages %}
-          <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-            {{ message }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-          </div>
-          {% endfor %}
-        </div>
-        {% endif %}
         {% block content %}{% endblock %}
       </div>
     </div>
     {% else %}
     <div class="container mt-5">
+      {% include "toasts.html" %}
       {% block auth_content %}{% endblock %}
     </div>
     {% endif %}
@@ -234,6 +227,7 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
       document.addEventListener("DOMContentLoaded", function() {
+        // Sidebar Toggle
         const sidebarToggle = document.getElementById("sidebarToggle");
         const sidebar = document.getElementById("sidebar");
         if (sidebarToggle && sidebar) {
