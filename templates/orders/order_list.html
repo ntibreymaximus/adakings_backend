@@ -1,78 +1,162 @@
 ﻿{% extends "orders/base.html" %}
 
-{% block page_title %}Orders{% endblock %}
-
 {% block orders_content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h1 class="h3 mb-0">Manage Orders</h1>
-        <p class="text-muted">View and manage all restaurant orders</p>
+<!-- Page Header -->
+<div class="page-header card shadow-sm">
+    <div class="card-body">
+        <div class="row align-items-center">
+            <div class="col-auto">
+                <div class="page-icon-box">
+                    <i data-feather="clipboard"></i>
+                </div>
+            </div>
+            <div class="col">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb mb-2">
+                        <li class="breadcrumb-item"><a href="{% url 'users:dashboard' %}" class="text-decoration-none">Dashboard</a></li>
+                        <li class="breadcrumb-item active" aria-current="page">Orders</li>
+                    </ol>
+                </nav>
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h1 class="page-title h3 mb-0">Order Management</h1>
+                        <p class="text-muted mb-0">Track and manage restaurant orders</p>
+                    </div>
+                    <div class="page-actions">
+                        <!-- New Order button moved to floating action button -->
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
-<!-- ... [filters section remains the same] ... -->
+<!-- Filters -->
+<div class="card action-card mt-4 mb-4">
+    <div class="card-header action-card-header">
+        <h5 class="card-title mb-0">Filters</h5>
+    </div>
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <div class="form-group">
+                    <label for="search" class="form-label">Search Orders</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i data-feather="search"></i></span>
+                        <input type="text" name="search" id="search" class="form-control" placeholder="Search by customer or phone" value="{{ search_query }}">
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="form-group">
+                    <label for="status" class="form-label">Status</label>
+                    <select name="status" id="status" class="form-select">
+                        <option value="">All Status</option>
+                        {% for status_value, status_label in status_choices %}
+                            <option value="{{ status_value }}" {% if selected_status == status_value %}selected{% endif %}>
+                                {{ status_label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="form-group">
+                    <label for="delivery_type" class="form-label">Delivery Type</label>
+                    <select name="delivery_type" id="delivery_type" class="form-select">
+                        <option value="">All Types</option>
+                        {% for delivery_value, delivery_label in delivery_choices %}
+                            <option value="{{ delivery_value }}" {% if selected_delivery == delivery_value %}selected{% endif %}>
+                                {{ delivery_label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="form-group">
+                    <label for="sort" class="form-label">Sort By</label>
+                    <select name="sort" id="sort" class="form-select">
+                        <option value="-created_at" {% if sort_by == '-created_at' %}selected{% endif %}>Newest First</option>
+                        <option value="created_at" {% if sort_by == 'created_at' %}selected{% endif %}>Oldest First</option>
+                        <option value="total_price" {% if sort_by == 'total_price' %}selected{% endif %}>Highest Price</option>
+                        <option value="customer" {% if sort_by == 'customer' %}selected{% endif %}>Customer Name</option>
+                    </select>
+                </div>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <div class="form-group d-flex gap-2 w-100">
+                    <button type="submit" class="btn btn-primary flex-grow-1">
+                        <i data-feather="filter" class="me-1"></i> Filter
+                    </button>
+                    <a href="{% url 'orders:order_list' %}" class="btn btn-secondary">
+                        <i data-feather="rotate-ccw"></i>
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
 
 <!-- Order List -->
 {% if orders %}
-    <div class="card">
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Order #</th>
-                            <th>Customer</th>
-                            <th>Status</th>
-                            <th>Payment</th>
-                            <th>Delivery</th>
-                            <th>Items</th>
-                            <th>Total</th>
-                            <th class="text-end">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for order in orders %}
-                        <tr>
-                            <td><strong>#{{ order.id }}</strong></td>
-                            <td>
-                                <div>{{ order.customer_name }}</div>
-                                <small class="text-muted">{{ order.customer_phone }}</small>
-                            </td>
-                            <td>
-                                <span class="badge status-{{ order.status|lower }}">
-                                    {{ order.status }}
-                                </span>
-                            </td>
-                            <td>
-                                {% if order.is_paid %}
-                                    <span class="badge bg-success">PAID</span>
-                                {% else %}
-                                    <span class="badge bg-danger">UNPAID</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if order.delivery_type == "Pickup" %}
-                                    <span class="badge bg-secondary">Pickup</span>
-                                {% else %}
-                                    <span class="badge bg-info">Delivery</span>
-                                {% endif %}
-                            </td>
-                            <td>{{ order.items.count }}</td>
-                            <td class="price-display">${{ order.total_price }}</td>
-                            <td class="text-end">
-                                <div class="btn-group btn-group-sm">
-                                    <a href="{% url "orders:order_detail" order.pk %}" class="btn btn-outline-primary" title="View Order">
-                                        <i class="fas fa-eye"></i>
-                                    </a>
-                                    <a href="{% url "orders:order_update" order.pk %}" class="btn btn-outline-secondary" title="Edit Order">
-                                        <i class="fas fa-edit"></i>
-                                    </a>
-                                    <a href="{% url "orders:order_status_update" order.pk %}" class="btn btn-outline-info" title="Update Status">
-                                        <i class="fas fa-clipboard-check"></i>
-                                    </a>
-                                </div>
-                            </td>
-                        </tr>
+<div class="card action-card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3">Order #</th>
+                        <th>Customer</th>
+                        <th>Status</th>
+                        <th>Payment</th>
+                        <th>Delivery</th>
+                        <th>Price</th>
+                        <th class="text-end pe-3">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in orders %}
+                    <tr>
+                        <td class="ps-3"><strong class="order-number">{{ order.order_number }}</strong></td>
+                        <td>
+                            <div class="customer-name">{{ order.customer_name }}</div>
+                            <div class="customer-phone">{{ order.customer_phone }}</div>
+                        </td>
+                        <td>
+                            <span class="badge status-{{ order.status|lower }} py-2 px-3">
+                                {{ order.status }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if order.is_paid %}
+                                <span class="badge bg-success py-2 px-3">PAID</span>
+                            {% else %}
+                                <span class="badge bg-danger py-2 px-3">UNPAID</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if order.delivery_type == "Pickup" %}
+                                <span class="badge bg-secondary py-2 px-3">Pickup</span>
+                            {% else %}
+                                <span class="badge bg-info py-2 px-3">Delivery</span>
+                            {% endif %}
+                        </td>
+                        <td class="price-display">₵{{ order.total_price }}</td>
+                        <td class="text-end pe-3">
+                            <div class="btn-group">
+                                <a href="{% url 'orders:order_detail' order.pk %}" class="btn btn-sm btn-primary" title="View Details">
+                                    <i data-feather="eye"></i>
+                                </a>
+                                <a href="{% url 'orders:order_update' order.pk %}" class="btn btn-sm btn-secondary" title="Edit Order">
+                                    <i data-feather="edit"></i>
+                                </a>
+                                <a href="{% url 'orders:order_detail' order.pk %}" class="btn btn-sm btn-info" title="View Details / Update Status">
+                                    <i data-feather="check-square"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
                         {% endfor %}
                     </tbody>
                 </table>
@@ -88,7 +172,12 @@
 {% endif %}
 
 <!-- Floating Action Button -->
-<a href="{% url "orders:order_create" %}" class="floating-action-button" title="Create New Order">
-    <i class="fas fa-plus"></i>
+<a href="{% url 'orders:order_create' %}" class="floating-action-button" title="Create New Order">
+    <i data-feather="plus"></i>
 </a>
+{% endblock orders_content %}
+
+{% block extra_css %}
+{{ block.super }}
+{# Styles specific to order list can go here if any remain after theme.css #}
 {% endblock %}

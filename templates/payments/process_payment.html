@@ -100,7 +100,7 @@
                 <a href="{% url 'orders:order_detail' pk=order.id %}" class="btn btn-outline-secondary">
                     <i class="fas fa-arrow-left me-2"></i>Back to Order
                 </a>
-                <button type="submit" class="btn btn-primary">
+                <button type="submit" class="btn btn-primary btn-lg">
                     <i class="fas fa-check me-2"></i>Continue to Payment
                 </button>
             </div>
@@ -130,6 +130,18 @@
         
         // Initialize with cash selected
         document.querySelector('[data-method="cash"]').classList.add('selected');
+
+        // Handle form submission with loading indicator
+        const paymentForm = document.getElementById('payment-form');
+        if (paymentForm) {
+            paymentForm.addEventListener('submit', function(event) {
+                const submitButton = paymentForm.querySelector('button[type="submit"]');
+                if (submitButton) {
+                    submitButton.disabled = true;
+                    submitButton.innerHTML = `<i class="fas fa-spinner fa-spin me-2"></i>Processing...`;
+                }
+            });
+        }
     });
 </script>
 {% endblock %}

@@ -1,131 +1,20 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
+{% load static %}
 
 {% block title %}Order Management - Adakings Restaurant{% endblock %}
 
 {% block extra_css %}
-<style>
-    .status-pending {
-        background-color: #ffc107;
-        color: #212529;
-    }
-    
-    .status-confirmed {
-        background-color: #17a2b8;
-        color: white;
-    }
-    
-    .status-processing {
-        background-color: #007bff;
-        color: white;
-    }
-    
-    .status-ready {
-        background-color: #28a745;
-        color: white;
-    }
-    
-    .status-delivered {
-        background-color: #6c757d;
-        color: white;
-    }
-    
-    .status-cancelled {
-        background-color: #dc3545;
-        color: white;
-    }
-    
-    .price-display {
-        font-weight: bold;
-        color: #28a745;
-    }
-    
-    .form-container {
-        background-color: #fff;
-        border-radius: 5px;
-        padding: 20px;
-        margin-bottom: 20px;
-        box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075);
-    }
-    
-    .order-item {
-        border-left: 4px solid #007bff;
-        padding-left: 10px;
-        margin-bottom: 10px;
-    }
-    
-    .order-item-extra {
-        margin-left: 20px;
-        border-left: 2px dashed #6c757d;
-        padding-left: 10px;
-    }
-
-    .order-list-container {
-        background: #fff;
-        border-radius: 0.5rem;
-        box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075);
-    }
-
-    .table-responsive {
-        margin: 0;
-    }
-
-    .table {
-        margin-bottom: 0;
-    }
-
-    .order-filters {
-        background: #fff;
-        border-radius: 0.5rem;
-        padding: 1rem;
-        margin-bottom: 1rem;
-        box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075);
-    }
-
-    .card {
-        border: none;
-        box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075);
-        margin-bottom: 1.5rem;
-    }
-
-    .card-body {
-        padding: 1.5rem;
-    }
-
-    .table th {
-        font-weight: 600;
-        text-transform: uppercase;
-        font-size: 0.75rem;
-        letter-spacing: 0.05em;
-    }
-
-    .btn-group-sm > .btn {
-        padding: 0.25rem 0.5rem;
-    }
-</style>
+{{ block.super }} {# Optionally inherit from base.html extra_css if needed #}
+{# Styles specific to orders app pages can go here, #}
+{# but most should now be in theme.css #}
 {% endblock %}
 
 {% block content %}
-{% block orders_content %}{% endblock %}
+<div class="container-fluid px-4 py-4">
+    {% block orders_content %}{% endblock %}
+</div>
 {% endblock %}
 
 {% block extra_js %}
-<script>
-    function toggleLocationField(deliveryType) {
-        const locationField = document.getElementById("id_location").closest(".mb-3");
-        if (deliveryType === "Delivery") {
-            locationField.style.display = "block";
-            document.getElementById("id_location").setAttribute("required", "required");
-        } else {
-            locationField.style.display = "none";
-            document.getElementById("id_location").removeAttribute("required");
-        }
-    }
-    
-    document.addEventListener("DOMContentLoaded", function() {
-        const deliverySelect = document.getElementById("id_delivery_type");
-        if (deliverySelect) {
-            toggleLocationField(deliverySelect.value);
-        }
-    });
-</script>
+{{ block.super }}
 {% endblock %}

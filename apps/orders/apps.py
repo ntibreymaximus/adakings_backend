@@ -9,5 +9,5 @@ class OrdersConfig(AppConfig):
         """
         Import any signals here to ensure they're registered when the app is ready.
         """
-        # Import signals if needed
-        # from . import signals
+        # Import signals
+        from . import signals

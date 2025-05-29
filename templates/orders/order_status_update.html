@@ -1,285 +1,198 @@
 {% extends "orders/base.html" %}
+{% load static %}
 
 {% block orders_content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h1>Update Order Status</h1>
-    <a href="{% url 'orders:order_detail' order.pk %}" class="btn btn-outline-secondary">
-        <i class="fas fa-arrow-left me-2"></i>Back to Order
-    </a>
-</div>
-
-<!-- Order Information Card -->
-<div class="card mb-4">
-    <div class="card-header bg-light">
-        <h5 class="card-title mb-0">
-            <i class="fas fa-info-circle me-2"></i>Order #{{ order.id }} Information
-        </h5>
-    </div>
-    <div class="card-body">
-        <div class="row mb-3">
-            <div class="col-md-6">
-                <p class="mb-1"><strong>Customer:</strong> {{ order.customer.name }}</p>
-                <p class="mb-1"><strong>Phone:</strong> {{ order.customer.phone_number }}</p>
-                <p class="mb-1">
-                    <strong>Delivery Type:</strong>
-                    {% if order.customer.delivery_type == 'Pickup' %}
-                        <span class="badge bg-secondary">Pickup</span>
-                    {% else %}
-                        <span class="badge bg-info">Delivery</span>
-                    {% endif %}
-                </p>
-            </div>
-            <div class="col-md-6">
-                <p class="mb-1"><strong>Date:</strong> {{ order.created_at|date:"F j, Y, g:i a" }}</p>
-                <p class="mb-1"><strong>Items:</strong> {{ order.items.count }}</p>
-                <p class="mb-1 price-display"><strong>Total:</strong> ${{ order.total_price }}</p>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Current Status Card -->
-<div class="card mb-4">
-    <div class="card-header bg-light">
-        <h5 class="card-title mb-0">
-            <i class="fas fa-clipboard-check me-2"></i>Current Status
-        </h5>
-    </div>
+<!-- Page Header -->
+<div class="page-header card shadow-sm mb-3">
     <div class="card-body">
         <div class="row align-items-center">
-            <div class="col-md-4">
-                <h2>
-                    <span class="badge status-badge status-{{ order.status|lower }} fs-4 w-100">
-                        {{ order.status }}
-                    </span>
-                </h2>
-            </div>
-            <div class="col-md-8">
-                <div class="progress" style="height: 30px;">
-                    {% with status_value=order.status|lower %}
-                    <div class="progress-bar status-pending" role="progressbar" style="width: 20%" 
-                         aria-valuenow="20" aria-valuemin="0" aria-valuemax="100">
-                        Pending
-                    </div>
-                    <div class="progress-bar status-confirmed {% if status_value == 'pending' %}bg-secondary opacity-25{% endif %}" 
-                         role="progressbar" style="width: 20%" aria-valuenow="20" aria-valuemin="0" aria-valuemax="100">
-                        Confirmed
-                    </div>
-                    <div class="progress-bar status-processing {% if status_value == 'pending' or status_value == 'confirmed' %}bg-secondary opacity-25{% endif %}" 
-                         role="progressbar" style="width: 20%" aria-valuenow="20" aria-valuemin="0" aria-valuemax="100">
-                        Processing
-                    </div>
-                    <div class="progress-bar status-ready {% if status_value == 'pending' or status_value == 'confirmed' or status_value == 'processing' %}bg-secondary opacity-25{% endif %}" 
-                         role="progressbar" style="width: 20%" aria-valuenow="20" aria-valuemin="0" aria-valuemax="100">
-                        Ready
-                    </div>
-                    <div class="progress-bar status-delivered {% if status_value != 'delivered' %}bg-secondary opacity-25{% endif %}" 
-                         role="progressbar" style="width: 20%" aria-valuenow="20" aria-valuemin="0" aria-valuemax="100">
-                        Delivered
-                    </div>
-                    {% endwith %}
+            <div class="col-auto">
+                <div class="page-icon-box">
+                    <span data-feather="edit"></span>
                 </div>
-                <p class="text-muted mt-2">Last updated: {{ order.updated_at|date:"F j, Y, g:i a" }}</p>
             </div>
-        </div>
-    </div>
-</div>
-
-<!-- Status Update Form -->
-<div class="card">
-    <div class="card-header bg-light">
-        <h5 class="card-title mb-0">
-            <i class="fas fa-edit me-2"></i>Update Status
-        </h5>
-    </div>
-    <div class="card-body">
-        <form method="post">
-            {% csrf_token %}
-            
-            <div class="row mb-4">
-                <div class="col-md-6 offset-md-3">
-                    <div class="mb-3">
-                        <label for="{{ form.status.id_for_label }}" class="form-label">New Status</label>
-                        {{ form.status }}
-                        {% if form.status.errors %}
-                            <div class="invalid-feedback d-block">
-                                {% for error in form.status.errors %}
-                                    {{ error }}
-                                {% endfor %}
-                            </div>
-                        {% endif %}
+            <div class="col">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb mb-2">
+                        <li class="breadcrumb-item"><a href="{% url 'users:dashboard' %}" class="text-decoration-none">Dashboard</a></li>
+                        <li class="breadcrumb-item"><a href="{% url 'orders:order_list' %}" class="text-decoration-none">Orders</a></li>
+                        <li class="breadcrumb-item"><a href="{% url 'orders:order_detail' order.pk %}" class="text-decoration-none">Order {{ order.order_number }}</a></li>
+                        <li class="breadcrumb-item active" aria-current="page">Update Status</li>
+                    </ol>
+                </nav>
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h1 class="page-title h3 mb-1">Update Order Status: #{{ order.order_number }}</h1>
+                        <p class="text-muted mb-0">Change the current status of the order.</p>
                     </div>
-                    
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle me-2"></i>
-                        Changing the order status will notify relevant staff and update the order tracking.
-                    </div>
-                    
-                    <!-- Status Quick Selection Buttons -->
-                    <div class="status-buttons d-flex flex-wrap gap-2 mb-4">
-                        {% for status_code, status_name in form.fields.status.choices %}
-                            <button type="button" class="btn btn-outline-secondary status-btn" data-status="{{ status_code }}">
-                                {{ status_name }}
-                            </button>
-                        {% endfor %}
-                    </div>
-                    
-                    <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-primary" id="update-status-btn">
-                            <i class="fas fa-save me-2"></i>Update Status
-                        </button>
-                        <a href="{% url 'orders:order_detail' order.pk %}" class="btn btn-outline-secondary mt-2">
-                            <i class="fas fa-times me-2"></i>Cancel
+                    <div class="page-actions">
+                        <a href="{% url 'orders:order_detail' order.pk %}" class="btn btn-outline-secondary">
+                            <i data-feather="arrow-left" class="me-2"></i>Back to Order Details
                         </a>
                     </div>
                 </div>
             </div>
-        </form>
-    </div>
-</div>
-
-<!-- Status Change History -->
-<div class="card mt-4">
-    <div class="card-header bg-light">
-        <h5 class="card-title mb-0">
-            <i class="fas fa-history me-2"></i>Status Change History
-        </h5>
-    </div>
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-hover">
-                <thead class="table-light">
-                    <tr>
-                        <th>Date</th>
-                        <th>Status</th>
-                        <th>Updated By</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <!-- This would normally be populated from a real status history model -->
-                    <tr>
-                        <td>{{ order.created_at|date:"M d, Y H:i" }}</td>
-                        <td>
-                            <span class="badge status-badge status-pending">Pending</span>
-                        </td>
-                        <td>System</td>
-                    </tr>
-                    {% if order.status != 'Pending' %}
-                    <tr>
-                        <td>{{ order.updated_at|date:"M d, Y H:i" }}</td>
-                        <td>
-                            <span class="badge status-badge status-{{ order.status|lower }}">{{ order.status }}</span>
-                        </td>
-                        <td>{{ request.user.username|default:"Admin" }}</td>
-                    </tr>
-                    {% endif %}
-                </tbody>
-            </table>
         </div>
     </div>
 </div>
 
-<!-- Confirmation Modal -->
-<div class="modal fade" id="confirmStatusModal" tabindex="-1" aria-labelledby="confirmStatusModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="confirmStatusModalLabel">Confirm Status Change</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+<div class="row">
+    <div class="col-lg-8">
+        <!-- Status Update Form Card -->
+        <div class="card action-card mb-4">
+            <div class="card-header action-card-header">
+                <h5 class="card-title mb-0"><i data-feather="edit-3" class="me-2"></i>Change Status</h5>
             </div>
-            <div class="modal-body">
-                <p>Are you sure you want to change the order status from <strong>{{ order.status }}</strong> to <strong id="new-status-text">New Status</strong>?</p>
-                <p>This will update the order tracking and may send notifications.</p>
+            <div class="card-body">
+                <form method="post" id="status-update-form">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label d-block mb-2">New Status</label> {# Added a general label for the group #}
+                        <div class="btn-group w-100" role="group" aria-label="Order status selection">
+                            {% for status_code, status_name in form.fields.status.choices %}
+                                <input type="radio" class="btn-check" name="{{ form.status.html_name }}" id="status_{{ status_code }}" value="{{ status_code }}" autocomplete="off"
+                                    {% if order.status == status_code %}checked disabled{% endif %}>
+                                <label class="btn btn-outline-secondary flex-grow-1" for="status_{{ status_code }}">{{ status_name }}</label>
+                            {% endfor %}
+                        </div>
+                        {% if form.status.errors %}
+                            <div class="invalid-feedback d-block mt-2"> {# Display errors associated with the status field #}
+                                {% for error in form.status.errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="alert alert-info py-1 px-2">
+                        <small><i data-feather="alert-circle" class="me-1" style="width:1em;height:1em;"></i> Changing status updates order tracking and may notify the customer.</small>
+                    </div>
+
+                    <div class="text-end">
+                        <a href="{% url 'orders:order_detail' order.pk %}" class="btn btn-secondary">
+                            <i data-feather="x" class="me-1"></i>Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary" id="submit-status-update-btn">
+                            <i data-feather="check" class="me-1"></i>Update Status
+                        </button>
+                    </div>
+                </form>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" id="confirm-status-change">Confirm Change</button>
+        </div>
+
+        <!-- Status Change History Card -->
+        <div class="card action-card mb-4">
+            <div class="card-header action-card-header">
+                <h5 class="card-title mb-0"><i data-feather="clock" class="me-2"></i>Status Change History</h5>
+            </div>
+            <div class="card-body p-0">
+                {% if order.statushistory_set.all %}
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-3">Previous Status</th>
+                                <th>New Status</th>
+                                <th>Changed By</th>
+                                <th class="text-end pe-3">Timestamp</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for history in order.statushistory_set.all|dictsortreversed:"timestamp" %}
+                            <tr>
+                                <td class="ps-3">{{ history.old_status }}</td>
+                                <td>{{ history.new_status }}</td>
+                                <td>{{ history.changed_by.get_full_name|default:history.changed_by.username|default:"System" }}</td>
+                                <td class="text-end pe-3">{{ history.timestamp|date:"F j, Y, g:i a" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted p-3">No status change history available for this order.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <!-- Order Information Card -->
+        <div class="card action-card mb-4">
+            <div class="card-header action-card-header">
+                <h5 class="card-title mb-0"><i data-feather="info" class="me-2"></i>Order Information</h5>
+            </div>
+            <div class="card-body p-2">
+                <p class="mb-0"><strong>Order Number:</strong> {{ order.order_number }}</p>
+                <p class="mb-0"><strong>Customer:</strong> {{ order.customer_name }} ({{ order.customer_phone }})</p>
+                <p class="mb-0"><strong>Created:</strong> {{ order.created_at|date:"F j, Y, g:i a" }}</p>
+                <p class="mb-0"><strong>Total Price:</strong> <span class="price-display">₵{{ order.total_price }}</span></p>
+                <p class="mb-0"><strong>Payment Status:</strong> 
+                    <span class="badge {% if order.is_paid %}bg-success{% else %}bg-danger{% endif %}">
+                        {% if order.is_paid %}PAID{% else %}UNPAID{% endif %}
+                    </span>
+                </p>
+                <p class="mb-0"><strong>Delivery Type:</strong> {{ order.delivery_type }}</p>
+            </div>
+        </div>
+
+        <!-- Current Status Card -->
+        <div class="card action-card mb-4">
+            <div class="card-header action-card-header">
+                <h5 class="card-title mb-0"><i data-feather="check-circle" class="me-2"></i>Current Status</h5>
+            </div>
+            <div class="card-body p-2">
+                <h4 class="mb-1">
+                    <span class="badge status-{{ order.status|lower }} py-2 px-3 fs-6">{{ order.status }}</span>
+                </h4>
+                <p class="text-muted mt-1 mb-0"><small>Last updated: {{ order.updated_at|date:"F j, Y, g:i a" }}</small></p>
             </div>
         </div>
     </div>
 </div>
+
+{{ form.media }}
 {% endblock %}
 
 {% block extra_js %}
 {{ block.super }}
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Get elements
-        const statusSelect = document.getElementById('{{ form.status.id_for_label }}');
-        const statusButtons = document.querySelectorAll('.status-btn');
-        const confirmBtn = document.getElementById('confirm-status-change');
-        const updateStatusBtn = document.getElementById('update-status-btn');
-        const statusForm = document.querySelector('form');
-        
-        // Status button selection
-        statusButtons.forEach(button => {
-            const statusValue = button.getAttribute('data-status');
-            
-            // Add status-specific class to button
-            button.classList.add('status-' + statusValue.toLowerCase());
-            
-            // Highlight current status
-            if (statusValue === '{{ order.status }}') {
-                button.classList.remove('btn-outline-secondary');
-                button.classList.add('active', 'btn-secondary');
-                button.disabled = true;
-            }
-            
-            // Add click event
-            button.addEventListener('click', function() {
-                // Update select value
-                statusSelect.value = statusValue;
-                
-                // Update all buttons
-                statusButtons.forEach(btn => {
-                    btn.classList.remove('active', 'btn-primary');
-                    btn.classList.add('btn-outline-secondary');
+document.addEventListener('DOMContentLoaded', function() {
+    const statusUpdateForm = document.getElementById('status-update-form');
+    const submitButton = document.getElementById('submit-status-update-btn');
+    const orderCurrentStatus = '{{ order.status }}';
+
+    if (statusUpdateForm && submitButton) {
+        const statusRadioButtons = statusUpdateForm.querySelectorAll('input[type="radio"][name="{{ form.status.html_name }}"]');
+
+        // Initial state for the submit button: disabled, as the current status is pre-selected.
+        submitButton.disabled = true;
+
+        // Add event listeners to radio buttons
+        statusRadioButtons.forEach(radio => {
+            // We only care about changes to enabled radio buttons
+            if (!radio.disabled) {
+                radio.addEventListener('change', function() {
+                    // When an enabled radio button is changed, it means a new status is selected.
+                    // The submit button should be enabled.
+                    submitButton.disabled = false; 
                 });
-                
-                // Highlight selected button
-                this.classList.remove('btn-outline-secondary');
-                this.classList.add('active', 'btn-primary');
-                
-                // Enable submit button if status changed
-                if (statusValue !== '{{ order.status }}') {
-                    updateStatusBtn.disabled = false;
-                } else {
-                    updateStatusBtn.disabled = true;
-                }
-            });
+            }
         });
-        
-        // Handle form submission with confirmation
-        if (statusForm) {
-            statusForm.addEventListener('submit', function(event) {
-                event.preventDefault();
-                
-                // Check if a new status is selected
-                if (statusSelect.value === '{{ order.status }}' || !statusSelect.value) {
-                    alert('Please select a different status.');
-                    return;
-                }
-                
-                // Set modal text
-                const selectedStatusText = statusSelect.options[statusSelect.selectedIndex].text;
-                document.getElementById('new-status-text').textContent = selectedStatusText;
-                
-                // Show confirmation modal
-                const confirmModal = new bootstrap.Modal(document.getElementById('confirmStatusModal'));
-                confirmModal.show();
-                
-                // Confirm button action
-                confirmBtn.onclick = function() {
-                    statusForm.submit();
-                };
-            });
-        }
-        
-        // Initialize: disable update button if status hasn't changed
-        if (updateStatusBtn && statusSelect.value === '{{ order.status }}') {
-            updateStatusBtn.disabled = true;
-        }
-    });
+
+        // Optional: Add a confirmation step if desired
+        // statusUpdateForm.addEventListener('submit', function(event) {
+        //     if (submitButton.disabled) { // Prevent submission if button is disabled
+        //          event.preventDefault();
+        //          return;
+        //     }
+        //     if (!confirm('Are you sure you want to change the order status?')) {
+        //         event.preventDefault();
+        //     }
+        // });
+
+    } else {
+        if (!statusUpdateForm) console.warn("Status update form not found.");
+        if (!submitButton) console.warn("Submit button not found.");
+    }
+});
 </script>
 {% endblock %}
-

@@ -3,13 +3,15 @@ from django.contrib import messages
 from django.http import JsonResponse, HttpResponse, HttpResponseBadRequest
 from django.urls import reverse, reverse_lazy
 from django.views.decorators.csrf import csrf_exempt
-from django.views.generic import FormView, DetailView, TemplateView, View
+from django.views.generic import FormView, DetailView, TemplateView, View, ListView
 from django.views.generic.edit import FormMixin
 from django.conf import settings
 from django.utils.decorators import method_decorator
 from django.db import transaction
 from django.views.decorators.http import require_POST
-from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.db.models import Q
+from datetime import datetime, timedelta
 from .models import Payment, PaymentTransaction
 from apps.orders.models import Order
 from .forms import PaymentForm, PaystackPaymentForm
@@ -395,4 +397,165 @@ class PaystackWebhookView(View):
         ).hexdigest()
         
         return hmac.compare_digest(computed_hmac, signature)
+
+
+class TransactionListView(LoginRequiredMixin, ListView):
+    """
+    View for listing all payment transactions with filtering and pagination
+    """
+    model = Payment
+    template_name = 'payments/transaction_list.html'
+    context_object_name = 'transactions'
+    paginate_by = 15
+    
+    def dispatch(self, request, *args, **kwargs):
+        """Only allow admin and frontdesk staff to access"""
+        if not (request.user.is_admin() or request.user.is_frontdesk()):
+            messages.error(request, "You don't have permission to view transaction history.")
+            return redirect('users:dashboard')
+        return super().dispatch(request, *args, **kwargs)
+    
+    def get_queryset(self):
+        """Filter transactions based on query parameters"""
+        print(f"[TransactionListView] Filtering transactions")
+        queryset = Payment.objects.all().select_related('order').order_by('-created_at')
+        
+        # Filter by payment method
+        payment_method = self.request.GET.get('payment_method')
+        if payment_method:
+            print(f"[TransactionListView] Filtering by payment method: {payment_method}")
+            queryset = queryset.filter(payment_method=payment_method)
+        
+        # Filter by status
+        status = self.request.GET.get('status')
+        if status:
+            print(f"[TransactionListView] Filtering by status: {status}")
+            queryset = queryset.filter(status=status)
+        
+        # Filter by date range
+        start_date = self.request.GET.get('start_date')
+        end_date = self.request.GET.get('end_date')
+        
+        if start_date:
+            try:
+                start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+                print(f"[TransactionListView] Filtering by start date: {start_date}")
+                queryset = queryset.filter(created_at__date__gte=start_date)
+            except ValueError:
+                print(f"[TransactionListView] Invalid start date format: {start_date}")
+                pass
+                
+        if end_date:
+            try:
+                end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+                # Add one day to include the end date in the range
+                end_date = end_date + timedelta(days=1)
+                print(f"[TransactionListView] Filtering by end date: {end_date}")
+                queryset = queryset.filter(created_at__date__lt=end_date)
+            except ValueError:
+                print(f"[TransactionListView] Invalid end date format: {end_date}")
+                pass
+        
+        # Search by customer name or order ID
+        search_query = self.request.GET.get('q')
+        if search_query:
+            print(f"[TransactionListView] Searching for: {search_query}")
+            queryset = queryset.filter(
+                Q(order__customer_name__icontains=search_query) |
+                Q(order__id__icontains=search_query) |
+                Q(reference__icontains=search_query)
+            )
+        
+        print(f"[TransactionListView] Found {queryset.count()} transactions")
+        return queryset
+    
+    def get_context_data(self, **kwargs):
+        """Add filter choices and statistics to context"""
+        context = super().get_context_data(**kwargs)
+        print(f"[TransactionListView] Preparing context data")
+        
+        # Add payment method choices
+        context['payment_method_choices'] = Payment.PAYMENT_METHOD_CHOICES
+        
+        # Add status choices
+        context['status_choices'] = Payment.PAYMENT_STATUS_CHOICES
+        
+        # Add current filters to context
+        context['current_filters'] = {
+            'payment_method': self.request.GET.get('payment_method', ''),
+            'status': self.request.GET.get('status', ''),
+            'start_date': self.request.GET.get('start_date', ''),
+            'end_date': self.request.GET.get('end_date', ''),
+            'q': self.request.GET.get('q', '')
+        }
+        
+        # Calculate total amount for filtered transactions
+        total_amount = sum(transaction.amount for transaction in context['transactions'])
+        context['total_amount'] = total_amount
+        
+        # Calculate transaction counts by status
+        queryset = self.get_queryset()
+        context['transaction_counts'] = {
+            'total': queryset.count(),
+            'completed': queryset.filter(status=Payment.STATUS_COMPLETED).count(),
+            'pending': queryset.filter(status=Payment.STATUS_PENDING).count(),
+            'failed': queryset.filter(status=Payment.STATUS_FAILED).count(),
+            'processing': queryset.filter(status=Payment.STATUS_PROCESSING).count(),
+        }
+        
+        print(f"[TransactionListView] Context prepared: {context['transaction_counts']}")
+        return context
+
+
+class TransactionDetailView(LoginRequiredMixin, DetailView):
+    """
+    View for displaying details of a payment transaction
+    """
+    model = Payment
+    template_name = 'payments/transaction_detail.html'
+    context_object_name = 'transaction'
+    
+    def dispatch(self, request, *args, **kwargs):
+        """Only allow admin and frontdesk staff to access"""
+        if not (request.user.is_admin() or request.user.is_frontdesk()):
+            messages.error(request, "You don't have permission to view transaction details.")
+            return redirect('users:dashboard')
+        return super().dispatch(request, *args, **kwargs)
+    
+    def get_context_data(self, **kwargs):
+        """Add related data to context"""
+        context = super().get_context_data(**kwargs)
+        print(f"[TransactionDetailView] Preparing context for transaction #{self.object.id}")
+        
+        # Get transaction history
+        transaction_history = PaymentTransaction.objects.filter(
+            payment=self.object
+        ).order_by('-created_at')
+        context['transaction_history'] = transaction_history
+        print(f"[TransactionDetailView] Found {transaction_history.count()} transaction history entries")
+        
+        # Get order items if order exists
+        if self.object.order:
+            order_items = self.object.order.items.all().select_related('menu_item')
+            context['order_items'] = order_items
+            print(f"[TransactionDetailView] Found {order_items.count()} order items")
+            
+            # Calculate order total
+            context['order_total'] = self.object.order.total_price
+        
+        # Add payment response data if available (for debugging)
+        if self.object.response_data:
+            # If it's stored as JSON string, parse it
+            if isinstance(self.object.response_data, str):
+                try:
+                    context['response_data'] = json.loads(self.object.response_data)
+                    print(f"[TransactionDetailView] Parsed JSON response data")
+                except json.JSONDecodeError:
+                    context['response_data'] = self.object.response_data
+                    print(f"[TransactionDetailView] Could not parse response data as JSON")
+            else:
+                context['response_data'] = self.object.response_data
+                print(f"[TransactionDetailView] Added response data to context")
+        
+        return context
 

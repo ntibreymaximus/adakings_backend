@@ -3,23 +3,55 @@
 {% block menu_title %}Menu Items{% endblock %}
 
 {% block menu_content %}
+<!-- Page Header -->
+<div class="page-header card shadow-sm mb-4">
+    <div class="card-body">
+        <div class="row align-items-center">
+            <div class="col-auto">
+                <div class="page-icon-box">
+                    <i data-feather="archive"></i> <!-- Icon for Menu Items -->
+                </div>
+            </div>
+            <div class="col">
+                <!-- Breadcrumb is handled by menu/base_menu.html, so not repeated here -->
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h1 class="page-title h3 mb-0">Menu Items</h1>
+                        <p class="text-muted mb-0">Manage restaurant menu items</p>
+                    </div>
+                    <div class="page-actions">
+                        {% if is_admin %}
+                        <a href="{% url "admin:menu_menuitem_add" %}" class="btn btn-primary btn-sm">
+                            <i data-feather="plus" class="me-1"></i> Add Menu Item
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Search and Filters -->
-<div class="card mb-3">
+<div class="card action-card mb-4">
+    <div class="card-header action-card-header">
+        <h5 class="card-title mb-0">Filters</h5>
+    </div>
     <div class="card-body">
         <form method="get" class="row g-3">
             <!-- Search -->
             <div class="col-md-4">
+                <label for="search_input" class="form-label">Search</label>
                 <div class="input-group">
-                    <input type="text" class="form-control" name="search" placeholder="Search menu items..." value="{{ search_query }}">
-                    <button class="btn btn-outline-secondary" type="submit">
-                        <i class="fas fa-search"></i>
-                    </button>
+                    <span class="input-group-text"><i data-feather="search"></i></span>
+                    <input type="text" class="form-control" name="search" id="search_input" placeholder="Search items..." value="{{ search_query }}">
                 </div>
             </div>
 
             <!-- Availability Filter -->
             <div class="col-md-3">
-                <select name="availability" class="form-select" onchange="this.form.submit()">
+                <label for="availability_select" class="form-label">Availability</label>
+                <select name="availability" id="availability_select" class="form-select">
                     <option value="">All Items</option>
                     <option value="available" {% if selected_availability == "available" %}selected{% endif %}>Available Only</option>
                     <option value="unavailable" {% if selected_availability == "unavailable" %}selected{% endif %}>Unavailable Only</option>
@@ -28,48 +60,43 @@
 
             <!-- Sort -->
             <div class="col-md-3">
-                <select name="sort" class="form-select" onchange="this.form.submit()">
+                <label for="sort_select" class="form-label">Sort By</label>
+                <select name="sort" id="sort_select" class="form-select">
                     <option value="name" {% if sort_by == "name" %}selected{% endif %}>Sort by Name</option>
                     <option value="price" {% if sort_by == "price" %}selected{% endif %}>Price (Low to High)</option>
                     <option value="price-desc" {% if sort_by == "price-desc" %}selected{% endif %}>Price (High to Low)</option>
                 </select>
             </div>
 
-            <!-- Clear Filters -->
-            {% if search_query or selected_availability or sort_by != "name" %}
-            <div class="col-md-2">
-                <a href="{% url "menu:item_list" %}" class="btn btn-outline-secondary">
-                    <i class="fas fa-times"></i> Clear
-                </a>
+            <!-- Action Buttons -->
+            <div class="col-md-2 d-flex align-items-end">
+                <div class="d-flex gap-2 w-100">
+                    <button type="submit" class="btn btn-primary flex-grow-1">
+                        <i data-feather="filter" class="me-1"></i> Apply
+                    </button>
+                    <a href="{% url "menu:item_list" %}" class="btn btn-secondary" title="Reset Filters">
+                        <i data-feather="rotate-ccw"></i>
+                    </a>
+                </div>
             </div>
-            {% endif %}
         </form>
     </div>
 </div>
 
 <!-- Menu Items Table -->
-<div class="card">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <div>
-            <h5 class="mb-0">Menu Items</h5>
-            <small class="text-muted">Total: {{ total_items }} item{{ total_items|pluralize }}</small>
-        </div>
-        {% if is_admin %}
-        <a href="{% url "admin:menu_menuitem_add" %}" class="btn btn-primary btn-sm">
-            <i class="fas fa-plus"></i> Add Menu Item
-        </a>
-        {% endif %}
+<div class="card action-card">
+    <div class="card-header action-card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">All Menu Items</h5>
+        <small class="text-muted">Total: {{ total_items }} item{{ total_items|pluralize }}</small>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-hover mb-0">
+            <table class="table table-hover table-striped align-middle mb-0">
                 <thead class="table-light">
                     <tr>
                         <th>Name</th>
-                        <th>Description</th>
                         <th>Price</th>
-                        <th>Available Extras</th>
-                        <th>Status</th>
+                        <th class="text-center">Status</th>
                         {% if is_admin %}
                         <th class="text-end">Actions</th>
                         {% endif %}
@@ -78,21 +105,9 @@
                 <tbody>
                     {% for item in items %}
                     <tr>
-                        <td><strong>{{ item.name }}</strong></td>
-                        <td>
-                            <small class="text-muted">{{ item.description|default:"No description" }}</small>
-                        </td>
-                        <td>{{ item.get_formatted_price }}</td>
-                        <td>
-                            {% if item.available_extras.exists %}
-                                {% for extra in item.available_extras.all %}
-                                    <span class="badge bg-info">{{ extra.name }}</span>
-                                {% endfor %}
-                            {% else %}
-                                <small class="text-muted">No extras available</small>
-                            {% endif %}
-                        </td>
-                        <td>
+                        <td class="{% if not item.is_available %}text-muted{% endif %}"><strong>{{ item.name }}</strong></td>
+                        <td class="price-display {% if not item.is_available %}text-muted{% endif %}">{{ item.get_formatted_price }}</td>
+                        <td class="text-center">
                             {% if item.is_available %}
                                 <span class="badge bg-success">Available</span>
                             {% else %}
@@ -101,12 +116,12 @@
                         </td>
                         {% if is_admin %}
                         <td class="text-end">
-                            <div class="btn-group btn-group-sm">
-                                <a href="{% url "admin:menu_menuitem_change" item.id %}" class="btn btn-outline-primary" title="Edit">
-                                    <i class="fas fa-edit"></i>
+                            <div class="btn-group">
+                                <a href="{% url "admin:menu_menuitem_change" item.id %}" class="btn btn-sm btn-primary" title="Edit">
+                                    <i data-feather="edit"></i>
                                 </a>
-                                <a href="{% url "admin:menu_menuitem_delete" item.id %}" class="btn btn-outline-danger" title="Delete">
-                                    <i class="fas fa-trash"></i>
+                                <a href="{% url "admin:menu_menuitem_delete" item.id %}" class="btn btn-sm btn-danger" title="Delete">
+                                    <i data-feather="trash-2"></i>
                                 </a>
                             </div>
                         </td>
@@ -114,9 +129,10 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="{% if is_admin %}6{% else %}5{% endif %}" class="text-center py-4">
+                        <td colspan="{% if is_admin %}4{% else %}3{% endif %}" class="text-center py-4">
                             <div class="text-muted">
-                                <i class="fas fa-info-circle me-2"></i>No menu items found
+                                <i data-feather="file-text" class="mb-3" style="width: 48px; height: 48px;"></i>
+                                <p>No menu items found.</p>
                             </div>
                         </td>
                     </tr>
@@ -127,9 +143,12 @@
     </div>
 
     {% if is_paginated %}
-    <div class="card-footer">
+    <div class="card-footer d-flex justify-content-between align-items-center">
+        <small class="text-muted">
+            Showing {{ page_obj.start_index }}-{{ page_obj.end_index }} of {{ paginator.count }} items
+        </small>
         <nav aria-label="Page navigation">
-            <ul class="pagination justify-content-center mb-0">
+            <ul class="pagination justify-content-end mb-0">
                 {% if page_obj.has_previous %}
                 <li class="page-item">
                     <a class="page-link" href="?page=1{% for key,value in request.GET.items %}{% if key != "page" %}&{{ key }}={{ value }}{% endif %}{% endfor %}">&laquo; First</a>
@@ -138,11 +157,8 @@
                     <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key,value in request.GET.items %}{% if key != "page" %}&{{ key }}={{ value }}{% endif %}{% endfor %}">Previous</a>
                 </li>
                 {% endif %}
-                <li class="page-item active">
-                    <span class="page-link">
-                        Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
-                        <span class="badge bg-light text-dark ms-1">{{ page_obj.start_index }}-{{ page_obj.end_index }} of {{ paginator.count }}</span>
-                    </span>
+                <li class="page-item active" aria-current="page">
+                    <span class="page-link">{{ page_obj.number }}</span>
                 </li>
                 {% if page_obj.has_next %}
                 <li class="page-item">

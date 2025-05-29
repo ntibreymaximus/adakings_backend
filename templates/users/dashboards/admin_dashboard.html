@@ -2,97 +2,77 @@
 {% block title %}Admin Dashboard | Restaurant Management System{% endblock %}
 
 {% block extra_css %}
-<style>
-  .stats-card {
-    border-radius: 10px;
-    box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
-    transition: transform 0.3s;
-  }
-  .stats-card:hover {
-    transform: translateY(-5px);
-  }
-  .stats-icon {
-    font-size: 2.5rem;
-    color: #fff;
-    background-color: rgba(0, 0, 0, 0.2);
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .stats-content {
-    padding-left: 15px;
-  }
-  .stats-number {
-    font-size: 1.8rem;
-    font-weight: bold;
-  }
-  .admin-card { background-color: #6f42c1; color: white; }
-  .frontdesk-card { background-color: #20c997; color: white; }
-  .kitchen-card { background-color: #fd7e14; color: white; }
-  .delivery-card { background-color: #0d6efd; color: white; }
-  .action-card {
-    border-radius: 10px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-    height: 100%;
-  }
-  .action-card-header {
-    background-color: #f8f9fa;
-    padding: 15px;
-    border-bottom: 1px solid #dee2e6;
-    font-weight: bold;
-  }
-</style>
+{# Styles removed, now using static/css/theme.css and Bootstrap #}
 {% endblock %}
 
 {% block content %}
-<div class="row mb-4">
-  <div class="col">
-    <h1 class="h2"><i class="fas fa-tachometer-alt"></i> Admin Dashboard</h1>
-    <p class="text-muted">Monitor system activities and staff performance</p>
+<div class="container-fluid px-4 py-4">
+
+<!-- Page Header -->
+<div class="page-header card shadow-sm mb-4">
+  <div class="card-body">
+    <div class="row align-items-center">
+      <div class="col-auto">
+        <div class="page-icon-box">
+          <i data-feather="activity"></i>
+        </div>
+      </div>
+      <div class="col">
+        <nav aria-label="breadcrumb">
+          <ol class="breadcrumb mb-2">
+            <li class="breadcrumb-item"><a href="{% url 'users:dashboard' %}" class="text-decoration-none">Dashboard</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Admin</li>
+          </ol>
+        </nav>
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <h1 class="page-title h3 mb-0">Admin Dashboard</h1>
+            <p class="text-muted mb-0">Monitor system activities and staff performance</p>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
 <!-- Stats Cards -->
 <div class="row mb-4">
   <div class="col-xl-3 col-md-6 mb-4">
-    <div class="card stats-card admin-card">
+    <div class="card stats-card bg-primary text-white shadow-sm">
       <div class="card-body d-flex align-items-center">
         <div class="stats-icon">
-          <i class="fas fa-user-shield"></i>
+          <i data-feather="shield"></i>
         </div>
-        <div class="stats-content">
-          <div class="stats-number">{{ admin_count|default:"0" }}</div>
-          <div>Administrators</div>
+        <div class="ms-3">
+          <h3 class="mb-0">{{ admin_count|default:"0" }}</h3>
+          <div class="text-white-50">Administrators</div>
         </div>
       </div>
     </div>
   </div>
 
   <div class="col-xl-3 col-md-6 mb-4">
-    <div class="card stats-card frontdesk-card">
+    <div class="card stats-card bg-success text-white shadow-sm">
       <div class="card-body d-flex align-items-center">
         <div class="stats-icon">
-          <i class="fas fa-concierge-bell"></i>
+          <i data-feather="bell"></i>
         </div>
-        <div class="stats-content">
-          <div class="stats-number">{{ frontdesk_count|default:"0" }}</div>
-          <div>Frontdesk Staff</div>
+        <div class="ms-3">
+          <h3 class="mb-0">{{ frontdesk_count|default:"0" }}</h3>
+          <div class="text-white-50">Frontdesk Staff</div>
         </div>
       </div>
     </div>
   </div>
 
   <div class="col-xl-3 col-md-6 mb-4">
-    <div class="card stats-card kitchen-card">
+    <div class="card stats-card bg-warning shadow-sm"> {# text-dark is default for bg-warning in Bootstrap #}
       <div class="card-body d-flex align-items-center">
-        <div class="stats-icon">
-          <i class="fas fa-utensils"></i>
+        <div class="stats-icon"> {# theme.css handles icon color for bg-warning #}
+          <i data-feather="coffee"></i>
         </div>
-        <div class="stats-content">
-          <div class="stats-number">{{ kitchen_count|default:"0" }}</div>
+        <div class="ms-3">
+          <h3 class="mb-0">{{ kitchen_count|default:"0" }}</h3>
           <div>Kitchen Staff</div>
         </div>
       </div>
@@ -100,14 +80,14 @@
   </div>
 
   <div class="col-xl-3 col-md-6 mb-4">
-    <div class="card stats-card delivery-card">
+    <div class="card stats-card bg-info text-white shadow-sm">
       <div class="card-body d-flex align-items-center">
         <div class="stats-icon">
-          <i class="fas fa-truck"></i>
+          <i data-feather="truck"></i>
         </div>
-        <div class="stats-content">
-          <div class="stats-number">{{ delivery_count|default:"0" }}</div>
-          <div>Delivery Staff</div>
+        <div class="ms-3">
+          <h3 class="mb-0">{{ delivery_count|default:"0" }}</h3>
+          <div class="text-white-50">Delivery Staff</div>
         </div>
       </div>
     </div>
@@ -119,7 +99,7 @@
   <div class="col-12 mb-4">
     <div class="card action-card">
       <div class="action-card-header">
-        <i class="fas fa-user-clock"></i> Recently Added Staff
+        <i data-feather="clock"></i> Recently Added Staff
       </div>
       <div class="card-body">
         <div class="table-responsive">
@@ -138,7 +118,7 @@
               <tr>
                 <td>{{ user.get_full_name|default:user.username }}</td>
                 <td>
-                  <span class="badge {% if user.role == "admin" %}bg-purple{% elif user.role == "frontdesk" %}bg-success{% elif user.role == "kitchen" %}bg-warning{% elif user.role == "delivery" %}bg-primary{% else %}bg-secondary{% endif %}">
+                  <span class="badge {% if user.role == "admin" %}bg-primary{% elif user.role == "frontdesk" %}bg-success{% elif user.role == "kitchen" %}bg-warning text-dark{% elif user.role == "delivery" %}bg-info{% else %}bg-secondary{% endif %}">
                     {{ user.get_role_display }}
                   </span>
                 </td>
@@ -146,7 +126,7 @@
                 <td>{{ user.date_joined|date:"M d, Y" }}</td>
                 <td>
                   <a href="{% url "users:staff_detail" user.id %}" class="btn btn-sm btn-info">
-                    <i class="fas fa-edit"></i>
+                    <i data-feather="edit-2"></i>
                   </a>
                 </td>
               </tr>
@@ -171,7 +151,7 @@
   <div class="col-12 mb-4">
     <div class="card action-card">
       <div class="action-card-header">
-        <i class="fas fa-chart-pie"></i> Staff Distribution
+        <i data-feather="pie-chart"></i> Staff Distribution
       </div>
       <div class="card-body">
         <div class="row">
@@ -183,7 +163,7 @@
           <div class="col-md-6">
             <h5 class="mb-3">Role Distribution</h5>
             <div class="progress mb-3" style="height: 25px">
-              <div class="progress-bar bg-purple" role="progressbar" style="width: {{ admin_percentage }}%" aria-valuenow="{{ admin_count|default:0 }}" aria-valuemin="0" aria-valuemax="{{ total_staff }}">
+              <div class="progress-bar bg-primary" role="progressbar" style="width: {{ admin_percentage }}%" aria-valuenow="{{ admin_count|default:0 }}" aria-valuemin="0" aria-valuemax="{{ total_staff }}">
                 Admins ({{ admin_percentage }}%)
               </div>
             </div>
@@ -198,7 +178,7 @@
               </div>
             </div>
             <div class="progress mb-3" style="height: 25px">
-              <div class="progress-bar bg-primary" role="progressbar" style="width: {{ delivery_percentage }}%" aria-valuenow="{{ delivery_count|default:0 }}" aria-valuemin="0" aria-valuemax="{{ total_staff }}">
+              <div class="progress-bar bg-info" role="progressbar" style="width: {{ delivery_percentage }}%" aria-valuenow="{{ delivery_count|default:0 }}" aria-valuemin="0" aria-valuemax="{{ total_staff }}">
                 Delivery ({{ delivery_percentage }}%)
               </div>
             </div>

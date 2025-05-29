@@ -141,3 +141,19 @@
 </div>
 {% endblock %}
 
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const cashPaymentForm = document.querySelector('form[method="post"]'); // Assumes this is the correct form
+    if (cashPaymentForm) {
+        cashPaymentForm.addEventListener('submit', function(event) {
+            const submitButton = cashPaymentForm.querySelector('button[type="submit"]');
+            if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.innerHTML = `<i class="fas fa-spinner fa-spin me-2"></i>Processing...`;
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

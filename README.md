@@ -113,12 +113,19 @@ RestaurantApp/
 
 ## Development State
 
-- **Current Version**: v0.4.0
+- **Current Version**: v0.4.1
 - **Current Branch**: feature/v0.4.0-payments-implementation
-- **Development Stage**: Payment system implementation and orders restructuring
+- **Development Stage**: Comprehensive refactoring, UI theme unification, and feature enhancements.
 
 ### Version History
 
+- **v0.4.1**: Comprehensive application updates and refactoring
+  - Refactored Admin Dashboard UI to align with the new unified theme (using `theme.css` and Bootstrap).
+  - Updated models, forms, views, and admin configurations across `menu`, `orders`, `payments`, and `users` applications.
+  - Managed and updated database migrations to reflect schema changes.
+  - Introduced new application features/modules including Django signals and custom template tags.
+  - Enhanced static file management and overall theme consistency.
+  - General improvements to application templates, settings, and overall code structure.
 - **v0.4.0**: Payment system implementation and order management updates
   - Implemented Paystack payment integration for mobile money transactions
   - Restructured Order model to incorporate customer information directly
@@ -203,12 +210,3 @@ For testing, use Paystack's test cards and credentials from their [documentation
 
 [Your contact information]
 
- 
-## Branch: feature/v0.4.0-payments-implementation
-## Version: v0.4.0
-### Changes in this update: 
-- Implemented payment system with Paystack integration
-- Restructured order management system
-- Fixed email generation for mobile payments
-Timestamp: Fri 05/23/2025 14:14:33.85
- 

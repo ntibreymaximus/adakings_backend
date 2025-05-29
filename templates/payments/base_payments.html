@@ -21,8 +21,14 @@
     }
     
     .payment-method-card.selected {
-        border-color: #28a745;
+        border: 3px solid #28a745;
         background-color: #f8fff8;
+        box-shadow: 0 0 10px rgba(40, 167, 69, 0.5);
+    }
+
+    .payment-method-card.selected .form-check-label {
+        font-weight: bold;
+        color: #28a745; /* Corresponds to the theme's success color often used with this border */
     }
     
     .payment-status-pending {

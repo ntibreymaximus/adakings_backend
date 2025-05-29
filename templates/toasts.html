@@ -3,7 +3,7 @@
     {% for message in messages %}
       <div class="toast" role="alert" aria-live="assertive" aria-atomic="true">
         <div class="toast-header {% if message.tags == 'success' %}bg-success{% elif message.tags == 'error' or message.tags == 'danger' %}bg-danger{% elif message.tags == 'warning' %}bg-warning{% else %}bg-info{% endif %} text-white">
-          <i class="fas {% if message.tags == 'success' %}fa-check-circle{% elif message.tags == 'error' or message.tags == 'danger' %}fa-exclamation-circle{% elif message.tags == 'warning' %}fa-exclamation-triangle{% else %}fa-info-circle{% endif %} me-2"></i>
+          <i class="me-2" data-feather="{% if message.tags == 'success' %}check-circle{% elif message.tags == 'error' or message.tags == 'danger' %}x-circle{% elif message.tags == 'warning' %}alert-triangle{% else %}info{% endif %}"></i>
           <strong class="me-auto">{{ message.tags|default:"Info"|title }}</strong>
           <small class="text-white-50">just now</small>
           <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
@@ -64,6 +64,7 @@ document.addEventListener("DOMContentLoaded", function() {
       delay: 5000
     });
     toast.show();
+    feather.replace(); // Add this line
   });
 });
 </script>

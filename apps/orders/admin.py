@@ -1,31 +1,23 @@
 ﻿from django.contrib import admin
+from django.contrib import messages
 from django.utils.html import format_html
 from django.urls import reverse
 from django.utils.http import urlencode
-from .models import Order, OrderItem, OrderItemExtra
-
-class OrderItemExtraInline(admin.TabularInline):
-    model = OrderItemExtra
-    extra = 0
-    fields = ('extra', 'quantity', 'unit_price', 'subtotal')
-    readonly_fields = ('subtotal',)
-    
-    def has_delete_permission(self, request, obj=None):
-        return True
+from django.http import HttpResponseRedirect
+from .models import Order, OrderItem
 
 class OrderItemInline(admin.TabularInline):
     model = OrderItem
     extra = 0
     fields = ('menu_item', 'quantity', 'unit_price', 'subtotal', 'notes')
-    readonly_fields = ('subtotal',)
-    inlines = [OrderItemExtraInline]
+    readonly_fields = ('subtotal', 'unit_price')
     
     def has_delete_permission(self, request, obj=None):
         return True
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
-    list_display = ('id', 'customer_name', 'customer_phone', 'delivery_info', 
+    list_display = ('order_number', 'customer_name', 'customer_phone', 'delivery_info', 
                    'formatted_total_price', 'status', 'created_at')
     list_filter = ('status', 'created_at', 'delivery_type')
     search_fields = ('customer_name', 'customer_phone', 'delivery_location')
@@ -48,7 +40,42 @@ class OrderAdmin(admin.ModelAdmin):
     )
     
     actions = ['mark_as_confirmed', 'mark_as_processing', 'mark_as_ready', 'mark_as_delivered', 'mark_as_cancelled']
-    
+
+    def save_formset(self, request, form, formset, change):
+        # First, let the default behavior save the inline formset (OrderItems)
+        super().save_formset(request, form, formset, change)
+        
+        # 'form.instance' is the parent Order object.
+        order_instance = form.instance
+        
+        if order_instance and order_instance.pk:
+            messages.info(request, f"DEBUG: Order {order_instance.order_number} (ID: {order_instance.pk}) - Initial total_price before calculate_total: {order_instance.total_price} (type: {type(order_instance.total_price)})")
+            
+            new_total_price = order_instance.calculate_total()
+            messages.info(request, f"DEBUG: Order {order_instance.order_number} - Calculated new_total_price: {new_total_price} (type: {type(new_total_price)})")
+            
+            # Get the current total_price from the instance. This might have been affected by super().save_formset or signals.
+            current_total_price_in_instance = order_instance.total_price 
+            
+            if current_total_price_in_instance != new_total_price or new_total_price is not None: # Try to save if different, or if new_total_price is a valid number (even if 0)
+                messages.info(request, f"DEBUG: Order {order_instance.order_number} - Prices differ or new price is valid. Old instance value: {current_total_price_in_instance}, New calculated: {new_total_price}. Attempting update.")
+                order_instance.total_price = new_total_price
+                try:
+                    order_instance.save(update_fields=['total_price'])
+                    messages.info(request, f"DEBUG: Order {order_instance.order_number} - total_price in instance after save: {order_instance.total_price} (type: {type(order_instance.total_price)})")
+                    
+                    # Re-fetch from DB to confirm persisted value
+                    refreshed_order = type(order_instance).objects.get(pk=order_instance.pk)
+                    messages.info(request, f"DEBUG: Order {order_instance.order_number} - total_price from DB after refresh: {refreshed_order.total_price} (type: {type(refreshed_order.total_price)})")
+                except Exception as e:
+                    messages.error(request, f"DEBUG: Order {order_instance.order_number} - Error during save: {e}")
+            else:
+                messages.info(request, f"DEBUG: Order {order_instance.order_number} - Prices are the same ({new_total_price}) or new_total_price is None and current is also effectively None/0. No update to total_price triggered by this logic.")
+        elif not order_instance:
+            messages.warning(request, "DEBUG: save_formset - order_instance (form.instance) is None.")
+        elif not order_instance.pk:
+            messages.warning(request, f"DEBUG: save_formset - order_instance {order_instance} has no PK yet.")
+
     def customer_name(self, obj):
         return obj.customer_name
     customer_name.short_description = 'Customer'
@@ -59,12 +86,21 @@ class OrderAdmin(admin.ModelAdmin):
     
     def delivery_info(self, obj):
         if obj.delivery_type == 'Pickup':
-            return format_html('<span style="background-color: #f9f9f9; padding: 2px 6px; border-radius: 3px;">Pickup</span>')
-        return format_html('<span style="background-color: #e8f4f8; padding: 2px 6px; border-radius: 3px;">Delivery to: {}</span>', obj.delivery_location)
+            return format_html('<span style="background-color: #e8e8e8; color: #000; padding: 2px 6px; border-radius: 3px;">Pickup</span>')
+        elif obj.delivery_type == 'Delivery':
+            location = obj.delivery_location if obj.delivery_location else "N/A"
+            return format_html('<span style="background-color: #e8f4f8; color: #000; padding: 2px 6px; border-radius: 3px;">Delivery to: {}</span>', location)
+        else:
+            # Fallback for other delivery types or if delivery_type is None
+            return obj.delivery_type if obj.delivery_type else "N/A"
     delivery_info.short_description = 'Delivery Info'
     
     def formatted_total_price(self, obj):
-        return format_html('${:.2f}', float(obj.total_price))
+        try:
+            price = float(obj.total_price)
+            return format_html('₵{:.2f}', price)
+        except (TypeError, ValueError):
+            return format_html('₵0.00')
     formatted_total_price.short_description = 'Total Price'
     
     def mark_as_confirmed(self, request, queryset):
@@ -86,6 +122,44 @@ class OrderAdmin(admin.ModelAdmin):
     def mark_as_cancelled(self, request, queryset):
         queryset.update(status='Cancelled')
     mark_as_cancelled.short_description = "Mark selected orders as cancelled"
+    
+    def has_related_payments(self, obj):
+        """Check if the order has any related payments."""
+        if obj:
+            return obj.payments.filter(status='completed').exists()
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        """Prevent deletion of orders with related payments."""
+        if obj and self.has_related_payments(obj):
+            return False
+        return super().has_delete_permission(request, obj)
+
+    def delete_view(self, request, object_id, extra_context=None):
+        """Show warning message if deletion is attempted on orders with payments."""
+        obj = self.get_object(request, object_id)
+        if obj and self.has_related_payments(obj):
+            self.message_user(
+                request, 
+                f"Order {obj.order_number} cannot be deleted because it has associated payments.",
+                level=messages.ERROR
+            )
+            return HttpResponseRedirect(
+                reverse('admin:%s_%s_change' % (obj._meta.app_label, obj._meta.model_name), 
+                        args=[object_id])
+            )
+        return super().delete_view(request, object_id, extra_context)
+
+    def get_deleted_objects(self, objs, request):
+        """Customize the deletion information to inform about related payments."""
+        deleted_objects, model_count, perms_needed, protected = super().get_deleted_objects(objs, request)
+        
+        # Check if any of the objects have payments and add an informative message
+        for obj in objs:
+            if self.has_related_payments(obj):
+                perms_needed.add(f"Order {obj.order_number} has completed payments and cannot be deleted")
+        
+        return deleted_objects, model_count, perms_needed, protected
 
 @admin.register(OrderItem)
 class OrderItemAdmin(admin.ModelAdmin):
@@ -93,14 +167,11 @@ class OrderItemAdmin(admin.ModelAdmin):
     list_filter = ('order__status',)
     search_fields = ('order__customer_name', 'menu_item__name')
     readonly_fields = ('subtotal',)
-    inlines = [OrderItemExtraInline]
     
     def order_id(self, obj):
-        return f"#{obj.order.id}"
+        return obj.order.order_number
     order_id.short_description = 'Order'
     
     def menu_item_name(self, obj):
         return obj.menu_item.name
     menu_item_name.short_description = 'Menu Item'
-
-admin.site.register(OrderItemExtra)

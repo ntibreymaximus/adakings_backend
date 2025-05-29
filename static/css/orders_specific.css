@@ -1,0 +1,274 @@
+/* Refined badge styles */
+.badge {
+    font-weight: 500;            /* Slightly reduced weight */
+    font-size: 0.8125rem;        /* Slightly smaller */
+    padding: 0.5rem 0.75rem;     /* More compact padding */
+    border-radius: 4px;          /* Smaller radius */
+    letter-spacing: 0.2px;
+    transition: all 0.2s ease;
+}
+
+/* Status badges with softer colors */
+.status-pending { 
+    background-color: #fff8e1; 
+    color: #8a6d3b;
+    border: 1px solid #ffeeba;
+}
+.status-confirmed { 
+    background-color: #e3f2fd; 
+    color: #0c5460;
+    border: 1px solid #bee5eb;
+}
+.status-processing { 
+    background-color: #e8f5e9; 
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+.status-ready { 
+    background-color: #f3e5f5; 
+    color: #6f42c1;
+    border: 1px solid #e1bee7;
+}
+.status-delivered { 
+    background-color: #e8eaf6; 
+    color: #3f51b5;
+    border: 1px solid #c5cae9;
+}
+.status-cancelled { 
+    background-color: #f8d7da; 
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+/* Payment and delivery badges */
+.badge.bg-success {
+    background-color: #e8f5e9 !important;
+    color: #1e7e34;
+    border: 1px solid #c3e6cb;
+}
+
+.badge.bg-danger {
+    background-color: #ffeef0 !important;
+    color: #dc3545;
+    border: 1px solid #f5c6cb;
+}
+
+.badge.bg-info {
+    background-color: #e3f2fd !important;
+    color: #0c63e4;
+    border: 1px solid #b8daff;
+}
+
+.badge.bg-secondary {
+    background-color: #f8f9fa !important;
+    color: #6c757d;
+    border: 1px solid #dee2e6;
+}
+
+.badge.bg-warning {
+    background-color: #fff3cd !important;
+    color: #856404;
+    border: 1px solid #ffeeba;
+}
+
+/* Badge hover effect */
+.badge:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+/* Enhanced table styles */
+.table {
+    margin-bottom: 0;
+}
+
+.table > :not(caption) > * > * {
+    padding: 1rem 1rem;  /* Consistent padding */
+}
+
+.table thead th {
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.7px;
+    color: #495057;
+    padding: 1rem 1rem;  /* Adjusted header padding */
+    background: linear-gradient(to bottom, #f8f9fa, #f3f4f5);  /* Subtle gradient */
+    border-bottom: 2px solid #e9ecef;
+}
+
+.table td {
+    padding: 1rem;  /* Consistent padding */
+    vertical-align: middle;
+}
+
+.table td:first-child {
+    padding-left: 1.5rem;  /* More padding for first column */
+}
+
+.table td:last-child {
+    padding-right: 1.5rem;  /* More padding for last column */
+}
+
+.table tbody tr {
+    transition: all 0.2s ease;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+}
+
+/* Table row hover refinements */
+.table tbody tr:hover {
+    background-color: rgba(0, 0, 0, 0.02);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+/* Refined Action Button Styles */
+.btn-group {
+    display: inline-flex;
+    gap: 2px;  /* Slightly more spacing between buttons */
+}
+
+.btn-group .btn {
+    padding: 0.45rem 0.65rem;
+    font-size: 0.95rem;       /* Slightly larger icons */
+    font-weight: 500;         /* Semi-bold */
+    line-height: 1;
+    border-width: 1px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px;          /* Back to 36px for better tap targets */
+    height: 36px;
+    border-radius: 4px;       /* Explicit border-radius */
+    transition: all 0.2s ease;
+}
+
+/* Icon sizing */
+.btn i {
+    font-size: 0.95rem;
+}
+
+/* Improve button colors */
+.btn-outline-primary {
+    color: #0d6efd;
+    border-color: #e9ecef;    /* Slightly darker border */
+}
+
+.btn-outline-secondary {
+    color: #6c757d;
+    border-color: #e9ecef;
+}
+
+.btn-outline-info {
+    color: #17a2b8;
+    border-color: #e9ecef;
+}
+
+/* Enhanced hover states */
+.btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Card enhancements */
+.card {
+    border: none;
+    border-radius: 0.5rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    transition: box-shadow 0.2s ease;
+    margin-bottom: 1.5rem;
+}
+
+.card:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.08);
+}
+
+.card.shadow-sm {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08) !important;
+}
+
+.card-body {
+    padding: 1.5rem;  /* Consistent larger padding */
+}
+
+.card-body.p-0 {
+    padding: 0 !important;  /* Keep table card body at 0 padding */
+}
+
+.card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid rgba(0,0,0,0.075);
+    padding: 1rem 1.5rem;
+}
+
+/* Price display refinements */
+.price-display {
+    font-size: 0.9375rem;
+    color: #198754;
+    font-weight: 600;
+}
+
+/* Customer info refinements */
+.customer-name {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #2c3338;
+    margin-bottom: 0.25rem;
+}
+
+.customer-phone {
+    color: #6c757d;
+    font-size: 0.9375rem;
+}
+
+/* Refined page header styling */
+.page-header {
+    border: none;
+    background: white;
+    margin: 0;  /* Remove all margins */
+    border-radius: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.page-header .card-body {
+    padding: 1.75rem;  /* Slightly increase padding */
+}
+
+.page-icon-box {
+    width: 56px;  /* Slightly larger */
+    height: 56px;
+    background: rgba(13, 110, 253, 0.1);  /* Brand color with opacity */
+    border-radius: 16px;  /* More rounded */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.75rem;  /* Larger icon */
+    color: #0d6efd;
+    margin-right: 1.25rem;
+    transition: all 0.2s ease;
+}
+
+.page-header:hover .page-icon-box {
+    transform: scale(1.05);
+    background: rgba(13, 110, 253, 0.15);
+}
+
+.page-title {
+    color: #1a1a1a;  /* Darker color */
+    font-weight: 700;
+    font-size: 1.875rem;  /* Slightly larger */
+    letter-spacing: -0.5px;
+    margin-bottom: 0.25rem;
+    line-height: 1.2;
+}
+
+/* Order items styles */
+.order-item-extra {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+.order-item-extra td {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+}
+

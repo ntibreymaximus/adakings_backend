@@ -2,675 +2,1204 @@
 
 {% block extra_css %}
 {{ block.super }}
-<style>
-    .extra-item {
-        margin-left: 30px;
-        padding-left: 10px;
-        border-left: 2px dashed #ccc;
-    }
-    .item-row {
-        border-bottom: 1px solid #eee;
-        padding-bottom: 15px;
-        margin-bottom: 15px;
-    }
-    .section-card {
-        margin-bottom: 25px;
-        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
-    }
-    .form-label {
-        font-weight: 500;
-    }
-    .required-field::after {
-        content: "*";
-        color: red;
-        margin-left: 3px;
-    }
-</style>
+{# Styles specific to order update page can go here if any remain after theme.css #}
 {% endblock %}
 
 {% block orders_content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h1>{{ title }}</h1>
-    <a href="{% url 'orders:order_detail' order.pk %}" class="btn btn-outline-secondary">
-        <i class="fas fa-arrow-left me-2"></i>Back to Order Details
-    </a>
+<!-- Page Header -->
+<div class="page-header card shadow-sm mb-4">
+  <div class="card-body">
+    <div class="row align-items-center">
+      <div class="col-auto">
+        <div class="page-icon-box">
+          <span data-feather="{% if order.pk %}edit{% else %}file-plus{% endif %}"></span>
+        </div>
+      </div>
+      <div class="col">
+        <nav aria-label="breadcrumb">
+          <ol class="breadcrumb mb-2">
+            <li class="breadcrumb-item"><a href="{% url 'users:dashboard' %}" class="text-decoration-none">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'orders:order_list' %}" class="text-decoration-none">Orders</a></li>
+            {% if order.pk %}
+            <li class="breadcrumb-item"><a href="{% url 'orders:order_detail' order.pk %}" class="text-decoration-none">Order {{ order.order_number }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Edit Order</li>
+            {% else %}
+            <li class="breadcrumb-item active" aria-current="page">Create New Order</li>
+            {% endif %}
+          </ol>
+        </nav>
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <h1 class="page-title h3 mb-0">{{ title }}</h1>
+            <p class="text-muted mb-0">
+              {% if order.pk %}Update the details of order {{ order.order_number }}{% else %}Enter details for the new order{% endif %}
+            </p>
+          </div>
+          <div class="page-actions">
+            {% if order.pk %}
+            <a href="{% url 'orders:order_detail' order.pk %}" class="btn btn-outline-secondary">
+              <i data-feather="arrow-left" class="me-2"></i>Back to Order Details
+            </a>
+            {% else %}
+            <a href="{% url 'orders:order_list' %}" class="btn btn-outline-secondary">
+              <i data-feather="x" class="me-2"></i>Cancel
+            </a>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <form method="post" id="order-form">
-    {% csrf_token %}
-    
-    {% if form.non_field_errors %}
-    <div class="alert alert-danger">
-        {% for error in form.non_field_errors %}
-            {{ error }}
-        {% endfor %}
+  {% csrf_token %} 
+  {% if form.errors %}
+      <div class="alert alert-danger">
+          <strong>Main Form Errors:</strong><br>
+          <pre>{{ form.errors }}</pre>
+      </div>
+  {% endif %}
+  {% if form.non_field_errors %}
+      <div class="alert alert-danger">
+          <strong>Main Form Non-Field Errors:</strong><br>
+          <pre>{{ form.non_field_errors }}</pre>
+      </div>
+  {% endif %}
+
+  <!-- Customer Information Section -->
+
+  <!-- Customer Information Section -->
+  <div class="card action-card mb-4">
+    <div class="card-header action-card-header">
+      <h5 class="card-title mb-0">
+        <i data-feather="user" class="me-2"></i>Customer Information
+      </h5>
     </div>
-    {% endif %}
-    
-    <!-- Customer Information Section -->
-    <div class="card section-card">
-        <div class="card-header bg-light">
-            <h5 class="card-title mb-0">
-                <i class="fas fa-user me-2"></i>Customer Information
-            </h5>
+    <div class="card-body">
+      <div class="row">
+        <!-- Customer Name Field -->
+        <div class="col-md-6 mb-3">
+          <label
+            for="{{ form.customer_name.id_for_label }}"
+            class="form-label required-field"
+          >
+            Customer Name
+          </label>
+          {{ form.customer_name }} 
+          {% if form.customer_name.errors %}
+          <div class="invalid-feedback d-block">
+            {% for error in form.customer_name.errors %} {{ error }} {% endfor %}
+          </div>
+          {% endif %}
         </div>
-        <div class="card-body">
-            <div class="row">
-                <!-- Customer Name Field -->
-                <div class="col-md-6 mb-3">
-                    <label for="{{ form.customer_name.id_for_label }}" class="form-label required-field">
-                        Customer Name
-                    </label>
-                    {{ form.customer_name }}
-                    {% if form.customer_name.errors %}
-                        <div class="invalid-feedback d-block">
-                            {% for error in form.customer_name.errors %}
-                                {{ error }}
-                            {% endfor %}
-                        </div>
-                    {% endif %}
-                </div>
-                
-                <!-- Phone Number Field -->
-                <div class="col-md-6 mb-3">
-                    <label for="{{ form.customer_phone.id_for_label }}" class="form-label required-field">
-                        Phone Number
-                    </label>
-                    {{ form.customer_phone }}
-                    {% if form.customer_phone.errors %}
-                        <div class="invalid-feedback d-block">
-                            {% for error in form.customer_phone.errors %}
-                                {{ error }}
-                            {% endfor %}
-                        </div>
-                    {% endif %}
-                    <small class="text-muted">Ghanaian format: +233XXXXXXXXX or 0XXXXXXXXX</small>
-                </div>
-                
-                <!-- Delivery Type Field -->
-                <div class="col-md-6 mb-3">
-                    <label for="{{ form.delivery_type.id_for_label }}" class="form-label required-field">
-                        Delivery Type
-                    </label>
-                    {{ form.delivery_type }}
-                    {% if form.delivery_type.errors %}
-                        <div class="invalid-feedback d-block">
-                            {% for error in form.delivery_type.errors %}
-                                {{ error }}
-                            {% endfor %}
-                        </div>
-                    {% endif %}
-                </div>
-                
-                <!-- Delivery Location Field -->
-                <div class="col-md-6 mb-3" id="delivery-location-container">
-                    <label for="{{ form.delivery_location.id_for_label }}" class="form-label" id="location-label">
-                        Delivery Location
-                    </label>
-                    {{ form.delivery_location }}
-                    {% if form.delivery_location.errors %}
-                        <div class="invalid-feedback d-block">
-                            {% for error in form.delivery_location.errors %}
-                                {{ error }}
-                            {% endfor %}
-                        </div>
-                    {% endif %}
-                    <small class="text-muted">Required for delivery orders</small>
-                </div>
-            </div>
+
+        <!-- Phone Number Field -->
+        <div class="col-md-6 mb-3">
+          <label
+            for="{{ form.customer_phone.id_for_label }}"
+            class="form-label required-field"
+          >
+            Phone Number
+          </label>
+          {{ form.customer_phone }} 
+          {% if form.customer_phone.errors %}
+          <div class="invalid-feedback d-block">
+            {% for error in form.customer_phone.errors %} {{ error }} {% endfor %}
+          </div>
+          {% endif %}
+          <small class="text-muted"
+            >Ghanaian format: +233XXXXXXXXX or 0XXXXXXXXX</small
+          >
         </div>
+        <!-- Delivery Type Field -->
+        <div class="col-md-6 mb-3">
+          <label
+            for="{{ form.delivery_type.id_for_label }}"
+            class="form-label required-field"
+          >
+            Delivery Type
+          </label>
+          {{ form.delivery_type }} 
+          {% if form.delivery_type.errors %}
+          <div class="invalid-feedback d-block">
+            {% for error in form.delivery_type.errors %} {{ error }} {% endfor %}
+          </div>
+          {% endif %}
+        </div>
+
+        <!-- Delivery Location Field -->
+        <div class="col-md-6 mb-3" id="delivery-location-container">
+          <label
+            for="{{ form.delivery_location.id_for_label }}"
+            class="form-label"
+            id="location-label"
+          >
+            Delivery Location
+          </label>
+          {{ form.delivery_location }} 
+          {% if form.delivery_location.errors %}
+          <div class="invalid-feedback d-block">
+            {% for error in form.delivery_location.errors %} {{ error }} {% endfor %}
+          </div>
+          {% endif %}
+          <small class="text-muted">Required for delivery orders</small>
+        </div>
+      </div>
     </div>
-    
-    <!-- Order Details Section -->
-    <div class="card section-card">
-        <div class="card-header bg-light">
-            <h5 class="card-title mb-0">
-                <i class="fas fa-clipboard-list me-2"></i>Order Details
-            </h5>
+  </div>
+
+  <!-- Order Details Section Start -->
+  <div class="card action-card mb-4">
+    <div class="card-header action-card-header">
+      <h5 class="card-title mb-0">
+        <i data-feather="file-text" class="me-2"></i>Order Details
+      </h5>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label
+            for="{{ form.status.id_for_label }}"
+            class="form-label required-field"
+          >
+            Status
+          </label>
+          {{ form.status }} 
+          {% if form.status.errors %}
+          <div class="invalid-feedback d-block">
+            {% for error in form.status.errors %} {{ error }} {% endfor %}
+          </div>
+          {% endif %}
         </div>
-        <div class="card-body">
-            <div class="row">
-                <!-- Order Status Field -->
-                <div class="col-md-6 mb-3">
-                    <label for="{{ form.status.id_for_label }}" class="form-label required-field">
-                        Status
-                    </label>
-                    {{ form.status }}
-                    {% if form.status.errors %}
-                        <div class="invalid-feedback d-block">
-                            {% for error in form.status.errors %}
-                                {{ error }}
-                            {% endfor %}
-                        </div>
-                    {% endif %}
+
+        <div class="col-12 mb-3">
+          <label for="{{ form.notes.id_for_label }}" class="form-label">
+            Order Notes
+          </label>
+          {{ form.notes }} 
+          {% if form.notes.errors %}
+          <div class="invalid-feedback d-block">
+            {% for error in form.notes.errors %} {{ error }} {% endfor %}
+          </div>
+          {% endif %}
+          <small class="text-muted"
+            >Add any special instructions or notes for this order</small
+          >
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- Order Details Section End -->
+
+  <!-- Order Items Section -->
+  <div class="card action-card">
+    <div class="card-header action-card-header">
+      <h5 class="card-title mb-0">
+        <i data-feather="shopping-cart" class="me-2"></i>Order Items
+      </h5>
+    </div>
+    <div class="card-body">
+      <!-- Management Form -->
+
+      {% if formset.non_form_errors %}
+          <div class="alert alert-danger">
+              <strong>Item Formset Overall Errors (non-form):</strong><br>
+              <pre>{{ formset.non_form_errors }}</pre>
+          </div>
+      {% endif %}
+      {{ formset.management_form }}
+      
+      <!-- Order Items Container -->
+      <div id="order-items">
+        {% for form in formset %}
+          {% if not form.instance.parent_item %} {# This is a main item #}
+          <div class="item-row mb-3 p-3 border-bottom" id="item-{{ form.prefix }}">
+              {% if form.errors %}
+                  <div class="alert alert-warning mt-1 mb-1 p-1" style="font-size: 0.8em;">
+                      <small>Errors for this item ({{ form.prefix }}):<br><pre>{{ form.errors }}</pre></small>
+                  </div>
+              {% endif %}
+              {{ form.id }} {# Hidden ID for this OrderItem instance #}
+              <div class="row mb-3">
+                <!-- Item Selection -->
+                <div class="col-md-6">
+                  <label class="form-label required-field">Menu Item</label>
+                  {{ form.menu_item }}
                 </div>
                 
-                <!-- Order Notes Field -->
-                <div class="col-12 mb-3">
-                    <label for="{{ form.notes.id_for_label }}" class="form-label">
-                        Order Notes
-                    </label>
-                    {{ form.notes }}
-                    {% if form.notes.errors %}
-                        <div class="invalid-feedback d-block">
-                            {% for error in form.notes.errors %}
-                                {{ error }}
-                            {% endfor %}
-                        </div>
-                    {% endif %}
-                    <small class="text-muted">Add any special instructions or notes for this order</small>
+                <!-- Quantity -->
+                <div class="col-md-2">
+                  <label class="form-label required-field">Quantity</label>
+                  {{ form.quantity }}
                 </div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Order Items Section -->
-    <div class="card section-card">
-        <div class="card-header bg-light d-flex justify-content-between align-items-center">
-            <h5 class="card-title mb-0">
-                <i class="fas fa-shopping-cart me-2"></i>Order Items
-            </h5>
-            <button type="button" id="add-item" class="btn btn-sm btn-success">
-                <i class="fas fa-plus-circle me-1"></i>Add Item
-            </button>
-        </div>
-        <div class="card-body">
-            <!-- Order Items Formset -->
-            {{ formset.management_form }}
-            <div id="order-items">
-                {% for form in formset.forms %}
-                <div class="item-row {% if forloop.last and not form.instance.pk %}item-template{% endif %}" id="item-{{ forloop.counter0 }}">
-                    <div class="row mb-3">
-                        <!-- Item Selection -->
-                        <div class="col-md-6">
-                            <label class="form-label required-field">Menu Item</label>
-                            {{ form.menu_item }}
-                            {% if form.menu_item.errors %}
+                
+                <!-- Price Display -->
+                <div class="col-md-2">
+                  <label class="form-label">Unit Price</label>
+                  <div class="price-input-group">
+                    {{ form.price_display }}
+                    {{ form.unit_price }}
+                  </div>
+                </div>
+                
+                <!-- Remove Button -->
+                <div class="col-md-2 d-flex align-items-end">
+                  <button type="button" class="btn btn-sm btn-outline-danger mb-3 remove-item">
+                    <i data-feather="trash-2"></i>
+                  </button>
+                  {{ form.DELETE }}
+                </div>
+              </div>
+              
+              <!-- Add Extra Button and Container -->
+              <div class="row mt-2">
+                <div class="col-12 text-end">
+                  <button type="button" class="btn btn-sm btn-success add-extra-btn" data-item-prefix="{{ form.prefix }}">
+                    <i data-feather="plus"></i> Add Extra
+                  </button>
+                </div>
+              </div>
+              <div class="extras-container mt-2" id="extras-container-for-{{ form.prefix }}">
+                {# Loop through ALL forms again to find extras for THIS main item. #}
+                {# This relies on form.instance.pk being the ID of the main item, #}
+                {# and extra_form.instance.parent_item_id being the FK on the extra. #}
+                {% for extra_form in formset %}
+                  {% if extra_form.instance.parent_item_id == form.instance.pk %}
+                    <div class="item-row extra-item-row p-2 mb-2 ms-4" id="item-{{ extra_form.prefix }}">
+                        {{ extra_form.id }} {# Hidden ID for this extra OrderItem instance #}
+
+                        {# Add hidden input to submit parent reference for existing extras #}
+                        <input type="hidden" name="{{ extra_form.prefix }}-parent_item_ref" value="{{ form.prefix }}">
+                        
+                        <div class="row align-items-center">
+                          {# Render the menu_item field as prepared by OrderItemForm #}
+                          <div class="col-md-4">
+                            <label for="{{ extra_form.menu_item.id_for_label }}" class="form-label"><small class="text-muted"><i data-feather="corner-down-right" class="me-1"></i> Extra:</small></label>
+                            {{ extra_form.menu_item }}
+                            {% if extra_form.menu_item.errors %}
                                 <div class="invalid-feedback d-block">
-                                    {% for error in form.menu_item.errors %}
-                                        {{ error }}
-                                    {% endfor %}
+                                    {% for error in extra_form.menu_item.errors %}{{ error }}{% endfor %}
                                 </div>
                             {% endif %}
-                        </div>
-                        
-                        <!-- Quantity -->
-                        <div class="col-md-2">
-                            <label class="form-label required-field">Quantity</label>
-                            {{ form.quantity }}
-                            {% if form.quantity.errors %}
-                                <div class="invalid-feedback d-block">
-                                    {% for error in form.quantity.errors %}
-                                        {{ error }}
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
-                        </div>
-                        
-                        <!-- Item Price Display -->
-                        <div class="col-md-2">
-                            <label class="form-label">Unit Price</label>
-                            <input type="text" class="form-control item-price" readonly value="${{ form.instance.unit_price|default:'0.00' }}">
-                        </div>
-                        
-                        <!-- Remove Button -->
-                        <div class="col-md-2 d-flex align-items-end">
-                            <button type="button" class="btn btn-outline-danger mb-3 remove-item">
-                                <i class="fas fa-trash-alt"></i>
+                          </div>
+                          <div class="col-md-2">
+                            <label for="{{ extra_form.quantity.id_for_label }}" class="visually-hidden">Quantity for {{ extra_form.instance.menu_item.name }}</label>
+                            {{ extra_form.quantity }}
+                          </div>
+                          <div class="col-md-3">
+                            <label for="{{ extra_form.price_display.id_for_label }}" class="visually-hidden">Price for {{ extra_form.instance.menu_item.name }}</label>
+                            {{ extra_form.price_display }}
+                            {{ extra_form.unit_price }}
+                          </div>
+                          <div class="col-md-3 d-flex align-items-center justify-content-end">
+                            <button type="button" class="btn btn-sm btn-outline-danger remove-extra-btn">
+                              <i data-feather="x"></i>
                             </button>
-                            {{ form.DELETE }}
+                            {{ extra_form.DELETE }}
+                          </div>
                         </div>
                     </div>
-                    
-                    <!-- Extras Section -->
-                    <div class="extras-container">
-                        <div class="row mb-2">
-                            <div class="col-md-10">
-                                <label class="form-label">Extras</label>
-                            </div>
-                            <div class="col-md-2 text-end">
-                                <button type="button" class="btn btn-sm btn-outline-primary add-extra">
-                                    <i class="fas fa-plus-circle"></i> Add Extra
-                                </button>
-                            </div>
-                        </div>
-                        
-                        <!-- Extra items will be added here dynamically -->
-                        <div class="extras-list">
-                            {% if form.instance.pk %}
-                                {% for extra in form.instance.extras.all %}
-                                <div class="extra-item row mb-2">
-                                    <div class="col-md-5">
-                                        <select name="item_{{ forloop.parentloop.counter0 }}_extras" class="form-select extra-select">
-                                            <option value="">Select an extra</option>
-                                            <!-- Will be populated by JavaScript -->
-                                        </select>
-                                    </div>
-                                    <div class="col-md-2">
-                                        <input type="number" name="item_{{ forloop.parentloop.counter0 }}_quantities" class="form-control extra-quantity" min="1" value="{{ extra.quantity }}">
-                                    </div>
-                                    <div class="col-md-3">
-                                        <input type="text" class="form-control extra-price" readonly value="${{ extra.unit_price }}">
-                                    </div>
-                                    <div class="col-md-2">
-                                        <button type="button" class="btn btn-outline-danger remove-extra">
-                                            <i class="fas fa-times"></i>
-                                        </button>
-                                    </div>
-                                </div>
-                                {% endfor %}
-                            {% endif %}
-                        </div>
-                    </div>
-                    
-                    <!-- Hidden fields -->
-                    {{ form.id }}
-                    {{ form.order }}
-                    
-                    <hr>
-                </div>
+                  {% endif %}
                 {% endfor %}
-            </div>
-            
-            <!-- Order Totals -->
-            <div class="card mb-4">
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-8 offset-md-2">
-                            <table class="table">
-                                <tr>
-                                    <td>Items Subtotal:</td>
-                                    <td class="text-end price-display" id="items-subtotal">$0.00</td>
-                                </tr>
-                                <tr>
-                                    <td>Extras Subtotal:</td>
-                                    <td class="text-end price-display" id="extras-subtotal">$0.00</td>
-                                </tr>
-                                <tr class="table-light">
-                                    <th>Total:</th>
-                                    <th class="text-end price-display" id="order-total">$0.00</th>
-                                </tr>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="d-flex justify-content-between">
-                <a href="{% url 'orders:order_detail' order.pk %}" class="btn btn-outline-secondary">Cancel</a>
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-check me-2"></i>Update Order
-                </button>
-            </div>
+              </div>
+          </div>
+          {% endif %} {# End if not form.instance.parent_item #}
+        {% endfor %}
+      </div>
+
+      <!-- Add Item Button -->
+      <button type="button" id="add-item" class="btn btn-primary">
+        <i data-feather="plus-circle" class="me-2"></i>Add Item
+      </button>
+
+      <!-- Order Totals -->
+      <div class="row mt-4">
+        <div class="col-md-6 offset-md-6">
+          <table class="table">
+            <tr>
+              <td>Items Subtotal:</td>
+              <td class="text-end" id="items-subtotal">₵0.00</td>
+            </tr>
+            <tr class="table-active fw-bold">
+              <td>Order Total:</td>
+              <td class="text-end" id="order-total">₵0.00</td>
+            </tr>
+          </table>
         </div>
+      </div>
+
+      <!-- Submit Button -->
+      <div class="row mt-4">
+        <div class="col-12 text-end">
+          <button type="submit" class="btn btn-primary">
+            <i data-feather="{% if order.pk %}save{% else %}check-circle{% endif %}" class="me-2"></i>{{ button_text|default:"Save Changes" }}
+          </button>
+        </div>
+      </div>
     </div>
+  </div>
 </form>
 {% endblock %}
 
 {% block extra_js %}
 {{ block.super }}
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Initialize toggle for delivery location
-        const deliveryTypeSelect = document.getElementById('id_delivery_type');
-        const deliveryLocationContainer = document.getElementById('delivery-location-container');
-        const deliveryLocationInput = document.getElementById('id_delivery_location');
-        const locationLabel = document.getElementById('location-label');
-        
-        function toggleDeliveryLocation() {
-            if (deliveryTypeSelect.value === 'Delivery') {
-                deliveryLocationContainer.style.display = 'block';
-                locationLabel.classList.add('required-field');
-                deliveryLocationInput.setAttribute('required', 'required');
-            } else {
-                deliveryLocationContainer.style.display = 'none';
-                locationLabel.classList.remove('required-field');
-                deliveryLocationInput.removeAttribute('required');
-            }
-        }
-        
-        if (deliveryTypeSelect) {
-            deliveryTypeSelect.addEventListener('change', toggleDeliveryLocation);
-            // Initialize on page load
-            toggleDeliveryLocation();
-        }
-        
-        // Order Items management
-        const addItemButton = document.getElementById('add-item');
-        if (addItemButton) {
-            addItemButton.addEventListener('click', function() {
-                // Clone the template item
-                const template = document.querySelector('.item-template');
-                if (template) {
-                    const newItem = template.cloneNode(true);
-                    newItem.classList.remove('item-template');
-                    
-                    // Update IDs and names for the new item
-                    const itemCount = document.querySelectorAll('.item-row').length;
-                    updateElementAttributes(newItem, itemCount);
-                    
-                    // Add the new item to the form
-                    const orderItems = document.getElementById('order-items');
-                    orderItems.appendChild(newItem);
-                    
-                    // Update the management form count
-                    const totalFormsInput = document.querySelector('[name="items-TOTAL_FORMS"]');
-                    totalFormsInput.value = parseInt(totalFormsInput.value) + 1;
-                    
-                    // Initialize the new item's event listeners
-                    initializeItemEvents(newItem);
-                    
-                    // Update totals
-                    updateTotals();
-                }
-            });
-            
-            // Initialize event listeners for initial items
-            document.querySelectorAll('.item-row').forEach(item => {
-                initializeItemEvents(item);
-            });
-            
-            // Initial totals calculation
-            updateTotals();
-        }
-        
-        // Initialize item events
-        function initializeItemEvents(item) {
-            // Menu item selection change
-            const menuItemSelect = item.querySelector('.menu-item-select');
-            if (menuItemSelect) {
-                menuItemSelect.addEventListener('change', function() {
-                    updateItemPrice(item);
-                    updateTotals();
-                });
-            }
-            
-            // Quantity change
-            const quantityInput = item.querySelector('.quantity-input');
-            if (quantityInput) {
-                quantityInput.addEventListener('change', function() {
-                    updateTotals();
-                });
-            }
-            
-            // Remove item button
-            const removeButton = item.querySelector('.remove-item');
-            if (removeButton) {
-                removeButton.addEventListener('click', function() {
-                    const deleteCheckbox = item.querySelector('[name$="-DELETE"]');
-                    if (deleteCheckbox) {
-                        deleteCheckbox.checked = true;
-                        item.style.display = 'none';
-                        updateTotals();
-                    }
-                });
-            }
-            
-            // Add extra button
-            const addExtraButton = item.querySelector('.add-extra');
-            if (addExtraButton) {
-                addExtraButton.addEventListener('click', function() {
-                    addExtraToItem(item);
-                });
-            }
-            
-            // Initialize existing extras
-            item.querySelectorAll('.extra-item').forEach(extraItem => {
-                initializeExtraItem(extraItem);
-            });
-            
-            // Set initial price
-            updateItemPrice(item);
-        }
-        
-        // Initialize extra item
-        function initializeExtraItem(extraItem) {
-            const extraSelect = extraItem.querySelector('.extra-select');
-            const extraQuantity = extraItem.querySelector('.extra-quantity');
-            const removeExtraButton = extraItem.querySelector('.remove-extra');
-            
-            // Populate the extras dropdown if empty
-            if (extraSelect && extraSelect.options.length <= 1) {
-                populateExtrasDropdown(extraSelect);
-                
-                // If this is an existing extra, select the correct option
-                const extraPrice = extraItem.querySelector('.extra-price');
-                if (extraPrice && extraPrice.value) {
-                    const priceValue = parseFloat(extraPrice.value.replace('$', ''));
-                    for (let i = 0; i < extraSelect.options.length; i++) {
-                        const option = extraSelect.options[i];
-                        if (option.dataset.price && Math.abs(parseFloat(option.dataset.price) - priceValue) < 0.01) {
-                            extraSelect.selectedIndex = i;
-                            break;
-                        }
-                    }
-                }
-            }
-            
-            // Add event listeners
-            if (extraSelect) {
-                extraSelect.addEventListener('change', function() {
-                    updateExtraPrice(extraItem);
-                    updateTotals();
-                });
-            }
-            
-            if (extraQuantity) {
-                extraQuantity.addEventListener('change', function() {
-                    updateTotals();
-                });
-            }
-            
-            if (removeExtraButton) {
-                removeExtraButton.addEventListener('click', function() {
-                    extraItem.remove();
-                    updateTotals();
-                });
-            }
-        }
-        
-        // Update item price display
-        function updateItemPrice(item) {
-            const menuItemSelect = item.querySelector('.menu-item-select');
-            const priceDisplay = item.querySelector('.item-price');
-            
-            if (menuItemSelect && priceDisplay) {
-                const selectedOption = menuItemSelect.options[menuItemSelect.selectedIndex];
-                const text = selectedOption ? selectedOption.text : '';
-                const priceMatch = text.match(/\$(\d+\.\d+)/);
-                
-                if (priceMatch && priceMatch[1]) {
-                    priceDisplay.value = '$' + priceMatch[1];
-                } else {
-                    priceDisplay.value = '$0.00';
-                }
-            }
-        }
-        
-        // Add extra to item
-        function addExtraToItem(item) {
-            const extrasList = item.querySelector('.extras-list');
-            const itemId = item.id.replace('item-', '');
-            const extraCount = extrasList.querySelectorAll('.extra-item').length;
-            
-            const extraItem = document.createElement('div');
-            extraItem.className = 'extra-item row mb-2';
-            extraItem.innerHTML = `
-                <div class="col-md-5">
-                    <select name="item_${itemId}_extras" class="form-select extra-select">
-                        <option value="">Select an extra</option>
-                        <!-- Extras will be populated dynamically -->
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <input type="number" name="item_${itemId}_quantities" class="form-control extra-quantity" min="1" value="1">
-                </div>
-                <div class="col-md-3">
-                    <input type="text" class="form-control extra-price" readonly value="$0.00">
-                </div>
-                <div class="col-md-2">
-                    <button type="button" class="btn btn-outline-danger remove-extra">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-            `;
-            
-            extrasList.appendChild(extraItem);
-            initializeExtraItem(extraItem);
-            updateTotals();
-        }
-        
-        // Populate extras dropdown
-        function populateExtrasDropdown(selectElement) {
-            // This would normally fetch extras from an API or be populated by the server
-            // For demo purposes, we'll add some placeholder extras
-            const extras = [
-                { id: 1, name: 'Extra Cheese', price: 1.50 },
-                { id: 2, name: 'Bacon', price: 2.00 },
-                { id: 3, name: 'Avocado', price: 1.75 },
-                { id: 4, name: 'Extra Sauce', price: 0.75 },
-                { id: 5, name: 'Fried Egg', price: 1.25 }
-            ];
-            
-            extras.forEach(extra => {
-                const option = document.createElement('option');
-                option.value = extra.id;
-                option.textContent = `${extra.name} ($${extra.price.toFixed(2)})`;
-                option.dataset.price = extra.price.toFixed(2);
-                selectElement.appendChild(option);
-            });
-        }
-        
-        // Update extra price display
-        function updateExtraPrice(extraItem) {
-            const extraSelect = extraItem.querySelector('.extra-select');
-            const priceDisplay = extraItem.querySelector('.extra-price');
-            
-            if (extraSelect && priceDisplay) {
-                const selectedOption = extraSelect.options[extraSelect.selectedIndex];
-                if (selectedOption && selectedOption.dataset.price) {
-                    priceDisplay.value = '$' + selectedOption.dataset.price;
-                } else {
-                    priceDisplay.value = '$0.00';
-                }
-            }
-        }
-        
-        // Update element attributes for new items
-        function updateElementAttributes(element, index) {
-            // Update ID attributes
-            element.id = element.id.replace(/\d+/, index);
-            
-            // Update name attributes
-            element.querySelectorAll('[name]').forEach(input => {
-                input.name = input.name.replace(/\d+/, index);
-            });
-            
-            // Update id attributes
-            element.querySelectorAll('[id]').forEach(input => {
-                if (input.id.includes('-')) {
-                    input.id = input.id.replace(/\d+/, index);
-                }
-            });
-            
-            // Update for attributes in labels
-            element.querySelectorAll('label[for]').forEach(label => {
-                if (label.getAttribute('for').includes('-')) {
-                    label.setAttribute('for', label.getAttribute('for').replace(/\d+/, index));
-                }
-            });
-        }
-        
-        // Calculate and update totals
-        function updateTotals() {
-            let itemsSubtotal = 0;
-            let extrasSubtotal = 0;
-            
-            // Calculate items subtotal
-            document.querySelectorAll('.item-row:not([style*="display: none"])').forEach(item => {
-                const priceDisplay = item.querySelector('.item-price');
-                const quantityInput = item.querySelector('.quantity-input');
-                
-                if (priceDisplay && quantityInput) {
-                    const price = parseFloat(priceDisplay.value.replace('$', '')) || 0;
-                    const quantity = parseInt(quantityInput.value) || 0;
-                    itemsSubtotal += price * quantity;
-                }
-                
-                // Calculate extras subtotal for this item
-                item.querySelectorAll('.extra-item').forEach(extraItem => {
-                    const extraPrice = extraItem.querySelector('.extra-price');
-                    const extraQuantity = extraItem.querySelector('.extra-quantity');
-                    
-                    if (extraPrice && extraQuantity) {
-                        const price = parseFloat(extraPrice.value.replace('$', '')) || 0;
-                        const quantity = parseInt(extraQuantity.value) || 0;
-                        extrasSubtotal += price * quantity;
-                    }
-                });
-            });
-            
-            // Update display
-            const itemsSubtotalDisplay = document.getElementById('items-subtotal');
-            const extrasSubtotalDisplay = document.getElementById('extras-subtotal');
-            const orderTotalDisplay = document.getElementById('order-total');
-            
-            if (itemsSubtotalDisplay) {
-                itemsSubtotalDisplay.textContent = '$' + itemsSubtotal.toFixed(2);
-            }
-            
-            if (extrasSubtotalDisplay) {
-                extrasSubtotalDisplay.textContent = '$' + extrasSubtotal.toFixed(2);
-            }
-            
-            if (orderTotalDisplay) {
-                const total = itemsSubtotal + extrasSubtotal;
-                orderTotalDisplay.textContent = '$' + total.toFixed(2);
-            }
-        }
-        
-        // Form validation before submit
-        const orderForm = document.querySelector('#order-form');
-        if (orderForm) {
-            orderForm.addEventListener('submit', function(event) {
-                let isValid = true;
-                
-                // Check if there are any visible items
-                const visibleItems = document.querySelectorAll('.item-row:not([style*="display: none"])');
-                if (visibleItems.length === 0) {
-                    alert('Please add at least one item to the order.');
-                    isValid = false;
-                }
-                
-                // Check if items have menu items selected
-                visibleItems.forEach(item => {
-                    const menuItemSelect = item.querySelector('.menu-item-select');
-                    if (menuItemSelect && (!menuItemSelect.value || menuItemSelect.value === '')) {
-                        menuItemSelect.classList.add('is-invalid');
-                        isValid = false;
-                    } else if (menuItemSelect) {
-                        menuItemSelect.classList.remove('is-invalid');
-                    }
-                });
-                
-                // Check delivery location if delivery is selected
-                if (deliveryTypeSelect && deliveryTypeSelect.value === 'Delivery') {
-                    if (!deliveryLocationInput || !deliveryLocationInput.value) {
-                        if (deliveryLocationInput) {
-                            deliveryLocationInput.classList.add('is-invalid');
-                        }
-                        isValid = false;
-                    } else if (deliveryLocationInput) {
-                        deliveryLocationInput.classList.remove('is-invalid');
-                    }
-                }
-                
-                if (!isValid) {
-                    event.preventDefault();
-                }
-            });
-        }
-    });
+{{ available_extras_data|json_script:"available-extras-data" }}
+<script type="text/javascript">
+  jQuery(document).ready(function($) {
+      // Ensure this is passed from your Django view
+      let AVAILABLE_EXTRAS = []; 
+      try {
+          const jsonDataElement = document.getElementById('available-extras-data');
+          if (jsonDataElement) {
+              AVAILABLE_EXTRAS = JSON.parse(jsonDataElement.textContent);
+          } else {
+              console.warn("JSON data script #available-extras-data not found. Extras functionality may be limited.");
+          }
+      } catch (e) {
+          console.error("Error parsing AVAILABLE_EXTRAS data from #available-extras-data:", e);
+      }
+
+      // Configuration object with constants and settings
+      // Error handling utility
+      const errorHandler = {
+          handleError: (error, context, showAlert = false) => {
+              console.error(`Error ${context}:`, error);
+              if (showAlert) {
+                  alert(`Error ${context}: ${error.message}`);
+              }
+              return null;
+          }
+      };
+      
+      // Function to handle price preservation and updates is defined later in the code
+
+      const CONFIG = {
+          currency: '₵',
+          orderPk: {% if order.pk %}{{ order.pk }}{% else %}''{% endif %},
+          selectors: {
+              form: '#order-form',
+              orderItems: '.item-row',
+              menuItemSelect: '.menu-item-select',
+              quantityInput: '.quantity-input',
+              priceDisplay: '.item-price',
+              unitPriceInput: '.unit-price-input',
+              removeItem: '.remove-item',
+              deleteCheckbox: '[name$="-DELETE"]',
+              // extrasList: '.extras-list', // Commented out as per requirements
+              // addExtraButton: '.add-extra-button', // Commented out as per requirements
+              totalForms: '[name="items-TOTAL_FORMS"]'
+          },
+          templates: {
+              // extraItem: (itemId) => ` // Commented out as per requirements
+              //     <div class="extra-item row mb-2">
+              //         <div class="col-md-5">
+              //             <select name="item_${itemId}_extras" class="form-select extra-select">
+              //                 <option value="">Select an extra</option>
+              //             </select>
+              //         </div>
+              //         <div class="col-md-2">
+              //             <input type="number" name="item_${itemId}_quantities" 
+              //                    class="form-control extra-quantity" min="1" value="1">
+              //         </div>
+              //         <div class="col-md-3">
+              //             <input type="text" class="form-control extra-price" readonly value="0.00">
+              //         </div>
+              //         <div class="col-md-2">
+              //             <button type="button" class="btn btn-outline-danger remove-extra">
+              //                 <i class="fas fa-times"></i>
+              //             </button>
+              //         </div>
+              //     </div>
+              // `
+          },
+          // extras: [ // Commented out as per requirements
+          //     { id: 1, name: 'Extra Cheese', price: 1.50 },
+          //     { id: 2, name: 'Bacon', price: 2.00 },
+          //     { id: 3, name: 'Avocado', price: 1.75 },
+          //     { id: 4, name: 'Extra Sauce', price: 0.75 },
+          //     { id: 5, name: 'Fried Egg', price: 1.25 }
+          // ]
+      };
+
+      // Extract menu item choices for new items
+      const menuItemChoices = [];
+      try {
+          {% for django_group_name, django_options_list in formset.empty_form.fields.menu_item.choices %}
+          (function() { // IIFE to create a new scope
+              const groupData = { // Use a different variable name like groupData for clarity
+                  label: "{{ django_group_name }}",
+                  options: []
+              };
+              {% for value, label in django_options_list %}
+              groupData.options.push({
+                  value: String("{{ value }}"), // Ensure value is treated as string
+                  label: String("{{ label }}")  // Ensure label is treated as string
+              });
+              {% endfor %}
+              menuItemChoices.push(groupData);
+          })();
+          {% endfor %}
+      } catch (error) {
+          console.error("Error loading menu item choices:", error);
+      }
+
+      // Utility Functions
+      const utils = {
+          // Format price to 2 decimal places
+          formatPrice: (price) => {
+              const value = parseFloat(price);
+              return isNaN(value) ? '0.00' : value.toFixed(2);
+          },
+          
+          // Parse price from string with currency symbol
+          parsePrice: (value) => {
+              if (!value) return 0;
+              const cleaned = value.toString().replace(/[₵$£€]/g, '').trim();
+              return parseFloat(cleaned) || 0;
+          },
+          
+          // Format price with currency symbol
+          formatWithCurrency: (price) => CONFIG.currency + utils.formatPrice(price),
+
+          // Validate price value
+          validatePrice: (price) => {
+              const value = utils.parsePrice(price);
+              return !isNaN(value) && value > 0;
+          },
+
+      // Validate quantity value
+      validateQuantity: (quantity) => {
+          const value = parseInt(quantity);
+          return !isNaN(value) && value > 0;
+      }
+  };
+
+  function initializeOrderItemRow(itemElement) {
+      console.log(`[initializeOrderItemRow] Initializing item:`, itemElement.id);
+      // console.log(`Initializing item row: ${itemElement.id || 'new item'}`);
+      const menuSelect = itemElement.querySelector('.menu-item-select');
+      const unitPriceInput = itemElement.querySelector('.unit-price-input');
+      const priceDisplay = itemElement.querySelector('.item-price');
+      const itemIdInput = itemElement.querySelector('[name$="-id"]'); // For identifying existing items
+      const quantityInput = itemElement.querySelector('.quantity-input');
+
+      if (!menuSelect || !unitPriceInput || !quantityInput) {
+          console.error("Essential elements missing in item row:", itemElement);
+          return;
+      }
+
+      // Set initial price based on whether it's an existing or new item
+      let priceToUse = '0.00';
+      if (itemIdInput && itemIdInput.value) { // Existing item
+          priceToUse = unitPriceInput.value; // Value from Django form
+          const selectOriginalPriceAttr = menuSelect.getAttribute('data-original-price');
+          if (selectOriginalPriceAttr && (priceToUse === '' || parseFloat(priceToUse) === 0 || isNaN(parseFloat(priceToUse)))) {
+              priceToUse = selectOriginalPriceAttr;
+          }
+      } else { // New item, try to get price from default selected option
+          const selectedOption = menuSelect.options[menuSelect.selectedIndex];
+          if (selectedOption && selectedOption.text) {
+              const priceMatch = selectedOption.text.match(/\(₵(\d+\.\d+)\)/); // Corrected regex
+              if (priceMatch && priceMatch[1]) {
+                  priceToUse = priceMatch[1];
+              }
+          }
+      }
+      
+      const formattedPrice = utils.formatPrice(priceToUse);
+      
+      unitPriceInput.value = formattedPrice; // Set unit price input
+
+      // Log after setting unitPriceInput
+      console.log(`[initializeOrderItemRow] Item: ${itemElement.id || 'new'}, priceToUse: ${priceToUse}, formattedPrice: ${formattedPrice}, after setting unitPriceInput, its value is: ${unitPriceInput.value}`);
+
+      if (itemIdInput && itemIdInput.value) { // Store original attributes only for existing items
+          menuSelect.setAttribute('data-original-value', menuSelect.value); 
+          menuSelect.setAttribute('data-original-price', formattedPrice);
+      }
+
+      if (priceDisplay) {
+          priceDisplay.value = formattedPrice; // Set price display input
+          // Log after setting priceDisplay
+          console.log(`[initializeOrderItemRow] Item: ${itemElement.id || 'new'}, after setting priceDisplay, its value is: ${priceDisplay.value}`);
+      }
+
+      // Attach event listeners
+      $(menuSelect).off('change.orderitem').on('change.orderitem', function() {
+          updateItemPrice(itemElement);
+      });
+      
+      $(quantityInput).off('input.orderitem').on('input.orderitem', function() {
+          updateTotals();
+      });
+      
+      const removeButton = itemElement.querySelector('.remove-item');
+      if (removeButton) {
+          $(removeButton).off('click.orderitem').on('click.orderitem', function() {
+              if (confirm('Are you sure you want to remove this item and its extras?')) {
+                  const deleteCheckbox = itemElement.querySelector('[name$="-DELETE"]'); // More robust selector
+                  if (deleteCheckbox) {
+                      deleteCheckbox.checked = true;
+                      console.log(`[JS Main Item Remove] DELETE checkbox for ${itemElement.id} FOUND and CHECKED.`);
+                  } else {
+                      console.error(`[JS Main Item Remove] DELETE checkbox for ${itemElement.id} NOT FOUND.`);
+                  }
+                   // Also mark all extras of this item for deletion
+                  $(itemElement).find('.extras-container .extra-item-row').each(function() {
+                      const extraRowElement = this; // for clarity
+                      const extraDeleteCheckbox = extraRowElement.querySelector('[name$="-DELETE"]'); // Use querySelector for consistency
+                      if (extraDeleteCheckbox) {
+                          extraDeleteCheckbox.checked = true;
+                          console.log(`[JS Main Item Remove] DELETE checkbox for associated EXTRA ${extraRowElement.id} FOUND and CHECKED.`);
+                      } else {
+                          console.error(`[JS Main Item Remove] DELETE checkbox for associated EXTRA ${extraRowElement.id} NOT FOUND.`);
+                      }
+                      $(extraRowElement).hide(); // Hide the extra row visually
+                  });
+                  $(itemElement).hide(); // Hide the main item row
+                  updateTotals();
+              }
+          });
+      }
+
+      // Initialize existing extras for this main item
+      const extrasContainer = itemElement.querySelector('.extras-container');
+      if (extrasContainer) {
+          $(extrasContainer).find('.extra-item-row').each(function() {
+              initializeExtraRow(this);
+          });
+      }
+
+      // For new items, ensure price is correctly set and totals updated after initialization
+      if (!itemIdInput || !itemIdInput.value) {
+          console.log(`[initializeOrderItemRow] New item (${itemElement.id || 'new'}), calling updateItemPrice.`);
+          updateItemPrice(itemElement); 
+      }
+  }
+
+  // Calculate and update order totals
+  function updateTotals() {
+      console.log(`[updateTotals] Calculating totals...`);
+      try {
+          let totalOrderPrice = 0;
+
+          // Iterate over visible main item rows
+          $('#order-items > .item-row:not([style*="display: none"])').each(function() {
+              const mainItem = this;
+              let mainItemTotal = 0;
+              
+              const mainUnitPrice = parseFloat($(mainItem).find('.unit-price-input').val()) || 0;
+              const mainQuantity = parseInt($(mainItem).find('.quantity-input').val()) || 0;
+              mainItemTotal += mainUnitPrice * mainQuantity;
+
+              // Iterate over visible extra item rows within this main item's extras-container
+              $(mainItem).find('.extras-container .extra-item-row:not([style*="display: none"])').each(function() {
+                  const extraItem = this;
+                  const extraUnitPrice = parseFloat($(extraItem).find('.unit-price-input').val()) || 0;
+                  const extraQuantity = parseInt($(extraItem).find('.quantity-input').val()) || 0;
+                  mainItemTotal += extraUnitPrice * extraQuantity;
+              });
+              totalOrderPrice += mainItemTotal;
+          });
+          
+          const itemsSubtotalElement = document.getElementById('items-subtotal');
+          const orderTotalElement = document.getElementById('order-total');
+
+          console.log(`[updateTotals] Final totalOrderPrice: ${totalOrderPrice}`);
+          if (itemsSubtotalElement) {
+              itemsSubtotalElement.textContent = `₵${totalOrderPrice.toFixed(2)}`;
+          }
+          if (orderTotalElement) {
+              orderTotalElement.textContent = `₵${totalOrderPrice.toFixed(2)}`;
+          }
+      } catch (error) {
+          console.error('Error updating totals:', error);
+      }
+  };
+
+      // Initialize toggle for delivery location
+      const deliveryTypeSelect = $('#id_delivery_type');
+      const deliveryLocationContainer = $('#delivery-location-container');
+      const deliveryLocationInput = $('#id_delivery_location');
+      const locationLabel = $('#location-label');
+
+      function toggleDeliveryLocation() {
+          const isDelivery = deliveryTypeSelect.val() === 'Delivery';
+          deliveryLocationContainer.toggle(isDelivery);
+          locationLabel.toggleClass('required-field', isDelivery);
+          deliveryLocationInput.prop('required', isDelivery);
+      }
+
+      if (deliveryTypeSelect.length) {
+          deliveryTypeSelect.on('change', toggleDeliveryLocation);
+          // Initialize on page load
+          toggleDeliveryLocation();
+      }
+
+      // Order Items management
+      // Use direct selector for better performance and rebinding after DOM changes
+
+      // Add item button handler
+      $('#add-item').off('click').on('click', function(e) {
+          e.preventDefault();
+          try {
+              const totalFormsInput = $('[name="items-TOTAL_FORMS"]');
+              if (!totalFormsInput.length) {
+                  throw new Error("Total forms input not found");
+              }
+
+              const currentFormCount = parseInt(totalFormsInput.val());
+              
+              // Create new item
+              const template = createItemTemplate(currentFormCount);
+              const newItem = $(template);
+              
+              // Add to DOM
+              $('#order-items').append(newItem);
+              setTimeout(feather.replace, 0); // Defer to next tick
+              initializeOrderItemRow(newItem[0]); // newItem is a jQuery object, newItem[0] is the DOM element
+              
+              // Update form count
+              totalFormsInput.val(currentFormCount + 1);
+              // updateTotals(); // This call is handled by initializeOrderItemRow for new items.
+          } catch (error) {
+              console.error("Error adding new item:", error);
+              alert("Error adding new item: " + error.message);
+          }
+      });
+
+      // Initialization is done directly in the document.ready handler below
+
+      // Handle extras initialization - simplified for better reliability (Commented out as per requirements)
+      // function initializeExtraItem(extraItem) {
+      //     try {
+      //         console.log("Initializing extra item");
+      //         const extraSelect = extraItem.querySelector('.extra-select');
+      //         const extraQuantity = extraItem.querySelector('.extra-quantity');
+      //         
+      //         // Populate the extras dropdown if empty
+      //         if (extraSelect && extraSelect.options.length <= 1) {
+      //             populateExtrasDropdown(extraSelect);
+      //         }
+      //         
+      //         // Set up event handlers
+      //         if (extraSelect) {
+      //             $(extraSelect).off('change').on('change', function() {
+      //                 updateExtraPrice(extraItem);
+      //                 updateTotals();
+      //             });
+      //         }
+      //         
+      //         if (extraQuantity) {
+      //             $(extraQuantity).off('change').on('change', updateTotals);
+      //         }
+      //         
+      //         // Remove button handler
+      //         $(extraItem).find('.remove-extra').off('click').on('click', function() {
+      //             $(extraItem).remove();
+      //             updateTotals();
+      //         });
+      //         
+      //     } catch (error) {
+      //         console.error("Error initializing extra item:", error);
+      //     }
+      // }
+
+      // Update item price display
+      function updateItemPrice(item) {
+          console.log(`[updateItemPrice] Updating price for item:`, item.id);
+          try {
+              const menuItemSelect = item.querySelector('.menu-item-select');
+              const priceDisplay = item.querySelector('.item-price');
+              const unitPriceInput = item.querySelector('.unit-price-input');
+              const itemIdInput = item.querySelector('[name$="-id"]');
+              
+              if (!menuItemSelect || !priceDisplay || !unitPriceInput) {
+                  console.warn('Required elements not found for price update');
+                  return;
+              }
+              
+              // For existing items, check if selection is unchanged
+              if (itemIdInput?.value) {
+                  const originalValue = menuItemSelect.getAttribute('data-original-value');
+                  const originalPrice = menuItemSelect.getAttribute('data-original-price');
+                  console.log(`[updateItemPrice] Existing item. originalValue: ${originalValue}, originalPrice: ${originalPrice}, currentSelection: ${menuItemSelect.value}`);
+                  
+                  if (originalValue && menuItemSelect.value === originalValue && originalPrice) {
+                      // Use original price for unchanged item
+                      const formattedOriginalPrice = utils.formatPrice(originalPrice);
+                      priceDisplay.value = formattedOriginalPrice;
+                      unitPriceInput.value = formattedOriginalPrice;
+                      console.log(`[updateItemPrice] Existing item, unchanged. Using original formatted price: ${formattedOriginalPrice}`);
+                      // console.log(`Using original price ${formattedOriginalPrice} for existing item ${itemIdInput.value}`); // Original log
+                      updateTotals();
+                      return;
+                  }
+              }
+              
+              // For new items or changed selections, get price from selected option
+              console.log(`[updateItemPrice] Processing as new/changed selection.`);
+              const selectedOption = menuItemSelect.options[menuItemSelect.selectedIndex];
+              console.log(`[updateItemPrice] selectedOption text: "${selectedOption?.text}"`);
+              if (selectedOption?.text) {
+                  const priceMatch = selectedOption.text.match(/\(₵(\d+\.\d+)\)/);
+                  console.log(`[updateItemPrice] priceMatch result:`, priceMatch);
+                  if (priceMatch && priceMatch[1]) {
+                      const price = priceMatch[1];
+                      const formattedPrice = utils.formatPrice(price);
+                      priceDisplay.value = formattedPrice;
+                      unitPriceInput.value = formattedPrice;
+                      console.log(`[updateItemPrice] Price matched. formattedPrice: ${formattedPrice}, unitPriceInput value set to: ${unitPriceInput.value}`);
+                      // console.log(`Updated price to ${formattedPrice} for ${itemIdInput?.value ? 'changed' : 'new'} item`); // Original log
+                  } else {
+                      console.log(`[updateItemPrice] Price not matched from option text. unitPriceInput will retain previous value: ${unitPriceInput.value}`);
+                  }
+              }
+              
+              updateTotals();
+          } catch (error) {
+              console.error(`Error updating price for item ${item?.id || 'unknown'}:`, error);
+          }
+      }
+
+      // Add extra to item (Commented out as per requirements)
+      // function addExtraToItem(item) {
+      //     try {
+      //         const $item = $(item);
+      //         const $extrasList = $item.find(CONFIG.selectors.extrasList);
+      //         if (!$extrasList.length) {
+      //             throw new Error(`Extras list not found in item ${item.id}`);
+      //         }
+      //
+      //         const itemId = item.id.replace('item-', '');
+      //         const $extraItem = $(CONFIG.templates.extraItem(itemId));
+      //         
+      //         // Append to DOM before initializing events
+      //         $extrasList.append($extraItem);
+      //         
+      //         // Initialize event handlers for the new extra item
+      //         initializeExtraItem($extraItem[0]);
+      //         
+      //         // Update totals
+      //         updateTotals();
+      //         
+      //         return $extraItem[0]; // Return the created item for potential further use
+      //     } catch (error) {
+      //         return errorHandler.handleError(error, `adding extra to item ${item?.id || 'unknown'}`, true);
+      //     }
+      // }
+
+      // Populate extras dropdown (Commented out as per requirements)
+      // function populateExtrasDropdown(selectElement) {
+      //     try {
+      //         if (!selectElement) {
+      //             throw new Error("Select element is null or undefined");
+      //         }
+      //
+      //         // Use extras from configuration
+      //         CONFIG.extras.forEach(extra => {
+      //             try {
+      //                 const option = document.createElement('option');
+      //                 option.value = extra.id;
+      //                 option.textContent = `${extra.name} (${CONFIG.currency}${utils.formatPrice(extra.price)})`;
+      //                 option.dataset.price = utils.formatPrice(extra.price);
+      //                 selectElement.appendChild(option);
+      //             } catch (optionError) {
+      //                 errorHandler.handleError(optionError, `adding option for ${extra.name}`);
+      //             }
+      //         });
+      //     } catch (error) {
+      //         console.error("Error populating extras dropdown:", error);
+      //     }
+      // }
+
+      // Update extra price display (Commented out as per requirements)
+      // function updateExtraPrice(extraItem) {
+      //     try {
+      //         const extraSelect = extraItem.querySelector('.extra-select');
+      //         const priceDisplay = extraItem.querySelector('.extra-price');
+      //
+      //         if (extraSelect && priceDisplay) {
+      //             const selectedOption = extraSelect.options[extraSelect.selectedIndex];
+      //             if (selectedOption?.dataset.price) {
+      //                 priceDisplay.value = utils.formatPrice(selectedOption.dataset.price);
+      //             } else {
+      //                 priceDisplay.value = '0.00';
+      //             }
+      //         }
+      //     } catch (error) {
+      //         errorHandler.handleError(error, "updating extra price");
+      //     }
+      // }
+
+      // Create new item template HTML
+      function createItemTemplate(index) {
+          // Use template literal for better readability
+          const template = `
+              <div class="item-row mb-3 p-3 border-bottom" id="item-${index}">
+                  <div class="row mb-3">
+                      <!-- Item Selection -->
+                          <div class="col-md-6">
+                              <label class="form-label required-field">Menu Item</label>
+                              <select name="items-${index}-menu_item" class="form-select menu-item-select" required>
+                                  ${menuItemChoices.map(group => {
+                                      if (group.label && group.options && group.options.length > 0) {
+                                          return `
+                                              <optgroup label="${group.label}">
+                                                  ${group.options.map(option => 
+                                                      `<option value="${option.value}">${option.label}</option>`
+                                                  ).join('')}
+                                              </optgroup>
+                                          `;
+                                      }
+                                      return '';
+                                  }).join('')}
+                              </select>
+                          </div>
+                          
+                          <!-- Quantity -->
+                          <div class="col-md-2">
+                              <label class="form-label required-field">Quantity</label>
+                              <input type="number" name="items-${index}-quantity" class="form-control quantity-input" min="1" value="1" required>
+                          </div>
+                          
+                          <!-- Item Price Display -->
+                          <div class="col-md-2">
+                              <label class="form-label">Unit Price</label>
+                              <div class="price-input-group">
+                                  <input type="number" name="items-${index}-price_display" 
+                                         class="form-control item-price" readonly value="0.00" 
+                                         step="0.01" data-price-type="display">
+                                  <input type="hidden" name="items-${index}-unit_price" 
+                                         class="unit-price-input" value="0.00">
+                              </div>
+                              <div class="invalid-feedback">Invalid price value</div>
+                          </div>
+                          
+                          <!-- Remove Button -->
+                          <div class="col-md-2 d-flex align-items-end">
+                              <button type="button" class="btn btn-sm btn-outline-danger mb-3 remove-item">
+                                  <span data-feather="trash-2"></span>
+                              </button>
+                              <input type="checkbox" name="items-${index}-DELETE" class="d-none">
+                              <input type="hidden" name="items-${index}-id" value="">
+                              <input type="hidden" name="items-${index}-order" value="${CONFIG.orderPk}">
+                          </div>
+                      </div>
+
+                      <!-- Add Extra Button and Container -->
+                      <div class="row mt-2">
+                          <div class="col-12 text-end">
+                              <button type="button" class="btn btn-sm btn-success add-extra-btn" data-item-prefix="items-${index}">
+                                  <i data-feather="plus"></i> Add Extra
+                              </button>
+                          </div>
+                      </div>
+                      <div class="extras-container mt-2" id="extras-container-for-${index}">
+                          <!-- Extras for this item will be appended here by JavaScript -->
+                      </div>
+              </div>
+          `;
+
+          return template.trim();
+      }
+
+      // Function to create HTML for an extra row (ported from order_create.html)
+      function createExtraRowHTML(formsetIndex, extraMenuItem, parentItemFormPrefix) { 
+          const price = parseFloat(extraMenuItem.price) || 0;
+          const formattedPrice = utils.formatPrice(price);
+          // Note: The name attributes for inputs will be `items-${formsetIndex}-field_name`
+          // The 'id' for the row div is `item-${formsetIndex}` to match how main items are identified.
+          const html = `
+              <div class="item-row extra-item-row p-2 mb-2 ms-4" id="item-${formsetIndex}">
+                  <input type="hidden" name="items-${formsetIndex}-menu_item" value="${extraMenuItem.id}">
+                  
+                  <!-- ADD THIS HIDDEN INPUT FOR PARENT REFERENCE -->
+                  <input type="hidden" name="items-${formsetIndex}-parent_item_ref" value="${parentItemFormPrefix}">
+
+                  <div class="row align-items-center">
+                          <div class="col-md-4">
+                              <small class="text-muted"><i data-feather="corner-down-right" class="me-1"></i> Extra:</small>
+                              <strong>${extraMenuItem.name}</strong>
+                          </div>
+                          <div class="col-md-2">
+                              <label for="items-${formsetIndex}-quantity" class="visually-hidden">Quantity for ${extraMenuItem.name}</label>
+                              <input type="number" name="items-${formsetIndex}-quantity" id="items-${formsetIndex}-quantity" class="form-control form-control-sm quantity-input extra-quantity-input" min="1" value="1" required>
+                          </div>
+                          <div class="col-md-3">
+                              <label for="items-${formsetIndex}-price_display_extra" class="visually-hidden">Price for ${extraMenuItem.name}</label>
+                              <input type="text" id="items-${formsetIndex}-price_display_extra" class="form-control form-control-sm item-price extra-item-price" readonly value="${utils.formatWithCurrency(formattedPrice)}">
+                              <input type="hidden" name="items-${formsetIndex}-unit_price" class="unit-price-input" value="${formattedPrice}">
+                          </div>
+                          <div class="col-md-3 d-flex align-items-center justify-content-end">
+                              <button type="button" class="btn btn-sm btn-outline-danger remove-extra-btn">
+                                  <span data-feather="x"></span>
+                              </button>
+                              <input type="checkbox" name="items-${formsetIndex}-DELETE" id="items-${formsetIndex}-DELETE" class="d-none">
+                              <input type="hidden" name="items-${formsetIndex}-id" id="items-${formsetIndex}-id" value="">
+                              <input type="hidden" name="items-${formsetIndex}-order" id="items-${formsetIndex}-order" value="${CONFIG.orderPk}">
+                              {# Mark this as an extra for backend, assuming a field like 'parent_item' would be set by view if it was pre-existing #}
+                              {# For newly added extras, JS might need to set a hidden field if backend relies on it e.g. items-${formsetIndex}-is_extra=True #}
+                          </div>
+                      </div>
+              </div>
+          `;
+          return $(html); // Return as jQuery object
+      }
+
+      // Function to initialize an extra row (ported from order_create.html)
+      function initializeExtraRow(extraRowElement) {
+          const $extraRow = $(extraRowElement);
+          const $quantityInput = $extraRow.find('.extra-quantity-input');
+          const $removeButton = $extraRow.find('.remove-extra-btn');
+          // Unit price is already set by createExtraRowHTML or Django template
+
+          $quantityInput.off('input.extrarow').on('input.extrarow', function() {
+              updateTotals();
+          });
+
+          $removeButton.off('click.extrarow').on('click.extrarow', function() { // 'this' is the button here
+              if (confirm('Are you sure you want to remove this extra?')) {
+                  // More robust: find checkbox within the specific extraRowElement this button belongs to.
+                  const currentExtraRow = $(this).closest('.extra-item-row');
+                  const deleteCheckboxForExtra = currentExtraRow.find('[name$="-DELETE"]');
+
+                  if (deleteCheckboxForExtra.length) {
+                      deleteCheckboxForExtra.prop('checked', true);
+                      console.log(`[JS Extra Item Remove] DELETE checkbox for ${currentExtraRow.attr('id')} FOUND and CHECKED.`);
+                  } else {
+                      console.error(`[JS Extra Item Remove] DELETE checkbox for ${currentExtraRow.attr('id')} NOT FOUND.`);
+                  }
+                  currentExtraRow.hide();
+                  updateTotals();
+              }
+          });
+      }
+
+      // Event delegation for "Add Extra" button (ported logic from order_create.html)
+      $('#order-items').on('click', '.add-extra-btn', function(event) {
+          event.preventDefault();
+          const $addExtraButton = $(this);
+          const $regularItemRow = $addExtraButton.closest('.item-row:not(.extra-item-row)');
+          if (!$regularItemRow.length) return;
+
+          const $extrasContainer = $regularItemRow.find('.extras-container');
+          if (!$extrasContainer.length) {
+              console.error("Extras container not found for item:", $regularItemRow.attr('id'));
+              return;
+          }
+
+          // Remove any existing temporary extra selectors for this item
+          $extrasContainer.find('.temp-extra-selector-ui').remove();
+
+          // Create temporary UI for selecting an extra
+          let optionsHTML = '<option value="">-- Select an Extra --</option>';
+          AVAILABLE_EXTRAS.forEach(extra => {
+              optionsHTML += `<option value="${extra.id}" data-price="${utils.formatPrice(extra.price)}" data-name="${String(extra.name).replace(/"/g, '&quot;')}">${String(extra.name)} (${utils.formatWithCurrency(extra.price)})</option>`;
+          });
+
+          const $tempUI = $(`
+              <div class="temp-extra-selector-ui card card-body shadow-sm mt-2 p-2">
+                  <div class="mb-2">
+                      <select class="form-select form-select-sm dynamic-extra-select">${optionsHTML}</select>
+                  </div>
+                  <div class="text-end">
+                      <button type="button" class="btn btn-sm btn-success confirm-add-selected-extra me-1">Add</button>
+                      <button type="button" class="btn btn-sm btn-outline-secondary cancel-add-selected-extra">Cancel</button>
+                  </div>
+              </div>
+          `);
+          
+          $extrasContainer.append($tempUI);
+
+          $tempUI.find('.confirm-add-selected-extra').on('click', function() {
+              const $selectElement = $tempUI.find('.dynamic-extra-select');
+              const selectedOption = $selectElement.find('option:selected');
+
+              if (selectedOption.length && selectedOption.val()) {
+                  const selectedExtraDetails = { 
+                      id: selectedOption.val(), 
+                      name: selectedOption.data('name'), 
+                      price: selectedOption.data('price') 
+                  };
+
+                  const $totalFormsInput = $('[name="items-TOTAL_FORMS"]');
+                  const formsetIndex = parseInt($totalFormsInput.val());
+                  const parentItemFormPrefix = $addExtraButton.attr('data-item-prefix'); // Use .attr() to reliably get data- attributes set by both Django and JS
+
+                  const $newExtraRowElement = createExtraRowHTML(formsetIndex, selectedExtraDetails, parentItemFormPrefix);
+                  // $extrasContainer.append($newExtraRowElement); // Append or insert before tempUI
+                  $tempUI.before($newExtraRowElement);
+                  setTimeout(feather.replace, 0); // Defer to next tick
+
+                  initializeExtraRow($newExtraRowElement[0]);
+
+                  $totalFormsInput.val(formsetIndex + 1);
+                  updateTotals();
+                  $tempUI.remove();
+              } else {
+                  alert("Please select an extra.");
+              }
+          });
+
+          $tempUI.find('.cancel-add-selected-extra').on('click', function() {
+              $tempUI.remove();
+          });
+      });
+
+      // Initialization will be done at the end of the script
+
+      // Update element attributes when needed
+
+      // Form validation before submit
+      const orderForm = $('#order-form');
+      if (orderForm.length) {
+          orderForm.on('submit', function(event) {
+              let isValid = true;
+              let errorMessages = [];
+
+              try {
+                  console.log("Form submission initiated by user.");
+                  const totalFormsInput = $('[name="items-TOTAL_FORMS"]');
+                  if (totalFormsInput.length) {
+                      console.log(`Value of items-TOTAL_FORMS just before validation: ${totalFormsInput.val()}`);
+                  } else {
+                      console.log("items-TOTAL_FORMS input not found!");
+                  }
+                  let jsValidationPassed = true; // Assume true initially
+
+                  // Check if there are any visible items
+                  const visibleItems = $('.item-row:not([style*="display: none"])');
+                  if (visibleItems.length === 0) {
+                      errorMessages.push('You cannot remove all items from an order. Please keep at least one item.');
+                      isValid = false;
+                  }
+
+                  // Check if items have menu items selected and valid prices
+                  visibleItems.each(function() {
+                      const $item = $(this); // This is a .item-row
+
+                      // Common validations for both main items and extras
+                      const unitPriceInput = $item.find('.unit-price-input'); // Hidden input holding the numeric price
+                      const quantityInput = $item.find('.quantity-input');
+                      const priceDisplayInput = $item.find('input.item-price[readonly]'); // The visible price display input
+
+                      // Validate quantity (applies to both main items and extras)
+                      const quantity = parseInt(quantityInput.val());
+                      if (isNaN(quantity) || quantity < 1) {
+                          quantityInput.addClass('is-invalid');
+                          errorMessages.push('Quantity must be at least 1 for all items/extras.');
+                          isValid = false;
+                      } else {
+                          quantityInput.removeClass('is-invalid');
+                      }
+
+                      // Final price validation (applies to both main items and extras)
+                      const priceValue = parseFloat(unitPriceInput.val());
+                      if (isNaN(priceValue) || priceValue <= 0) {
+                          if (priceDisplayInput.length) { // Check if the display input exists
+                            priceDisplayInput.addClass('is-invalid');
+                          }
+                          errorMessages.push('Invalid price value detected for an item or extra. Please ensure menu items are selected, or prices are correctly loaded.');
+                          isValid = false;
+                      } else {
+                          if (priceDisplayInput.length) {
+                            priceDisplayInput.removeClass('is-invalid');
+                          }
+                      }
+
+                      // Specific validation for MAIN items' menu selection
+                      // Extras (.extra-item-row) do not have a user-selectable menu item in the same way
+                      if (!$item.hasClass('extra-item-row')) {
+                          // For main items, the menu item select should exist and have the class '.menu-item-select'
+                          // (or be targeted by a name pattern if class isn't guaranteed on Django render)
+                          const menuItemSelect = $item.find('select.menu-item-select[name$="-menu_item"]'); 
+                          
+                          if (menuItemSelect.length > 0 && !menuItemSelect.val()) {
+                              menuItemSelect.addClass('is-invalid');
+                              errorMessages.push('Please select a menu item for all main order items.');
+                              isValid = false;
+                          } else if (menuItemSelect.length > 0) {
+                              menuItemSelect.removeClass('is-invalid');
+                          }
+                      }
+                  });
+
+                  // Check delivery location if delivery is selected
+                  const deliveryTypeSelect = $('#id_delivery_type');
+                  const deliveryLocationInput = $('#id_delivery_location');
+                  
+                  if (deliveryTypeSelect.val() === 'Delivery') {
+                      if (!deliveryLocationInput.val().trim()) {
+                          deliveryLocationInput.addClass('is-invalid');
+                          errorMessages.push('Delivery location is required for delivery orders.');
+                          isValid = false;
+                      } else {
+                          deliveryLocationInput.removeClass('is-invalid');
+                      }
+                  }
+
+                  // If validation fails, prevent form submission and show errors
+                  if (!isValid) {
+                      jsValidationPassed = false; // Mark JS validation as failed
+                      console.log("Client-side JavaScript validation FAILED.");
+                      console.log("Error messages:", errorMessages);
+                      event.preventDefault();
+                      if (errorMessages.length > 0) {
+                          alert(errorMessages.join('\n'));
+                      }
+                  } else {
+                      jsValidationPassed = true; // Mark JS validation as passed
+                      console.log("Client-side JavaScript validation PASSED.");
+                      // Last check: ensure all unit prices are properly set
+                      visibleItems.each(function() {
+                          const $item = $(this);
+                          const unitPriceInput = $item.find('[name$="-unit_price"]');
+                          const priceDisplay = $item.find('.item-price');
+
+                          // Ensure unit_price matches price_display
+                          if (priceDisplay.length && unitPriceInput.length) {
+                              const displayPrice = utils.parsePrice(priceDisplay.val());
+                              if (!isNaN(displayPrice)) {
+                                  unitPriceInput.val(utils.formatPrice(displayPrice));
+                              }
+                          }
+                      });
+                      console.log("Form data prepared, allowing default browser submission.");
+                  }
+              } catch (error) {
+                  event.preventDefault();
+                  errorHandler.handleError(error, 'form validation', true);
+              }
+          });
+      }
+      // Currency symbol display is now handled in CSS
+      
+      // Final initialization (this $(document).ready is redundant as we are already inside one)
+      // We'll perform initialization directly
+      try {
+          console.log("Starting order form initialization (update page)...");
+          
+          // Initialize existing MAIN items. initializeOrderItemRow will handle their existing extras.
+          $('#order-items > .item-row:not(.extra-item-row)').each(function() {
+              initializeOrderItemRow(this);
+          });
+          
+          // Initialize delivery type toggle
+          toggleDeliveryLocation();
+          
+          // Calculate initial totals
+          updateTotals();
+          
+          console.log("Order update form initialization completed successfully");
+      } catch (error) {
+          console.error("Error during order update form initialization:", error);
+          alert("Error initializing order update form. Please refresh the page.");
+      }
+  // }); // End of the main jQuery(document).ready
+// }); // This was the original closing brace for the outer document.ready, it should be kept
+
+  }); // This is the correct closing for the main jQuery(document).ready
 </script>
 {% endblock %}
-

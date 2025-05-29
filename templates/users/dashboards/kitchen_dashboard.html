@@ -4,18 +4,18 @@
 
 {% block extra_css %}
 <style>
-    .kitchen-card {
-        border-radius: 10px;
-        box-shadow: 0 0 15px rgba(0,0,0,0.1);
-        margin-bottom: 20px;
-    }
-    .kitchen-card-header {
-        background-color: #f8f9fa;
-        padding: 15px;
-        border-bottom: 1px solid #dee2e6;
-        font-weight: bold;
-        border-radius: 10px 10px 0 0;
-    }
+    /* .kitchen-card { */
+        /* border-radius: 10px; */
+        /* box-shadow: 0 0 15px rgba(0,0,0,0.1); */
+        /* margin-bottom: 20px; */
+    /* } */
+    /* .kitchen-card-header { */
+        /* background-color: #f8f9fa; */
+        /* padding: 15px; */
+        /* border-bottom: 1px solid #dee2e6; */
+        /* font-weight: bold; */
+        /* border-radius: 10px 10px 0 0; */
+    /* } */
     .order-item {
         border-left: 5px solid transparent;
         transition: all 0.3s;
@@ -93,9 +93,10 @@
 {% endblock %}
 
 {% block content %}
+<div class="container-fluid px-4 py-4">
 <div class="row mb-4">
     <div class="col">
-        <h1 class="h2"><i class="fas fa-utensils"></i> Kitchen Dashboard</h1>
+        <h1 class="h2"><i data-feather="coffee"></i> Kitchen Dashboard</h1>
         <p class="text-muted">Manage food preparation, orders, and kitchen operations</p>
     </div>
 </div>
@@ -103,9 +104,9 @@
 <div class="row">
     <!-- Order Queue -->
     <div class="col-lg-8">
-        <div class="kitchen-card">
-            <div class="kitchen-card-header d-flex justify-content-between align-items-center">
-                <div><i class="fas fa-clipboard-list"></i> Current Order Queue</div>
+        <div class="card action-card shadow-sm">
+            <div class="action-card-header d-flex justify-content-between align-items-center">
+                <div><i data-feather="list"></i> Current Order Queue</div>
                 <div>
                     <span class="badge bg-danger">New: 3</span>
                     <span class="badge bg-warning ms-1">Processing: 4</span>
@@ -199,7 +200,7 @@
                         <div class="row">
                             <div class="col-md-8">
                                 <div class="alert alert-success mb-0">
-                                    <i class="fas fa-check-circle"></i> All items ready for pickup
+                                    <i data-feather="check-circle"></i> All items ready for pickup
                                 </div>
                             </div>
                             <div class="col-md-4 mt-3 mt-md-0 text-center">
@@ -217,9 +218,9 @@
     
     <!-- Kitchen Stats -->
     <div class="col-lg-4">
-        <div class="kitchen-card">
-            <div class="kitchen-card-header">
-                <i class="fas fa-chart-pie"></i> Kitchen Stats
+        <div class="card action-card shadow-sm">
+            <div class="action-card-header">
+                <i data-feather="pie-chart"></i> Kitchen Stats
             </div>
             <div class="card-body">
                 <div class="mb-4">
@@ -258,9 +259,9 @@
             </div>
         </div>
         
-        <div class="kitchen-card">
-            <div class="kitchen-card-header">
-                <i class="fas fa-bell"></i> Alerts
+        <div class="card action-card shadow-sm">
+            <div class="action-card-header">
+                <i data-feather="bell"></i> Alerts
             </div>
             <div class="card-body p-0">
                 <div class="list-group list-group-flush">
@@ -294,9 +295,9 @@
 <div class="row">
     <!-- Inventory Status -->
     <div class="col-lg-4">
-        <div class="kitchen-card">
-            <div class="kitchen-card-header">
-                <i class="fas fa-boxes"></i> Inventory Status
+        <div class="card action-card shadow-sm">
+            <div class="action-card-header">
+                <i data-feather="package"></i> Inventory Status
             </div>
             <div class="card-body">
                 <div class="mb-3">
@@ -345,5 +346,3 @@
                         <span>45%</span>
                     </div>
                     <div class="progress">
-                        <div class="progress-bar bg-warning" role="progressbar" style="width: 45%" aria
-

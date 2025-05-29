@@ -27,11 +27,14 @@ class CustomUserAdmin(UserAdmin):
     # Order users by
     ordering = ('-date_joined',)
     
+    # Fields that are read-only in the admin change form
+    readonly_fields = ('last_login', 'date_joined', 'staff_id')
+    
     # Fields organization for the detail view
     fieldsets = (
         (None, {'fields': ('username', 'password')}),
         (_('Personal info'), {'fields': ('first_name', 'last_name', 'email')}),
-        (_('Role & Identification'), {'fields': ('role', 'staff_id')}),
+        (_('Role & Identification'), {'fields': ('role',)}), # staff_id removed, will be shown via readonly_fields
         (_('Permissions'), {
             'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions'),
         }),
@@ -42,7 +45,7 @@ class CustomUserAdmin(UserAdmin):
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
-            'fields': ('username', 'email', 'password1', 'password2', 'role', 'staff_id'),
+            'fields': ('username', 'email', 'password1', 'password2', 'role'), # staff_id removed
         }),
         (_('Personal info'), {
             'classes': ('wide',),

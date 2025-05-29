@@ -68,7 +68,7 @@ class CustomUserCreationForm(UserCreationForm):
     """
     class Meta:
         model = CustomUser
-        fields = ('username', 'email', 'first_name', 'last_name', 'role', 'staff_id')
+        fields = ('username', 'email', 'first_name', 'last_name', 'role') # Removed staff_id
         
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -124,9 +124,12 @@ class CustomUserChangeForm(UserChangeForm):
     
     class Meta:
         model = CustomUser
-        fields = ('username', 'email', 'first_name', 'last_name', 'role', 'staff_id')
+        fields = ('username', 'email', 'first_name', 'last_name', 'role', 'is_active') # Removed staff_id
         
     def __init__(self, *args, **kwargs):
+        # Pop the 'user' kwarg before calling super, as UserChangeForm.__init__ doesn't expect it.
+        # The 'user' (request.user) can be used for conditional logic within the form if needed.
+        self.request_user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
         
         # Add Bootstrap classes to all form fields
@@ -155,7 +158,17 @@ class CustomUserChangeForm(UserChangeForm):
             
         if self.instance and hasattr(self.instance, 'vehicle_type'):
             self.fields['vehicle_type'].initial = self.instance.vehicle_type
-    
+
+        # Ensure 'is_active' field is present, if not already added by UserChangeForm
+        if 'is_active' not in self.fields:
+             self.fields['is_active'] = forms.BooleanField(required=False, initial=self.instance.is_active if self.instance else True)
+        
+        # Apply Bootstrap class to 'is_active' if it's a checkbox
+        if isinstance(self.fields.get('is_active').widget, forms.CheckboxInput):
+            self.fields.get('is_active').widget.attrs['class'] = 'form-check-input'
+        else:
+            self.fields.get('is_active').widget.attrs['class'] = 'form-select' # Or form-control if not a checkbox
+
     def clean(self):
         cleaned_data = super().clean()
         role = cleaned_data.get('role')
