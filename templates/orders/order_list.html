@@ -1,183 +1,594 @@
-﻿{% extends "orders/base.html" %}
-
-{% block orders_content %}
+﻿{% extends "orders/base.html" %} {% block orders_content %}
 <!-- Page Header -->
 <div class="page-header card shadow-sm">
-    <div class="card-body">
-        <div class="row align-items-center">
-            <div class="col-auto">
-                <div class="page-icon-box">
-                    <i data-feather="clipboard"></i>
-                </div>
-            </div>
-            <div class="col">
-                <nav aria-label="breadcrumb">
-                    <ol class="breadcrumb mb-2">
-                        <li class="breadcrumb-item"><a href="{% url 'users:dashboard' %}" class="text-decoration-none">Dashboard</a></li>
-                        <li class="breadcrumb-item active" aria-current="page">Orders</li>
-                    </ol>
-                </nav>
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h1 class="page-title h3 mb-0">Order Management</h1>
-                        <p class="text-muted mb-0">Track and manage restaurant orders</p>
-                    </div>
-                    <div class="page-actions">
-                        <!-- New Order button moved to floating action button -->
-                    </div>
-                </div>
-            </div>
+  <div class="card-body">
+    <div class="row align-items-center">
+      <div class="col-auto">
+        <div class="page-icon-box">
+          <i data-feather="clipboard"></i>
         </div>
+      </div>
+      <div class="col">
+        <nav aria-label="breadcrumb">
+          <ol class="breadcrumb mb-2">
+            <li class="breadcrumb-item">
+              <a href="{% url 'users:dashboard' %}" class="text-decoration-none"
+                >Dashboard</a
+              >
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">Orders</li>
+          </ol>
+        </nav>
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <h1 class="page-title h3 mb-0">Order Management</h1>
+            <p class="text-muted mb-0">Track and manage restaurant orders</p>
+            <p class="text-muted mt-1 small">Showing orders for: {{ display_date_header }}</p>
+          </div>
+          <div class="page-actions">
+            <!-- New Order button moved to floating action button -->
+          </div>
+        </div>
+      </div>
     </div>
+  </div>
 </div>
 
-<!-- Filters -->
-<div class="card action-card mt-4 mb-4">
-    <div class="card-header action-card-header">
-        <h5 class="card-title mb-0">Filters</h5>
+<!-- Combined Filter Form -->
+<form method="get" class="row g-3 align-items-end my-4">
+    <!-- Date Input Group -->
+    <div class="col-md-4">
+        {# Label removed as per request #}
+        <input type="date" name="date" id="date_filter" class="form-control" value="{{ selected_date_for_picker }}" title="Select date to view orders">
     </div>
-    <div class="card-body">
-        <form method="get" class="row g-3">
-            <div class="col-md-3">
-                <div class="form-group">
-                    <label for="search" class="form-label">Search Orders</label>
-                    <div class="input-group">
-                        <span class="input-group-text"><i data-feather="search"></i></span>
-                        <input type="text" name="search" id="search" class="form-control" placeholder="Search by customer or phone" value="{{ search_query }}">
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-2">
-                <div class="form-group">
-                    <label for="status" class="form-label">Status</label>
-                    <select name="status" id="status" class="form-select">
-                        <option value="">All Status</option>
-                        {% for status_value, status_label in status_choices %}
-                            <option value="{{ status_value }}" {% if selected_status == status_value %}selected{% endif %}>
-                                {{ status_label }}
-                            </option>
-                        {% endfor %}
-                    </select>
-                </div>
-            </div>
-            <div class="col-md-2">
-                <div class="form-group">
-                    <label for="delivery_type" class="form-label">Delivery Type</label>
-                    <select name="delivery_type" id="delivery_type" class="form-select">
-                        <option value="">All Types</option>
-                        {% for delivery_value, delivery_label in delivery_choices %}
-                            <option value="{{ delivery_value }}" {% if selected_delivery == delivery_value %}selected{% endif %}>
-                                {{ delivery_label }}
-                            </option>
-                        {% endfor %}
-                    </select>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="form-group">
-                    <label for="sort" class="form-label">Sort By</label>
-                    <select name="sort" id="sort" class="form-select">
-                        <option value="-created_at" {% if sort_by == '-created_at' %}selected{% endif %}>Newest First</option>
-                        <option value="created_at" {% if sort_by == 'created_at' %}selected{% endif %}>Oldest First</option>
-                        <option value="total_price" {% if sort_by == 'total_price' %}selected{% endif %}>Highest Price</option>
-                        <option value="customer" {% if sort_by == 'customer' %}selected{% endif %}>Customer Name</option>
-                    </select>
-                </div>
-            </div>
-            <div class="col-md-2 d-flex align-items-end">
-                <div class="form-group d-flex gap-2 w-100">
-                    <button type="submit" class="btn btn-primary flex-grow-1">
-                        <i data-feather="filter" class="me-1"></i> Filter
-                    </button>
-                    <a href="{% url 'orders:order_list' %}" class="btn btn-secondary">
-                        <i data-feather="rotate-ccw"></i>
-                    </a>
-                </div>
-            </div>
-        </form>
+
+    <!-- Search Input Group -->
+    <div class="col-md-5">
+        <label for="search" class="form-label visually-hidden">Search Orders</label>
+        <div class="input-group">
+            <span class="input-group-text"><i data-feather="search"></i></span>
+            <input type="text" name="search" id="search" class="form-control" placeholder="Search by customer, phone, or Order #" value="{{ search_query }}" title="Enter search term">
+        </div>
     </div>
-</div>
+
+    <!-- Action Buttons Group -->
+    <div class="col-md-3">
+        <div class="form-group d-flex gap-2 w-100">
+            <button type="submit" class="btn btn-primary flex-grow-1">
+                <i data-feather="filter" class="me-1"></i> Apply Filters
+            </button>
+            <a href="{% url 'orders:order_list' %}" class="btn btn-secondary" title="Reset all filters">
+                <i data-feather="rotate-ccw"></i> Reset
+            </a>
+        </div>
+    </div>
+</form>
 
 <!-- Order List -->
 {% if orders %}
 <div class="card action-card">
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-                <thead class="table-light">
-                    <tr>
-                        <th class="ps-3">Order #</th>
-                        <th>Customer</th>
-                        <th>Status</th>
-                        <th>Payment</th>
-                        <th>Delivery</th>
-                        <th>Price</th>
-                        <th class="text-end pe-3">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for order in orders %}
-                    <tr>
-                        <td class="ps-3"><strong class="order-number">{{ order.order_number }}</strong></td>
-                        <td>
-                            <div class="customer-name">{{ order.customer_name }}</div>
-                            <div class="customer-phone">{{ order.customer_phone }}</div>
-                        </td>
-                        <td>
-                            <span class="badge status-{{ order.status|lower }} py-2 px-3">
-                                {{ order.status }}
-                            </span>
-                        </td>
-                        <td>
-                            {% if order.is_paid %}
-                                <span class="badge bg-success py-2 px-3">PAID</span>
-                            {% else %}
-                                <span class="badge bg-danger py-2 px-3">UNPAID</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if order.delivery_type == "Pickup" %}
-                                <span class="badge bg-secondary py-2 px-3">Pickup</span>
-                            {% else %}
-                                <span class="badge bg-info py-2 px-3">Delivery</span>
-                            {% endif %}
-                        </td>
-                        <td class="price-display">₵{{ order.total_price }}</td>
-                        <td class="text-end pe-3">
-                            <div class="btn-group">
-                                <a href="{% url 'orders:order_detail' order.pk %}" class="btn btn-sm btn-primary" title="View Details">
-                                    <i data-feather="eye"></i>
-                                </a>
-                                <a href="{% url 'orders:order_update' order.pk %}" class="btn btn-sm btn-secondary" title="Edit Order">
-                                    <i data-feather="edit"></i>
-                                </a>
-                                <a href="{% url 'orders:order_detail' order.pk %}" class="btn btn-sm btn-info" title="View Details / Update Status">
-                                    <i data-feather="check-square"></i>
-                                </a>
-                            </div>
-                        </td>
-                    </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3">Order #</th>
+            <th>Customer</th>
+            <th>Status</th>
+            <th>Payment</th>
+            <th>Delivery</th>
+            <th>Price</th>
+            <th class="text-end pe-3">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for order in orders %}
+          <tr>
+            <td class="ps-3">
+              <strong class="order-number">{{ order.order_number }}</strong>
+            </td>
+            <td>
+              <div class="customer-name">{{ order.customer_name }}</div>
+              <div class="customer-phone">{{ order.customer_phone }}</div>
+            </td>
+            <td>
+              {% if order.status == "Pending" %}
+              <span class="badge status-pending py-2 px-3"
+                >{{ order.status }}</span
+              >
+              {% elif order.status == "Accepted" %}
+              <span class="badge status-confirmed py-2 px-3"
+                >{{ order.status }}</span
+              >
+              {% elif order.status == "Ready" %}
+              <span class="badge status-ready py-2 px-3"
+                >{{ order.status }}</span
+              >
+              {% elif order.status == "Out for Delivery" %}
+              <span class="badge status-processing py-2 px-3"
+                >{{ order.status }}</span
+              >
+              {% elif order.status == "Fulfilled" %}
+              <span class="badge status-delivered py-2 px-3"
+                >{{ order.status }}</span
+              >
+              {% elif order.status == "Cancelled" %}
+              <span class="badge status-cancelled py-2 px-3"
+                >{{ order.status }}</span
+              >
+              {% else %}
+              <span class="badge bg-secondary py-2 px-3"
+                >{{ order.status }}</span
+              >
+              {# Fallback #} {% endif %}
+            </td>
+            <td>
+              {% if order.is_paid %}
+              <span class="badge bg-success py-2 px-3">PAID</span>
+              {% else %}
+              <span class="badge bg-danger py-2 px-3">UNPAID</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if order.delivery_type == "Pickup" %}
+              <span class="badge bg-secondary py-2 px-3">Pickup</span>
+              {% elif order.delivery_type == "Delivery" %}
+              <span class="badge bg-info py-2 px-3"
+                >{{ order.delivery_location|default:"Delivery" }}</span
+              >
+              {% else %}
+              <span class="badge bg-light text-dark py-2 px-3"
+                >{{ order.delivery_type }}</span
+              >
+              {# Fallback for unexpected types #} {% endif %}
+            </td>
+            <td class="price-display">₵{{ order.total_price }}</td>
+            <td class="text-end pe-3">
+              <div class="btn-group">
+                <a
+                  href="{% url 'orders:order_detail' order.order_number %}"
+                  class="btn btn-sm btn-primary view-order-items-btn"
+                  title="{% if order.delivery_type == "Delivery" %}Order {{ order.order_number }} - Delivery to {{ order.delivery_location }}: ₵{{ order.delivery_fee|floatformat:2 }}{% elif order.delivery_type == "Pickup" %}Order {{ order.order_number }} - Pickup (No Delivery Fee){% else %}Order {{ order.order_number }}{% endif %}"
+                  data-order-number="{{ order.order_number }}"
+                  data-bs-placement="left"
+                  data-bs-html="true"
+                  data-bs-content="<div class='text-center p-2'><div class='spinner-border spinner-border-sm' role='status'><span class='visually-hidden'>Loading...</span></div></div>"
+                >
+                  <i data-feather="eye"></i>
+                </a>
+                <a
+                  href="{% url 'orders:order_update' order.order_number %}"
+                  class="btn btn-sm btn-secondary"
+                  title="Edit Order"
+                >
+                  <i data-feather="edit"></i>
+                </a>
+                <button
+                  type="button"
+                  class="btn btn-sm btn-info update-status-btn"
+                  title="Update Status"
+                  data-bs-toggle="modal"
+                  data-bs-target="#updateStatusModal"
+                  data-order-number="{{ order.order_number }}"
+                  data-current-status="{{ order.status }}"
+                  data-delivery-type="{{ order.delivery_type }}"
+                >
+                  <i data-feather="check-square"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
-    
-    <!-- ... [pagination section remains the same] ... -->
+  </div>
+</div>
+
+<!-- ... [pagination section remains the same] ... -->
 {% else %}
-    <div class="alert alert-info">
-        <i class="fas fa-info-circle me-2"></i>No orders found.
-    </div>
+<div class="alert alert-info">
+  <i data-feather="info" class="me-2"></i>No orders found.
+</div>
 {% endif %}
 
-<!-- Floating Action Button -->
-<a href="{% url 'orders:order_create' %}" class="floating-action-button" title="Create New Order">
-    <i data-feather="plus"></i>
-</a>
-{% endblock orders_content %}
 
-{% block extra_css %}
-{{ block.super }}
-{# Styles specific to order list can go here if any remain after theme.css #}
-{% endblock %}
+<!-- Update Status Modal -->
+<div
+  class="modal fade"
+  id="updateStatusModal"
+  tabindex="-1"
+  aria-labelledby="updateStatusModalLabel"
+  aria-hidden="true"
+>
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="updateStatusModalLabel">
+          Update Order Status
+        </h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <form id="updateStatusForm">
+          <p class="text-muted mb-3">
+            Change the status of this order. Ensure you select the correct
+            status based on the current order state.
+            <input type="hidden" id="modalOrderNumberInput" name="order_number" />
+          </p>
+
+          <div class="mb-3">
+            <label for="modalOrderStatusSelect" class="form-label"
+              >New Status:</label
+            >
+            <select
+              class="form-select"
+              id="modalOrderStatusSelect"
+              name="status"
+            >
+              <!-- Options will be populated by JavaScript -->
+            </select>
+          </div>
+          <div
+            id="modalStatusError"
+            class="text-danger mt-2"
+            style="display: none"
+          ></div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          Cancel
+        </button>
+        <button
+          type="button"
+          class="btn btn-primary"
+          id="saveOrderStatusButton"
+        >
+          Save Status
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock orders_content %} {% block extra_js %} {{ block.super }}
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const viewButtons = document.querySelectorAll(".view-order-items-btn");
+    const baseUrlForItemsJson = "/orders/0/items_json/";
+    let currentButtonHovered = null; // To manage hover state
+
+    viewButtons.forEach((button) => {
+      // Initial minimal popover config. Content will be set dynamically.
+      // We removed data-bs-toggle="popover" from HTML and control it all via JS.
+      // The button's initial data-bs-content is just for the "Loading..." state.
+
+      button.addEventListener("mouseenter", async function () {
+        currentButtonHovered = button;
+        const orderNumber = this.dataset.orderNumber;
+        const url = baseUrlForItemsJson.replace("0", orderNumber);
+
+        // Dispose of any existing popover on this button to ensure a fresh start
+        let existingPopover = bootstrap.Popover.getInstance(this);
+        if (existingPopover) {
+          existingPopover.dispose();
+        }
+
+        // Set to "Loading..." initially by resetting attribute
+        this.setAttribute(
+          "data-bs-content",
+          "<div class='text-center p-2'><div class='spinner-border spinner-border-sm' role='status'><span class='visually-hidden'>Loading...</span></div></div>"
+        );
+
+        // Create a new popover instance with current button state (which includes the loading content)
+        let popover = new bootstrap.Popover(this, {
+          sanitize: false,
+          html: true, // Ensure html is true here as well
+          trigger: "manual", // We manually show/hide
+          placement: this.dataset.bsPlacement || "left",
+        });
+        popover.show();
+
+        try {
+          const response = await fetch(url);
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error(
+              `HTTP error! status: ${response.status}, response text: ${errorText}`
+            );
+            this.setAttribute(
+              "data-bs-content",
+              `<p class="text-danger mb-0 text-center p-2">Error: ${response.status}</p>`
+            );
+          } else {
+            const contentType = response.headers.get("content-type");
+            if (!contentType || !contentType.includes("application/json")) {
+              const responseText = await response.text();
+              console.error(
+                "Not JSON! Content-Type:",
+                contentType,
+                "Response Text:",
+                responseText
+              );
+              this.setAttribute(
+                "data-bs-content",
+                '<p class="text-danger mb-0 text-center p-2">Error: Invalid data.</p>'
+              );
+            } else {
+              const data = await response.json();
+
+              let popoverContentHtml =
+                '<div class="order-items-popover" style="min-width: 280px; max-width:350px;">';
+              if (data && data.items && data.items.length > 0) {
+                popoverContentHtml += '<ul class="list-unstyled mb-0">';
+                data.items.forEach((item) => {
+                  popoverContentHtml += `<li class="mb-2 pb-1 border-bottom">`;
+                  popoverContentHtml += `<div><strong>${item.menu_item_name}</strong> (x${item.quantity})</div>`;
+                  popoverContentHtml += `<div class="text-muted small">Price: ₵${item.unit_price} | Subtotal: ₵${item.subtotal}</div>`;
+                  if (item.notes) {
+                    popoverContentHtml += `<div class="text-info small fst-italic">Notes: ${item.notes}</div>`;
+                  }
+                  if (item.extras && item.extras.length > 0) {
+                    popoverContentHtml +=
+                      '<ul class="list-unstyled ms-3 mt-1 pt-1 border-top">';
+                    item.extras.forEach((extra) => {
+                      popoverContentHtml += `<li class="mb-1">`;
+                      popoverContentHtml += `<div class="small"><i data-feather="corner-down-right" class="feather-sm me-1"></i>${extra.menu_item_name} (x${extra.quantity})</div>`;
+                      popoverContentHtml += `<div class="text-muted small ps-3">Price: ₵${extra.unit_price} | Sub: ₵${extra.subtotal}</div>`;
+                      if (extra.notes) {
+                        popoverContentHtml += `<div class="text-info small fst-italic ps-3">Notes: ${extra.notes}</div>`;
+                      }
+                      popoverContentHtml += "</li>";
+                    });
+                    popoverContentHtml += "</ul>";
+                  }
+                  popoverContentHtml += "</li>";
+                });
+                popoverContentHtml += "</ul>";
+              } else {
+                popoverContentHtml +=
+                  '<p class="mb-0 text-muted text-center py-2">No items or malformed data.</p>';
+              }
+              popoverContentHtml += "</div>";
+              this.setAttribute("data-bs-content", popoverContentHtml);
+            }
+          }
+        } catch (error) {
+          console.error("Overall error in mouseenter (new approach):", error);
+          this.setAttribute(
+            "data-bs-content",
+            '<p class="text-danger mb-0 text-center p-2">Failed to display items.</p>'
+          );
+        }
+
+        // After updating attribute, dispose old and create new popover, then show
+        let finalPopover = bootstrap.Popover.getInstance(this);
+        if (finalPopover) {
+          finalPopover.dispose();
+        }
+        finalPopover = new bootstrap.Popover(this, {
+          sanitize: false,
+          html: true,
+          trigger: "manual",
+          placement: this.dataset.bsPlacement || "left",
+          // content is now read from data-bs-content attribute
+        });
+        if (currentButtonHovered === this) {
+          // Only show if mouse is still over this button
+          finalPopover.show();
+          if (
+            typeof feather !== "undefined" &&
+            this.getAttribute("data-bs-content").includes("data-feather")
+          ) {
+            setTimeout(() => {
+              const popoverElement = document.getElementById(
+                this.getAttribute("aria-describedby")
+              );
+              if (popoverElement) {
+                feather.replace({ class: "feather-sm", width: 14, height: 14 });
+              }
+            }, 50); // Small delay for DOM to update
+          }
+        } else {
+          finalPopover.dispose(); // If mouse left quickly, don't show and clean up
+        }
+      });
+
+      button.addEventListener("mouseleave", function () {
+        currentButtonHovered = null; // Clear the currently hovered button
+        // Use a timeout to allow mouse to move to popover
+        setTimeout(() => {
+          const popoverInstance = bootstrap.Popover.getInstance(this);
+          if (popoverInstance) {
+            const popoverElement = document.getElementById(
+              this.getAttribute("aria-describedby")
+            );
+            const isMouseOverButton = this.matches(":hover");
+            const isMouseOverPopover = popoverElement
+              ? popoverElement.matches(":hover")
+              : false;
+
+            if (!isMouseOverButton && !isMouseOverPopover) {
+              popoverInstance.hide(); // Or dispose if you prefer: popoverInstance.dispose();
+            }
+          }
+        }, 150);
+      });
+
+      // Listener for when popover is created and shown, to handle mouseleave from popover itself
+      button.addEventListener("shown.bs.popover", function () {
+        const popoverElement = document.getElementById(
+          this.getAttribute("aria-describedby")
+        );
+        if (popoverElement) {
+          popoverElement.addEventListener("mouseleave", (event) => {
+            // Check if mouse is now over the original button or if button is still the 'currentButtonHovered'
+            if (!button.matches(":hover") && currentButtonHovered !== button) {
+              const popoverInstance = bootstrap.Popover.getInstance(button);
+              if (popoverInstance) {
+                popoverInstance.hide(); // Or dispose: popoverInstance.dispose();
+              }
+            }
+          });
+        }
+      });
+    });
+
+    // --- New JavaScript for Update Status Modal ---
+    const updateStatusModalElement =
+      document.getElementById("updateStatusModal");
+    if (updateStatusModalElement) {
+      const modalOrderPkInput = document.getElementById("modalOrderPkInput");
+      const modalOrderStatusSelect = document.getElementById(
+        "modalOrderStatusSelect"
+      );
+      const saveOrderStatusButton = document.getElementById(
+        "saveOrderStatusButton"
+      );
+      const modalStatusError = document.getElementById("modalStatusError");
+      const csrfToken =
+        document.querySelector('input[name="csrfmiddlewaretoken"]')?.value ||
+        "{{ csrf_token }}"; // Get CSRF token
+
+      let allStatusChoices = []; // Keep for fallback
+      try {
+        const statusChoicesData = {% if status_choices_json %}{{ status_choices_json|safe }}{% else %}[]{% endif %};
+        if (Array.isArray(statusChoicesData)) {
+          allStatusChoices = statusChoicesData;
+        } else {
+          // Log what was received if it's not an array, but only if it's not undefined/null from context
+          // as {{ undefined_var|safe }} would just be empty and cause a JS syntax error.
+          // If status_choices_json is not in context, {{ status_choices_json|safe }} might render as empty string.
+          // An empty string is not valid JS literal here. It should be '[]' or null from json.dumps.
+          // Assuming json.dumps always produces valid JSON string, which when |safe'd is valid JS.
+          console.error("status_choices_json from template did not result in a JavaScript array.", typeof statusChoicesData, statusChoicesData);
+        }
+      } catch (e) {
+        // This catch block would be for syntax errors if {{ status_choices_json|safe }} renders invalid JS.
+        console.error("Syntax error initializing allStatusChoices from {{ status_choices_json|safe }}. Ensure status_choices_json is in context and is a valid JSON string from json.dumps(). Error:", e);
+        // For robust debugging, might log the problematic string if possible, though harder in a catch for syntax error.
+        // console.log("Problematic template output for status_choices_json: " + "{{ status_choices_json|escapejs }}"); // Use escapejs for logging the string itself
+      }
+
+      updateStatusModalElement.addEventListener(
+        "show.bs.modal",
+        function (event) {
+          const button = event.relatedTarget;
+          const orderNumber = button.dataset.orderNumber;
+          const currentStatus = button.dataset.currentStatus;
+          const deliveryType = button.dataset.deliveryType;
+
+          if (document.getElementById('modalOrderNumberInput')) document.getElementById('modalOrderNumberInput').value = orderNumber;
+
+          if (modalOrderStatusSelect) {
+          if (modalOrderStatusSelect) {
+            modalOrderStatusSelect.innerHTML = "";
+            allStatusChoices.forEach((choice) => {
+              if (
+                deliveryType === "Pickup" &&
+                choice.value === "Out for Delivery"
+              ) {
+                return;
+              }
+              const option = document.createElement("option");
+              option.value = choice.value;
+              option.textContent = choice.display;
+              if (choice.value === currentStatus) {
+                option.selected = true;
+              }
+              modalOrderStatusSelect.appendChild(option);
+            });
+          }
+          if (modalStatusError) modalStatusError.style.display = "none";
+        }
+      );
+
+      if (saveOrderStatusButton) {
+        saveOrderStatusButton.addEventListener("click", async function () {
+          const orderNumber = document.getElementById('modalOrderNumberInput') ? document.getElementById('modalOrderNumberInput').value : null;
+          const newStatus = modalOrderStatusSelect
+            ? modalOrderStatusSelect.value
+            : null;
+
+          if (!orderNumber || !newStatus) {
+            if (modalStatusError) {
+              modalStatusError.textContent =
+                "Error: Order ID or status not found.";
+              modalStatusError.style.display = "block";
+            }
+            return;
+          }
+
+          const updateUrl = `/orders/${orderNumber}/ajax_update_status/`;
+
+          try {
+            const response = await fetch(updateUrl, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+                "X-CSRFToken": csrfToken,
+              },
+              body: `status=${encodeURIComponent(newStatus)}`,
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+              const orderRow = document
+                .querySelector(
+                  `button.update-status-btn[data-order-number="${data.order_number}"]`
+                )
+                ?.closest("tr");
+              if (orderRow) {
+                const statusBadge = orderRow.querySelector(
+                  "td:nth-child(3) span.badge"
+                );
+                if (statusBadge) {
+                  statusBadge.textContent = data.new_status_display;
+                  statusBadge.className =
+                    "badge py-2 px-3 " + data.new_status_badge_class;
+                }
+                const updateButton = orderRow.querySelector(
+                  `.update-status-btn[data-order-number="${data.order_number}"]`
+                );
+                if (updateButton) {
+                  updateButton.dataset.currentStatus = data.new_status_value;
+                }
+              }
+
+              const modalInstance = bootstrap.Modal.getInstance(
+                updateStatusModalElement
+              );
+              if (modalInstance) modalInstance.hide();
+            } else {
+              if (modalStatusError) {
+                modalStatusError.textContent =
+                  data.errors || "Failed to update status.";
+                modalStatusError.style.display = "block";
+              }
+            }
+          } catch (error) {
+            console.error("Error updating status:", error);
+            if (modalStatusError) {
+              modalStatusError.textContent =
+                "An unexpected error occurred. Please try again.";
+              modalStatusError.style.display = "block";
+            }
+          }
+        });
+      }
+    }
+
+    if (typeof feather !== "undefined") {
+      feather.replace({ width: '1em', height: '1em', 'stroke-width': 2 });
+    }
+  });
+</script>
+{% endblock extra_js %}

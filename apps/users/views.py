@@ -87,7 +87,7 @@ def dashboard_redirect(request):
     return redirect('users:access_denied')
 
 class AdminDashboardView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
-    template_name = 'users/admin_dashboard.html'
+    template_name = 'users/dashboards/admin_dashboard.html'
     
     def test_func(self):
         return self.request.user.is_admin()
@@ -109,7 +109,14 @@ class AdminDashboardView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
         total_revenue = Order.objects.filter(id__in=paid_orders).aggregate(
             Sum('total_price'))['total_price__sum'] or Decimal('0.00')
             
-        today_orders = Order.objects.filter(created_at__date=today).count()
+        today_orders_qs = Order.objects.filter(created_at__date=today) # QuerySet for today's orders
+        today_orders = today_orders_qs.count() # Count of orders created today
+        
+        revenue_today = Decimal('0.00')
+        for order in today_orders_qs: # Iterate over today's orders
+            if order.is_paid(): # Check if the order is paid
+                revenue_today += order.total_price
+
         pending_orders = Order.objects.filter(status="Pending").count()
         
         # Calculate month-over-month growth
@@ -215,18 +222,29 @@ class AdminDashboardView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
         except NoReverseMatch:
             transaction_list_url = '#'  # Fallback if URL not defined
             
+        # Staff statistics
+        active_staff = CustomUser.objects.filter(is_staff=True, is_active=True)
+        admin_count = active_staff.filter(role='admin').count()
+        frontdesk_count = active_staff.filter(role='frontdesk').count()
+        kitchen_count = active_staff.filter(role='kitchen').count()
+        delivery_count = active_staff.filter(role='delivery').count()
+        
+        total_staff = admin_count + frontdesk_count + kitchen_count + delivery_count
+        # 'recent_users' and staff percentages are removed as per redesign request for the admin dashboard.
+        # They were used for "Recently Added Staff" and "Staff Distribution" sections.
+            
         # Prepare context data for template
         context.update({
             'total_orders': total_orders,
-            'total_revenue': total_revenue,
-            'today_orders': today_orders,
-            'pending_orders': pending_orders,
+            'total_revenue': total_revenue, # All-time total revenue
+            'today_orders': today_orders, # Count of orders created today
+            'revenue_today': revenue_today, # Revenue from orders created and paid today
+            'pending_orders': pending_orders, 
             'order_growth': order_growth,
             'revenue_growth': revenue_growth,
-            'recent_transactions': recent_payments,
-            'recent_orders': recent_orders,
+            'recent_transactions': recent_payments, 
+            'recent_orders': recent_orders, 
             'completed_orders': completed_orders,
-            'pending_orders': pending_orders,
             'processing_orders': processing_orders,
             'confirmed_orders': confirmed_orders,
             'cancelled_orders': cancelled_orders,
@@ -236,7 +254,14 @@ class AdminDashboardView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
             'order_counts': json.dumps(order_counts),
             'top_selling_items': formatted_items,
             'today_date': today.strftime('%b %d, %Y'),
-            'transaction_list_url': transaction_list_url
+            'transaction_list_url': transaction_list_url,
+            
+            # Staff counts for summary cards
+            'admin_count': admin_count,
+            'frontdesk_count': frontdesk_count,
+            'kitchen_count': kitchen_count,
+            'delivery_count': delivery_count,
+            'total_staff': total_staff, # Sum of staff counts, can be used in a summary card
         })
         
         return context
@@ -257,26 +282,37 @@ class FrontdeskDashboardView(LoginRequiredMixin, TemplateView):
         recent_orders = Order.objects.filter(
             created_at__gte=timezone.now() - timedelta(days=1)
         ).order_by('-created_at')[:5]
-
         # Get today's stats
-        today_orders = Order.objects.filter(
+        # Get all orders created today for general counts
+        all_today_orders_qs = Order.objects.filter(
             created_at__date=today
         )
+        total_orders_today_count = all_today_orders_qs.count()
+
+        # Calculate "Today's Sales Amount" and "Today's Completed Orders Count"
+        # (Paid AND Fulfilled)
+        todays_sales_amount = Decimal('0.00')
+        todays_completed_orders_count = 0
         
-        # Calculate total amount with proper handling for empty queryset
-        total_amount = today_orders.aggregate(
-            total=Sum('total_price')
-        )['total'] or 0.00
+        # Filter for orders that are fulfilled today
+        todays_fulfilled_orders_qs = all_today_orders_qs.filter(status='Fulfilled')
+
+        for order in todays_fulfilled_orders_qs: # Iterate only today's fulfilled orders
+            if order.is_paid(): # Check if the order is also paid
+                todays_sales_amount += order.total_price
+                todays_completed_orders_count += 1 # This is a "completed" order
+
+        # Calculate "Today's Pending Orders Count"
+        # These are all orders today that are NOT (Paid AND Fulfilled)
+        todays_pending_orders_count = total_orders_today_count - todays_completed_orders_count
         
         context.update({
             'recent_orders': recent_orders,
             'today_stats': {
-                'total_orders': today_orders.count(),
-                'total_amount': total_amount,
-                'pending_orders': today_orders.filter(status='Pending').count(),
-                'completed_orders': today_orders.filter(
-                    status__in=['Delivered', 'Ready']
-                ).count(),
+                'total_orders': total_orders_today_count,       # Total orders created today
+                'total_amount': todays_sales_amount,            # Sales from Paid & Fulfilled orders today
+                'pending_orders': todays_pending_orders_count,  # Orders not (Paid & Fulfilled) today
+                'completed_orders': todays_completed_orders_count, # Orders that are Paid & Fulfilled today
             }
         })
         

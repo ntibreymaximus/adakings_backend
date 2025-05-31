@@ -113,13 +113,13 @@ RestaurantApp/
 
 ## Development State
 
-- **Current Version**: v0.4.1
+- **Current Version**: v0.5.0
 - **Current Branch**: feature/v0.4.0-payments-implementation
 - **Development Stage**: Comprehensive refactoring, UI theme unification, and feature enhancements.
 
 ### Version History
 
-- **v0.4.1**: Comprehensive application updates and refactoring
+- **v0.5.0**: Comprehensive application updates and refactoring
   - Refactored Admin Dashboard UI to align with the new unified theme (using `theme.css` and Bootstrap).
   - Updated models, forms, views, and admin configurations across `menu`, `orders`, `payments`, and `users` applications.
   - Managed and updated database migrations to reflect schema changes.
@@ -201,6 +201,17 @@ For testing, use Paystack's test cards and credentials from their [documentation
    git merge feature/v[version]-[feature-name]
    git push origin dev
    ```
+
+## Management Commands
+
+### Update Order Numbers (`update_order_numbers`)
+
+- **Purpose**: This command is used to populate or correct the `order_number` field for any existing orders. It targets orders where this field is currently blank/empty OR orders where the `order_number` exists but is not in the standard `DDMMYY-XXX` format (e.g., `300525-001`). It ensures all targeted orders receive a unique, correctly formatted order number, where `XXX` is a sequential counter that resets daily.
+- **Usage**: To run the command, execute the following from the project root directory (where `manage.py` is located):
+  ```bash
+  python manage.py update_order_numbers
+  ```
+- **Details**: The command iterates through all orders in the database. It identifies orders that either have a blank/null `order_number` or have an `order_number` that does not conform to the `DDMMYY-XXX` regex pattern. For each such identified order, it first sets its `order_number` to null (to ensure regeneration) and then calls the order's `save()` method. The `Order` model's `save()` method contains logic to automatically generate and assign a correctly formatted `order_number` if it's missing or has been cleared. The command will output the total number of orders that were successfully updated, or a message if no orders required an update. It also includes error handling for individual order updates and overall execution.
 
 ## License
 

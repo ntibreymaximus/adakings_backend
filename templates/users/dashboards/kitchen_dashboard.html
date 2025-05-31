@@ -3,108 +3,45 @@
 {% block title %}Kitchen Dashboard | Restaurant Management System{% endblock %}
 
 {% block extra_css %}
-<style>
-    /* .kitchen-card { */
-        /* border-radius: 10px; */
-        /* box-shadow: 0 0 15px rgba(0,0,0,0.1); */
-        /* margin-bottom: 20px; */
-    /* } */
-    /* .kitchen-card-header { */
-        /* background-color: #f8f9fa; */
-        /* padding: 15px; */
-        /* border-bottom: 1px solid #dee2e6; */
-        /* font-weight: bold; */
-        /* border-radius: 10px 10px 0 0; */
-    /* } */
-    .order-item {
-        border-left: 5px solid transparent;
-        transition: all 0.3s;
-    }
-    .order-item:hover {
-        background-color: #f8f9fa;
-    }
-    .order-new {
-        border-left-color: #dc3545;
-    }
-    .order-processing {
-        border-left-color: #ffc107;
-    }
-    .order-ready {
-        border-left-color: #28a745;
-    }
-    .timer {
-        font-weight: bold;
-    }
-    .timer-normal {
-        color: #28a745;
-    }
-    .timer-warning {
-        color: #ffc107;
-    }
-    .timer-danger {
-        color: #dc3545;
-    }
-    .inventory-bar {
-        height: 10px;
-        border-radius: 5px;
-        margin-bottom: 5px;
-    }
-    .order-timeline {
-        position: relative;
-        padding-left: 45px;
-    }
-    .timeline-item {
-        position: relative;
-        padding-bottom: 1.5rem;
-    }
-    .timeline-item:before {
-        content: "";
-        position: absolute;
-        left: -30px;
-        top: 0;
-        height: 100%;
-        width: 2px;
-        background-color: #dee2e6;
-    }
-    .timeline-item:last-child:before {
-        height: 0;
-    }
-    .timeline-item:after {
-        content: "";
-        position: absolute;
-        left: -36px;
-        top: 0;
-        height: 12px;
-        width: 12px;
-        border-radius: 50%;
-        background-color: #6c757d;
-        border: 2px solid #fff;
-    }
-    .timeline-active:after {
-        background-color: #28a745;
-    }
-    .timeline-warning:after {
-        background-color: #ffc107;
-    }
-    .timeline-danger:after {
-        background-color: #dc3545;
-    }
-</style>
+{# Custom styles moved to static/css/theme.css #}
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid px-4 py-4">
-<div class="row mb-4">
-    <div class="col">
-        <h1 class="h2"><i data-feather="coffee"></i> Kitchen Dashboard</h1>
-        <p class="text-muted">Manage food preparation, orders, and kitchen operations</p>
+<!-- Page Header -->
+<div class="page-header card shadow-sm">
+  <div class="card-body">
+    <div class="row align-items-center">
+      <div class="col-auto">
+        <div class="page-icon-box">
+          <i data-feather="coffee"></i>
+        </div>
+      </div>
+      <div class="col">
+        <nav aria-label="breadcrumb">
+          <ol class="breadcrumb mb-2">
+            <li class="breadcrumb-item"><a href="{% url 'users:dashboard' %}" class="text-decoration-none">Dashboard</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Kitchen</li>
+          </ol>
+        </nav>
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <h1 class="page-title h3 mb-0">Kitchen Dashboard</h1>
+            <p class="text-muted mb-0">Manage food preparation, orders, and kitchen operations</p>
+          </div>
+          <div class="page-actions">
+            {# Add any page-specific actions here if needed #}
+          </div>
+        </div>
+      </div>
     </div>
+  </div>
 </div>
 
-<div class="row">
+<div class="row mt-4"> {# Added mt-4 to space content from header #}
     <!-- Order Queue -->
     <div class="col-lg-8">
-        <div class="card action-card shadow-sm">
+        <div class="card action-card">
             <div class="action-card-header d-flex justify-content-between align-items-center">
                 <div><i data-feather="list"></i> Current Order Queue</div>
                 <div>
@@ -149,8 +86,8 @@
                             </div>
                             <div class="col-md-4 mt-3 mt-md-0">
                                 <div class="d-grid gap-2">
-                                    <button class="btn btn-primary">Start Preparing</button>
-                                    <button class="btn btn-outline-secondary">View Details</button>
+                                    <button class="btn btn-primary"><i data-feather="play-circle" class="me-1"></i>Start Preparing</button>
+                                    <button class="btn btn-secondary"><i data-feather="eye" class="me-1"></i>View Details</button>
                                 </div>
                             </div>
                         </div>
@@ -183,8 +120,8 @@
                             </div>
                             <div class="col-md-4 mt-3 mt-md-0">
                                 <div class="d-grid gap-2">
-                                    <button class="btn btn-success">Mark as Ready</button>
-                                    <button class="btn btn-outline-secondary">View Details</button>
+                                    <button class="btn btn-success"><i data-feather="check-circle" class="me-1"></i>Mark as Ready</button>
+                                    <button class="btn btn-secondary"><i data-feather="eye" class="me-1"></i>View Details</button>
                                 </div>
                             </div>
                         </div>
@@ -204,21 +141,21 @@
                                 </div>
                             </div>
                             <div class="col-md-4 mt-3 mt-md-0 text-center">
-                                <button class="btn btn-outline-secondary">View Details</button>
+                                <button class="btn btn-secondary"><i data-feather="eye" class="me-1"></i>View Details</button>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
             <div class="card-footer text-end">
-                <a href="#" class="btn btn-primary">View All Orders</a>
+                <a href="#" class="btn btn-primary"><i data-feather="list" class="me-1"></i>View All Orders</a>
             </div>
         </div>
     </div>
     
     <!-- Kitchen Stats -->
     <div class="col-lg-4">
-        <div class="card action-card shadow-sm">
+        <div class="card action-card">
             <div class="action-card-header">
                 <i data-feather="pie-chart"></i> Kitchen Stats
             </div>
@@ -259,7 +196,7 @@
             </div>
         </div>
         
-        <div class="card action-card shadow-sm">
+        <div class="card action-card">
             <div class="action-card-header">
                 <i data-feather="bell"></i> Alerts
             </div>
@@ -295,7 +232,7 @@
 <div class="row">
     <!-- Inventory Status -->
     <div class="col-lg-4">
-        <div class="card action-card shadow-sm">
+        <div class="card action-card">
             <div class="action-card-header">
                 <i data-feather="package"></i> Inventory Status
             </div>

@@ -6,7 +6,7 @@ Management System{% endblock %} {% block content %}
       <div class="card">
         <div class="card-header">
           <h2 class="mb-0">
-            <i class="fas fa-user-plus"></i> Register New Staff Member
+            <i data-feather="user-plus" class="me-2 align-bottom"></i> Register New Staff Member
           </h2>
         </div>
         <div class="card-body">
@@ -37,10 +37,10 @@ Management System{% endblock %} {% block content %}
 
             <div class="d-grid gap-2">
               <button type="submit" class="btn btn-primary">
-                <i class="fas fa-save"></i> Register Staff Member
+                <i data-feather="save" class="me-1"></i> Register Staff Member
               </button>
               <a href="{% url 'users:staff_list' %}" class="btn btn-secondary">
-                <i class="fas fa-times"></i> Cancel
+                <i data-feather="x" class="me-1"></i> Cancel
               </a>
             </div>
           </form>

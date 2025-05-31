@@ -7,7 +7,7 @@
 
 {% block orders_content %}
 <!-- Page Header -->
-<div class="page-header card shadow-sm mb-4">
+<div class="page-header card shadow-sm">
   <div class="card-body">
     <div class="row align-items-center">
       <div class="col-auto">
@@ -21,7 +21,7 @@
             <li class="breadcrumb-item"><a href="{% url 'users:dashboard' %}" class="text-decoration-none">Dashboard</a></li>
             <li class="breadcrumb-item"><a href="{% url 'orders:order_list' %}" class="text-decoration-none">Orders</a></li>
             {% if order.pk %}
-            <li class="breadcrumb-item"><a href="{% url 'orders:order_detail' order.pk %}" class="text-decoration-none">Order {{ order.order_number }}</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'orders:order_detail' order.order_number %}" class="text-decoration-none">Order {{ order.order_number }}</a></li>
             <li class="breadcrumb-item active" aria-current="page">Edit Order</li>
             {% else %}
             <li class="breadcrumb-item active" aria-current="page">Create New Order</li>
@@ -37,11 +37,11 @@
           </div>
           <div class="page-actions">
             {% if order.pk %}
-            <a href="{% url 'orders:order_detail' order.pk %}" class="btn btn-outline-secondary">
+            <a href="{% url 'orders:order_detail' order.order_number %}" class="btn btn-secondary">
               <i data-feather="arrow-left" class="me-2"></i>Back to Order Details
             </a>
             {% else %}
-            <a href="{% url 'orders:order_list' %}" class="btn btn-outline-secondary">
+            <a href="{% url 'orders:order_list' %}" class="btn btn-secondary">
               <i data-feather="x" class="me-2"></i>Cancel
             </a>
             {% endif %}
@@ -245,7 +245,7 @@
                 
                 <!-- Remove Button -->
                 <div class="col-md-2 d-flex align-items-end">
-                  <button type="button" class="btn btn-sm btn-outline-danger mb-3 remove-item">
+                  <button type="button" class="btn btn-sm btn-danger mb-3 remove-item">
                     <i data-feather="trash-2"></i>
                   </button>
                   {{ form.DELETE }}
@@ -293,7 +293,7 @@
                             {{ extra_form.unit_price }}
                           </div>
                           <div class="col-md-3 d-flex align-items-center justify-content-end">
-                            <button type="button" class="btn btn-sm btn-outline-danger remove-extra-btn">
+                            <button type="button" class="btn btn-sm btn-danger remove-extra-btn">
                               <i data-feather="x"></i>
                             </button>
                             {{ extra_form.DELETE }}
@@ -319,11 +319,15 @@
           <table class="table">
             <tr>
               <td>Items Subtotal:</td>
-              <td class="text-end" id="items-subtotal">₵0.00</td>
+              <td class="text-end price-display" id="items-subtotal">₵0.00</td> {# JS will update this #}
+            </tr>
+            <tr>
+              <td>Delivery Fee:</td>
+              <td class="text-end price-display" id="delivery-fee-display">₵{{ form.instance.delivery_fee|floatformat:2 }}</td> {# Shows saved fee #}
             </tr>
             <tr class="table-active fw-bold">
-              <td>Order Total:</td>
-              <td class="text-end" id="order-total">₵0.00</td>
+              <td>Grand Total:</td>
+              <td class="text-end price-display" id="grand-total-display">₵{{ form.instance.total_price|floatformat:2 }}</td> {# Shows saved total #}
             </tr>
           </table>
         </div>
@@ -345,6 +349,7 @@
 {% block extra_js %}
 {{ block.super }}
 {{ available_extras_data|json_script:"available-extras-data" }}
+{{ DELIVERY_FEES|json_script:"delivery-fees-data" }}
 <script type="text/javascript">
   jQuery(document).ready(function($) {
       // Ensure this is passed from your Django view
@@ -406,7 +411,7 @@
               //             <input type="text" class="form-control extra-price" readonly value="0.00">
               //         </div>
               //         <div class="col-md-2">
-              //             <button type="button" class="btn btn-outline-danger remove-extra">
+              //             <button type="button" class="btn btn-danger remove-extra">
               //                 <i class="fas fa-times"></i>
               //             </button>
               //         </div>
@@ -580,61 +585,139 @@
 
   // Calculate and update order totals
   function updateTotals() {
-      console.log(`[updateTotals] Calculating totals...`);
+      // console.log(`[updateTotals] Calculating totals for order_update.html...`); // Debug
       try {
-          let totalOrderPrice = 0;
+          let itemsSubtotalOnly = 0;
 
-          // Iterate over visible main item rows
-          $('#order-items > .item-row:not([style*="display: none"])').each(function() {
+          // Iterate over visible main item rows and their extras
+          $('#order-items > .item-row:not(.extra-item-row):not([style*="display: none"])').each(function() {
               const mainItem = this;
-              let mainItemTotal = 0;
+              let currentMainItemAndItsExtrasSubtotal = 0;
               
-              const mainUnitPrice = parseFloat($(mainItem).find('.unit-price-input').val()) || 0;
-              const mainQuantity = parseInt($(mainItem).find('.quantity-input').val()) || 0;
-              mainItemTotal += mainUnitPrice * mainQuantity;
+              const mainUnitPriceEl = $(mainItem).find('.unit-price-input');
+              const mainQuantityEl = $(mainItem).find('.quantity-input');
+
+              const mainUnitPrice = parseFloat(mainUnitPriceEl.val()) || 0;
+              const mainQuantity = parseInt(mainQuantityEl.val()) || 0;
+              currentMainItemAndItsExtrasSubtotal += mainUnitPrice * mainQuantity;
 
               // Iterate over visible extra item rows within this main item's extras-container
               $(mainItem).find('.extras-container .extra-item-row:not([style*="display: none"])').each(function() {
                   const extraItem = this;
-                  const extraUnitPrice = parseFloat($(extraItem).find('.unit-price-input').val()) || 0;
-                  const extraQuantity = parseInt($(extraItem).find('.quantity-input').val()) || 0;
-                  mainItemTotal += extraUnitPrice * extraQuantity;
+                  const extraUnitPriceEl = $(extraItem).find('.unit-price-input');
+                  const extraQuantityEl = $(extraItem).find('.quantity-input'); // Ensure extras also have .quantity-input
+
+                  const extraUnitPrice = parseFloat(extraUnitPriceEl.val()) || 0;
+                  const extraQuantity = parseInt(extraQuantityEl.val()) || 0;
+                  currentMainItemAndItsExtrasSubtotal += extraUnitPrice * extraQuantity;
               });
-              totalOrderPrice += mainItemTotal;
+              itemsSubtotalOnly += currentMainItemAndItsExtrasSubtotal;
           });
           
-          const itemsSubtotalElement = document.getElementById('items-subtotal');
-          const orderTotalElement = document.getElementById('order-total');
+          // Update items subtotal display
+          const itemsSubtotalDisplayElement = document.getElementById('items-subtotal');
+          if (itemsSubtotalDisplayElement) {
+              itemsSubtotalDisplayElement.textContent = `₵${itemsSubtotalOnly.toFixed(2)}`;
+          }
 
-          console.log(`[updateTotals] Final totalOrderPrice: ${totalOrderPrice}`);
-          if (itemsSubtotalElement) {
-              itemsSubtotalElement.textContent = `₵${totalOrderPrice.toFixed(2)}`;
+          // Get the delivery fee from its display span
+          const deliveryFeeDisplayElement = document.getElementById('delivery-fee-display');
+          let deliveryFee = 0;
+          if (deliveryFeeDisplayElement) {
+              const feeText = deliveryFeeDisplayElement.textContent.replace(/[^0-9.]/g, ''); 
+              if (feeText) {
+                  deliveryFee = parseFloat(feeText);
+                  if (isNaN(deliveryFee)) deliveryFee = 0;
+              }
           }
-          if (orderTotalElement) {
-              orderTotalElement.textContent = `₵${totalOrderPrice.toFixed(2)}`;
+
+          // Calculate grand total
+          const grandTotal = itemsSubtotalOnly + deliveryFee;
+          
+          // Update grand total display
+          const grandTotalDisplayElement = document.getElementById('grand-total-display');
+          if (grandTotalDisplayElement) { 
+              grandTotalDisplayElement.textContent = `₵${grandTotal.toFixed(2)}`;
           }
+          
+          // console.log(`[updateTotals] Items Subtotal: ₵${itemsSubtotalOnly.toFixed(2)}, Delivery Fee: ₵${deliveryFee.toFixed(2)}, Grand Total: ₵${grandTotal.toFixed(2)}`); // Debug
       } catch (error) {
           console.error('Error updating totals:', error);
       }
   };
 
-      // Initialize toggle for delivery location
-      const deliveryTypeSelect = $('#id_delivery_type');
-      const deliveryLocationContainer = $('#delivery-location-container');
-      const deliveryLocationInput = $('#id_delivery_location');
-      const locationLabel = $('#location-label');
-
-      function toggleDeliveryLocation() {
-          const isDelivery = deliveryTypeSelect.val() === 'Delivery';
-          deliveryLocationContainer.toggle(isDelivery);
-          locationLabel.toggleClass('required-field', isDelivery);
-          deliveryLocationInput.prop('required', isDelivery);
+      // Initialize toggle for delivery location and dynamic fees
+      let DELIVERY_FEES_JS = {};
+      try {
+          const deliveryFeesDataElement = document.getElementById('delivery-fees-data');
+          if (deliveryFeesDataElement) {
+              DELIVERY_FEES_JS = JSON.parse(deliveryFeesDataElement.textContent);
+          } else {
+              console.warn("Delivery fees data script #delivery-fees-data not found.");
+          }
+      } catch (e) {
+          console.error("Error parsing DELIVERY_FEES_JS data:", e);
       }
 
-      if (deliveryTypeSelect.length) {
-          deliveryTypeSelect.on('change', toggleDeliveryLocation);
+      function updateDynamicDeliveryFeeAndTotals() {
+          const deliveryTypeSelect = document.getElementById('id_delivery_type');
+          const deliveryLocationSelect = document.getElementById('id_delivery_location');
+          const deliveryFeeDisplay = document.getElementById('delivery-fee-display');
+
+          if (!deliveryTypeSelect || !deliveryFeeDisplay) {
+              console.warn("Delivery type select or fee display element not found for dynamic fee update.");
+              return;
+          }
+
+          let calculatedFee = 0.00;
+          const selectedDeliveryType = deliveryTypeSelect.value;
+
+          if (selectedDeliveryType === 'Delivery') {
+              if (deliveryLocationSelect) {
+                  const selectedLocation = deliveryLocationSelect.value;
+                  if (selectedLocation && DELIVERY_FEES_JS.hasOwnProperty(selectedLocation)) {
+                      calculatedFee = parseFloat(DELIVERY_FEES_JS[selectedLocation]);
+                  } else {
+                      calculatedFee = 0.00; 
+                  }
+              }
+          } else if (selectedDeliveryType === 'Pickup') {
+              calculatedFee = 0.00;
+          }
+
+          if (isNaN(calculatedFee)) calculatedFee = 0.00;
+
+          deliveryFeeDisplay.textContent = '₵' + calculatedFee.toFixed(2);
+          
+          if (typeof updateTotals === "function") {
+              updateTotals();
+          } else {
+              console.warn("updateTotals function not found after updating delivery fee.");
+          }
+      }
+
+      const deliveryTypeSelectJQ = $('#id_delivery_type'); // jQuery object for existing logic
+      const deliveryLocationContainer = $('#delivery-location-container');
+      const deliveryLocationInputJQ = $('#id_delivery_location'); // jQuery object
+      const locationLabel = $('#location-label');
+
+      function toggleDeliveryLocationAndUpdateFee() { // Renamed for clarity
+          const isDelivery = deliveryTypeSelectJQ.val() === 'Delivery';
+          deliveryLocationContainer.toggle(isDelivery);
+          locationLabel.toggleClass('required-field', isDelivery);
+          deliveryLocationInputJQ.prop('required', isDelivery);
+          updateDynamicDeliveryFeeAndTotals(); // Call here
+      }
+
+      if (deliveryTypeSelectJQ.length) {
+          deliveryTypeSelectJQ.on('change', toggleDeliveryLocationAndUpdateFee);
           // Initialize on page load
-          toggleDeliveryLocation();
+          toggleDeliveryLocationAndUpdateFee(); // This will also call updateDynamicDeliveryFeeAndTotals
+      }
+
+      // Also add direct listener to location select if it exists
+      if (deliveryLocationInputJQ.length) {
+          deliveryLocationInputJQ.on('change', updateDynamicDeliveryFeeAndTotals);
       }
 
       // Order Items management
@@ -879,7 +962,7 @@
                           
                           <!-- Remove Button -->
                           <div class="col-md-2 d-flex align-items-end">
-                              <button type="button" class="btn btn-sm btn-outline-danger mb-3 remove-item">
+                              <button type="button" class="btn btn-sm btn-danger mb-3 remove-item">
                                   <span data-feather="trash-2"></span>
                               </button>
                               <input type="checkbox" name="items-${index}-DELETE" class="d-none">
@@ -933,7 +1016,7 @@
                               <input type="hidden" name="items-${formsetIndex}-unit_price" class="unit-price-input" value="${formattedPrice}">
                           </div>
                           <div class="col-md-3 d-flex align-items-center justify-content-end">
-                              <button type="button" class="btn btn-sm btn-outline-danger remove-extra-btn">
+                              <button type="button" class="btn btn-sm btn-danger remove-extra-btn">
                                   <span data-feather="x"></span>
                               </button>
                               <input type="checkbox" name="items-${formsetIndex}-DELETE" id="items-${formsetIndex}-DELETE" class="d-none">
@@ -1006,7 +1089,7 @@
                   </div>
                   <div class="text-end">
                       <button type="button" class="btn btn-sm btn-success confirm-add-selected-extra me-1">Add</button>
-                      <button type="button" class="btn btn-sm btn-outline-secondary cancel-add-selected-extra">Cancel</button>
+                      <button type="button" class="btn btn-sm btn-secondary cancel-add-selected-extra">Cancel</button>
                   </div>
               </div>
           `);
@@ -1187,10 +1270,12 @@
           });
           
           // Initialize delivery type toggle
-          toggleDeliveryLocation();
+          toggleDeliveryLocationAndUpdateFee();
           
-          // Calculate initial totals
-          updateTotals();
+          // Calculate initial totals - updateDynamicDeliveryFeeAndTotals will call updateTotals
+          // updateTotals(); // Not needed if toggleDeliveryLocationAndUpdateFee is called and works
+          // Ensure it's called if toggle logic didn't run or for safety:
+          updateDynamicDeliveryFeeAndTotals();
           
           console.log("Order update form initialization completed successfully");
       } catch (error) {
@@ -1201,5 +1286,33 @@
 // }); // This was the original closing brace for the outer document.ready, it should be kept
 
   }); // This is the correct closing for the main jQuery(document).ready
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // This flag should be set by your OrderUpdateView in the context after a successful save,
+    // ideally if the view is NOT redirecting immediately (e.g., if handling iframe submissions differently).
+    const formSavedSuccessfully = {% if form_saved_successfully %}true{% else %}false{% endif %};
+    const orderPk = "{{ order.pk|escapejs }}"; 
+
+    if (formSavedSuccessfully && window.parent && window.parent !== window) {
+        console.log('Order {{ order.pk }} (iframe) detected successful save, posting message to parent.');
+        window.parent.postMessage({
+            event: 'orderUpdatedInIframe',
+            orderPk: orderPk
+        }, '*'); // Consider specifying target origin for security
+    }
+
+    // Alternative: If you have a specific "Close" or "Done" button in this iframe page 
+    // that the user clicks after seeing a success message (if not auto-redirecting),
+    // that button could also trigger a postMessage.
+    // Example:
+    // const closeButton = document.getElementById('iframeCloseButton');
+    // if (closeButton && window.parent && window.parent !== window) {
+    //     closeButton.addEventListener('click', function() {
+    //         window.parent.postMessage({ event: 'closeFullEditModal' }, '*');
+    //     });
+    // }
+});
 </script>
 {% endblock %}

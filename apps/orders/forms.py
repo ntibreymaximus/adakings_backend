@@ -32,7 +32,7 @@ class OrderForm(forms.ModelForm):
             'notes': forms.Textarea(attrs={
                 'class': 'form-control', 
                 'rows': 3, 
-                'placeholder': 'Additional order notes'
+                'placeholder': 'Additional order notes or special instructions'
             }),
         }
     
@@ -46,6 +46,24 @@ class OrderForm(forms.ModelForm):
         # Set default status to Pending for new orders
         if not kwargs.get('instance'):
             self.fields['status'].initial = 'Pending'
+        
+        # Dynamically set status choices based on delivery_type
+        current_delivery_type = None
+        if self.instance and self.instance.pk:
+            current_delivery_type = self.instance.delivery_type
+        
+        # If form is bound to data, submitted delivery_type takes precedence
+        if self.is_bound and 'delivery_type' in self.data:
+            current_delivery_type = self.data.get('delivery_type')
+        elif self.initial and 'delivery_type' in self.initial: # For unbound forms with initial data
+            current_delivery_type = self.initial.get('delivery_type')
+
+        status_choices = list(Order.STATUS_CHOICES) # Make a mutable copy
+
+        if current_delivery_type == 'Pickup':
+            status_choices = [choice for choice in status_choices if choice[0] != "Out for Delivery"]
+        
+        self.fields['status'].choices = status_choices
         
         # Configure delivery_location field
         if 'delivery_location' in self.fields:
@@ -247,4 +265,3 @@ class OrderWithItemsForm:
     
     def __init__(self, *args, **kwargs):
         self.order_form = OrderForm(*args, **kwargs)
-

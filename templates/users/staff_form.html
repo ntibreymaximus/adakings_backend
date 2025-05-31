@@ -32,7 +32,37 @@
 {% block page_title %}Register New Staff Member{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
+<div class="container-fluid px-4 py-4">
+<!-- Page Header -->
+<div class="page-header card shadow-sm">
+  <div class="card-body">
+    <div class="row align-items-center">
+      <div class="col-auto">
+        <div class="page-icon-box">
+          <i data-feather="user-plus"></i>
+        </div>
+      </div>
+      <div class="col">
+        <nav aria-label="breadcrumb">
+          <ol class="breadcrumb mb-2">
+            <li class="breadcrumb-item"><a href="{% url 'users:dashboard' %}" class="text-decoration-none">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'users:staff_list' %}" class="text-decoration-none">Staff</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Register Staff</li>
+          </ol>
+        </nav>
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <h1 class="page-title h3 mb-0">Register New Staff Member</h1>
+            <p class="text-muted mb-0">Create a new staff account.</p>
+          </div>
+          <div class="page-actions"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row justify-content-center mt-4">
   <div class="col-lg-8">
     <div class="card form-card">
       <div class="card-header bg-white">
@@ -176,11 +206,11 @@
           </div>
           
           <div class="mt-4 d-flex justify-content-end">
-            <a href="{% url 'users:staff_list' %}" class="btn btn-outline-secondary me-2">
-              <i class="fas fa-times"></i> Cancel
+            <a href="{% url 'users:staff_list' %}" class="btn btn-secondary me-2">
+              <i data-feather="x" class="me-1"></i> Cancel
             </a>
             <button type="submit" class="btn btn-primary">
-              <i class="fas fa-user-plus"></i> Register Staff
+              <i data-feather="user-plus" class="me-1"></i> Register Staff
             </button>
           </div>
         </form>
@@ -188,6 +218,11 @@
     </div>
   </div>
 </div>
+</div>
+{% endblock %}
+
+{% block sidebar %}
+{{ block.super }}
 {% endblock %}
 
 {% block extra_js %}

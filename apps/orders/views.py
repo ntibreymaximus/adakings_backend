@@ -6,13 +6,17 @@ from django.contrib.messages.views import SuccessMessageMixin
 from django.urls import reverse_lazy, reverse
 from django.db.models import Q, Count, Sum
 from django.forms import inlineformset_factory
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, JsonResponse
 from django.contrib import messages
 from django.core.serializers.json import DjangoJSONEncoder
 import json
+from django.views.decorators.http import require_POST
+from django.db import transaction
 import traceback
+import datetime # Added import
+from django.utils import timezone # Ensure timezone is imported
 
-from .models import Order, OrderItem
+from .models import Order, OrderItem, DELIVERY_FEES # Add DELIVERY_FEES here
 from .forms import OrderForm, OrderItemForm, OrderWithItemsForm
 from apps.menu.models import MenuItem
 
@@ -34,44 +38,53 @@ class OrderListView(LoginRequiredMixin, StaffRequiredMixin, ListView):
     def get_queryset(self):
         queryset = super().get_queryset()
         
-        # Filter by status if provided
-        status = self.request.GET.get('status')
-        if status:
-            queryset = queryset.filter(status=status)
-        
-        # Filter by delivery type if provided
-        delivery_type = self.request.GET.get('delivery_type')
-        if delivery_type:
-            queryset = queryset.filter(delivery_type=delivery_type)
-        
-        # Search by customer name, phone, or location
+        # Search by customer name, phone, location, or order number
         search_query = self.request.GET.get('search')
         if search_query:
-            queryset = queryset.filter(
-                Q(customer_name__icontains=search_query) |
-                Q(customer_phone__icontains=search_query) |
-                Q(delivery_location__icontains=search_query)
-            )
+            q_objects = Q(customer_name__icontains=search_query) | \
+                        Q(customer_phone__icontains=search_query) | \
+                        Q(delivery_location__icontains=search_query) | \
+                        Q(order_number__icontains=search_query) # General search for order number
+
+            # If the search query is exactly 3 digits, also try matching the end of the order number
+            if search_query.isdigit() and len(search_query) == 3:
+                q_objects |= Q(order_number__endswith=f"-{search_query}")
+            
+            queryset = queryset.filter(q_objects)
+
+        # Date filtering
+        date_filter_str = self.request.GET.get('date')
+        self.target_date = timezone.localdate() # Default to today
+        if date_filter_str:
+            try:
+                self.target_date = datetime.datetime.strptime(date_filter_str, '%Y-%m-%d').date()
+            except ValueError:
+                # Invalid date string, target_date remains today.
+                # Optionally, add a message to the user:
+                # messages.warning(self.request, "Invalid date format. Showing orders for today.")
+                pass 
         
-        # Sorting options
-        sort_by = self.request.GET.get('sort', '-created_at')
-        if sort_by == 'total_price':
-            queryset = queryset.order_by('-total_price')
-        elif sort_by == 'customer':
-            queryset = queryset.order_by('customer_name')
-        else:  # Default to sort by creation date
-            queryset = queryset.order_by('-created_at')
+        queryset = queryset.filter(created_at__date=self.target_date)
+        
+        # Default sort order
+        queryset = queryset.order_by('-created_at')
             
         return queryset
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['status_choices'] = Order.STATUS_CHOICES
-        context['delivery_choices'] = Order.DELIVERY_CHOICES
-        context['selected_status'] = self.request.GET.get('status', '')
-        context['selected_delivery'] = self.request.GET.get('delivery_type', '')
         context['search_query'] = self.request.GET.get('search', '')
-        context['sort_by'] = self.request.GET.get('sort', '-created_at')
+        
+        # Prepare STATUS_CHOICES for JavaScript
+        status_choices_for_js = [{'value': choice[0], 'display': choice[1]} for choice in Order.STATUS_CHOICES]
+        context['status_choices_json'] = json.dumps(status_choices_for_js)
+
+        # Date for picker and display
+        # self.target_date should be set by get_queryset
+        target_date_obj = getattr(self, 'target_date', timezone.localdate()) # Fallback if get_queryset didn't set it
+        context['selected_date_for_picker'] = target_date_obj.strftime('%Y-%m-%d')
+        context['display_date_header'] = target_date_obj.strftime('%B %d, %Y')
+        
         return context
 
 
@@ -80,17 +93,14 @@ class OrderDetailView(LoginRequiredMixin, StaffRequiredMixin, DetailView):
     model = Order
     template_name = 'orders/order_detail.html'
     context_object_name = 'order'
+    slug_field = 'order_number'
+    slug_url_kwarg = 'order_number'
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         
-        print(f"[OrderDetailView DEBUG] Getting items for Order PK: {self.object.pk}") # Debug line
         all_items_qs = self.object.items.select_related('menu_item').order_by('created_at')
-        all_items_list = list(all_items_qs) # Convert to list to print and iterate
-        
-        print(f"[OrderDetailView DEBUG] Found {len(all_items_list)} raw items for Order PK {self.object.pk}:") # Debug line
-        for i, db_item in enumerate(all_items_list):
-            print(f"  DEBUG Raw Item {i}: Name='{db_item.menu_item.name}', Item_PK={db_item.pk}, Parent_Item_PK={db_item.parent_item_id}") # Debug line
+        all_items_list = list(all_items_qs)
 
         structured_items = []
         extras_map = {}  # To hold extras, keyed by their parent_item_id
@@ -131,14 +141,55 @@ class OrderDetailView(LoginRequiredMixin, StaffRequiredMixin, DetailView):
                 
         context['structured_order_items'] = structured_items
         
-        print(f"[OrderDetailView DEBUG] Processed into {len(structured_items)} structured main items for Order PK {self.object.pk}.") # Debug line
-        for i, si_dict in enumerate(structured_items):
-            print(f"  DEBUG Structured Main Item {i}: Name='{si_dict['menu_item_name']}', Num_Extras={len(si_dict['extras'])}") # Debug line
-            for j, extra_dict in enumerate(si_dict['extras']):
-                 print(f"    DEBUG Extra {j} for Main Item {i}: Name='{extra_dict['menu_item_name']}'") # Debug line
+        status_choices_for_js = [{'value': choice[0], 'display': choice[1]} for choice in Order.STATUS_CHOICES]
+        context['status_choices_json'] = json.dumps(status_choices_for_js)
         
         return context
 
+
+def get_order_items_json(request, order_number):
+    order = get_object_or_404(Order, order_number=order_number)
+    all_items_qs = order.items.select_related('menu_item').order_by('created_at')
+    
+    structured_items_for_json = []
+    extras_map_for_json = {} # Keyed by parent_item_id
+
+    for item in all_items_qs:
+        item_data = {
+            'menu_item_name': item.menu_item.name,
+            'quantity': item.quantity,
+            'unit_price': f"{item.unit_price:.2f}" if item.unit_price is not None else "0.00",
+            'subtotal': f"{item.subtotal:.2f}" if item.subtotal is not None else "0.00",
+            'notes': item.notes or "",
+            'is_extra': item.parent_item_id is not None,
+            'extras': [] 
+        }
+        if item.parent_item_id is None: # Main item
+            # Store the original item pk to link extras later if needed, though not strictly necessary for json if flat
+            item_data['db_item_pk'] = item.pk 
+            structured_items_for_json.append(item_data)
+        else: # Extra item
+            if item.parent_item_id not in extras_map_for_json:
+                extras_map_for_json[item.parent_item_id] = []
+            # For extras, we don't add 'db_item_pk' or 'extras' list to item_data itself here
+            # as they are simpler structures.
+            extra_item_data_simplified = {
+                'menu_item_name': item.menu_item.name,
+                'quantity': item.quantity,
+                'unit_price': f"{item.unit_price:.2f}" if item.unit_price is not None else "0.00",
+                'subtotal': f"{item.subtotal:.2f}" if item.subtotal is not None else "0.00",
+                'notes': item.notes or "",
+                'is_extra': True
+            }
+            extras_map_for_json[item.parent_item_id].append(extra_item_data_simplified)
+
+    # Attach extras to their main items
+    for main_item_dict in structured_items_for_json:
+        parent_db_item_pk = main_item_dict.pop('db_item_pk') # Remove the temporary key
+        if parent_db_item_pk in extras_map_for_json:
+            main_item_dict['extras'] = extras_map_for_json[parent_db_item_pk]
+            
+    return JsonResponse({'items': structured_items_for_json})
 
 class OrderCreateView(LoginRequiredMixin, StaffRequiredMixin, CreateView):
     """
@@ -149,7 +200,7 @@ class OrderCreateView(LoginRequiredMixin, StaffRequiredMixin, CreateView):
     template_name = 'orders/order_create.html'
     
     def get_success_url(self):
-        return reverse('orders:order_detail', kwargs={'pk': self.object.pk})
+        return reverse('orders:order_detail', kwargs={'order_number': self.object.order_number})
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -174,32 +225,17 @@ class OrderCreateView(LoginRequiredMixin, StaffRequiredMixin, CreateView):
         # Add available extras to the context for JavaScript
         available_extras_data = list(MenuItem.objects.filter(item_type='extra', is_available=True).values('id', 'name', 'price'))
         context['available_extras_data'] = available_extras_data
+        context['DELIVERY_FEES'] = DELIVERY_FEES
         
         return context
     
     def form_valid(self, form):
-        # ... (initial prints are fine) ...
-        print(f"[OrderCreateView DEBUG FormValid] ****** form_valid ENTERED ****** Request method: {self.request.method}")
-
         context = self.get_context_data()
         item_formset = context.get('formset') 
 
-        print(f"[OrderCreateView DEBUG FormValid] Context type: {type(context)}")
-        print(f"[OrderCreateView DEBUG FormValid] Item_formset type: {type(item_formset)}")
-        if item_formset is not None:
-            print(f"[OrderCreateView DEBUG FormValid] Item_formset prefix: {item_formset.prefix}")
-            print(f"[OrderCreateView DEBUG FormValid] Is item_formset bound? {item_formset.is_bound}")
-        else:
-            print(f"[OrderCreateView DEBUG FormValid] item_formset IS NONE from context.get('formset')!")
-        
         if item_formset is None:
             messages.error(self.request, "Error: Item formset not found.")
             return self.render_to_response(self.get_context_data(form=form))
-
-        print(f"[OrderCreateView DEBUG FormValid] --- BEGIN All Raw POST Data ---")
-        for key, value in self.request.POST.items():
-            print(f"  Raw POST['{key}'] = '{value}'")
-        print(f"[OrderCreateView DEBUG FormValid] --- END All Raw POST Data ---")
 
         if form.is_valid() and item_formset.is_valid():
             self.object = form.save(commit=False)
@@ -207,18 +243,15 @@ class OrderCreateView(LoginRequiredMixin, StaffRequiredMixin, CreateView):
 
             saved_main_items = {}
 
-            print("[OrderCreateView DEBUG FormValid] --- First Pass: Saving Main Items ---")
+            # First Pass: Saving Main Items
             for i, item_form in enumerate(item_formset.forms):
                 if item_form.is_valid() and item_form.cleaned_data and not item_form.cleaned_data.get('DELETE'):
-                    
                     # MODIFICATION HERE: Read the field JS is sending ('parent_item_ref')
                     parent_ref_field_name = f'{item_form.prefix}-parent_item_ref' 
                     parent_item_ref_value = self.request.POST.get(parent_ref_field_name, None)
                     
                     # Determine if this item IS an extra based on the presence of parent_item_ref_value
                     is_extra_submission = bool(parent_item_ref_value)
-
-                    print(f"  [Main Pass] Form {i} ({item_form.prefix}): parent_item_ref_value from POST = '{parent_item_ref_value}', is_extra_submission = {is_extra_submission}")
 
                     if not is_extra_submission: # This is a main item
                         order_item = item_form.save(commit=False)
@@ -228,14 +261,13 @@ class OrderCreateView(LoginRequiredMixin, StaffRequiredMixin, CreateView):
                              order_item.unit_price = order_item.menu_item.price
                         order_item.save()
                         saved_main_items[str(i)] = order_item # Store by its own form index
-                        print(f"    Saved as MAIN item: PK={order_item.pk}, Name='{order_item.menu_item.name}', Mapped from form index {i}")
-                    else:
-                        print(f"    Skipped as MAIN (has parent_item_ref_value), will process as EXTRA: Form {i}, Name='{item_form.cleaned_data.get('menu_item')}'")
+                    # else:
+                        # This item has a parent_item_ref, so it's an extra and will be processed in the next loop.
+                        # print(f"    Skipped as MAIN (has parent_item_ref_value), will process as EXTRA: Form {i}, Name='{item_form.cleaned_data.get('menu_item')}'")
             
-            print(f"[OrderCreateView DEBUG FormValid] --- Second Pass: Saving Extra Items --- Found {len(saved_main_items)} potential parents.")
+            # Second Pass: Saving Extra Items
             for i, item_form in enumerate(item_formset.forms):
                 if item_form.is_valid() and item_form.cleaned_data and not item_form.cleaned_data.get('DELETE'):
-                    
                     # MODIFICATION HERE: Read 'parent_item_ref' and parse it
                     parent_ref_field_name = f'{item_form.prefix}-parent_item_ref'
                     parent_item_ref_value = self.request.POST.get(parent_ref_field_name, None)
@@ -246,8 +278,6 @@ class OrderCreateView(LoginRequiredMixin, StaffRequiredMixin, CreateView):
                         parts = parent_item_ref_value.split('-')
                         if len(parts) > 1: # Ensure there's at least a prefix and an index
                             parent_form_index_str = parts[-1] # Get the last part, which should be the index
-                    
-                    print(f"  [Extra Pass] Form {i} ({item_form.prefix}): parent_item_ref_value='{parent_item_ref_value}', parsed parent_form_index_str = '{parent_form_index_str}'")
 
                     if parent_form_index_str is not None: # This is an extra AND we got an index
                         order_item = item_form.save(commit=False)
@@ -256,19 +286,15 @@ class OrderCreateView(LoginRequiredMixin, StaffRequiredMixin, CreateView):
                         parent_instance = saved_main_items.get(parent_form_index_str) # Use the parsed index
                         if parent_instance:
                             order_item.parent_item = parent_instance
-                            print(f"    Linking EXTRA item (from form {i}, Name='{order_item.menu_item.name}') to PARENT (form index {parent_form_index_str}, PK={parent_instance.pk}, Name='{parent_instance.menu_item.name}')")
                         else:
                             messages.error(self.request, f"Error: Could not find parent item for an extra (parsed parent index: {parent_form_index_str}). Extra '{order_item.menu_item.name if order_item.menu_item else 'Unknown Item'}' saved without parent link.")
                             order_item.parent_item = None
-                            print(f"    ERROR: Parent instance NOT FOUND for parent_form_index_str='{parent_form_index_str}'. Extra (from form {i}, Name='{order_item.menu_item.name}') will be saved with Parent_Item_PK=None.")
                         
                         if not order_item.unit_price and order_item.menu_item:
                              order_item.unit_price = order_item.menu_item.price
                         order_item.save()
-                        print(f"    Saved as EXTRA item: PK={order_item.pk}, Name='{order_item.menu_item.name}', Parent_PK={order_item.parent_item_id if order_item.parent_item else 'None'}")
                     elif parent_item_ref_value and parent_form_index_str is None:
                         # parent_item_ref_value was present but couldn't be parsed to an index.
-                        print(f"    WARNING: Item from form {i} had parent_item_ref_value='{parent_item_ref_value}' but it could not be parsed into a parent index. Item will not be linked as extra.")
                         # Decide if you want to save it as a main item or log error and skip
                         if str(i) not in saved_main_items: # If it wasn't already saved as a main item
                             order_item = item_form.save(commit=False)
@@ -277,7 +303,6 @@ class OrderCreateView(LoginRequiredMixin, StaffRequiredMixin, CreateView):
                             if not order_item.unit_price and order_item.menu_item:
                                 order_item.unit_price = order_item.menu_item.price
                             order_item.save()
-                            print(f"    Saved as fallback MAIN item due to parsing error: PK={order_item.pk}, Name='{order_item.menu_item.name}'")
 
 
             self.object.calculate_total() 
@@ -322,9 +347,11 @@ class OrderUpdateView(LoginRequiredMixin, StaffRequiredMixin, UpdateView):
     form_class = OrderForm
     template_name = 'orders/order_update.html'
     context_object_name = 'order'
+    slug_field = 'order_number'
+    slug_url_kwarg = 'order_number'
     
     def get_success_url(self):
-        return reverse('orders:order_detail', kwargs={'pk': self.object.pk})
+        return reverse('orders:order_detail', kwargs={'order_number': self.object.order_number})
     
     def get_formset_class(self):
         """Get the formset class with consistent configuration"""
@@ -375,6 +402,7 @@ class OrderUpdateView(LoginRequiredMixin, StaffRequiredMixin, UpdateView):
         # Add available extras to the context for JavaScript
         available_extras_data = list(MenuItem.objects.filter(item_type='extra', is_available=True).values('id', 'name', 'price'))
         context['available_extras_data'] = available_extras_data
+        context['DELIVERY_FEES'] = DELIVERY_FEES
 
         context['title'] = f'Update Order #{self.object.order_number}'
         context['button_text'] = 'Save Changes'
@@ -385,23 +413,15 @@ class OrderUpdateView(LoginRequiredMixin, StaffRequiredMixin, UpdateView):
         formset = context['formset']
         
         try:
-            print(f"[OrderUpdateView] Starting form_valid for order PK {self.object.pk if self.object and hasattr(self.object, 'pk') else 'NEW_OR_NO_PK_YET'}")
-            
             self.object = form.save() 
-            print(f"[OrderUpdateView] Main order form saved. Order PK: {self.object.pk}, Customer: {self.object.customer_name}")
             
             deleted_items_info = []
             new_items_info = []
             updated_items_info = []
             
-            print(f"[OrderUpdateView] Is formset valid? {formset.is_valid()}")
             if not formset.is_valid():
-                print(f"[OrderUpdateView] FORMSET ERRORS: {formset.errors}")
-                print(f"[OrderUpdateView] NON-FORM ERRORS: {formset.non_form_errors()}")
                 messages.error(self.request, "Please correct the errors in the order items (formset invalid).")
                 return self.form_invalid(form)
-
-            print(f"[OrderUpdateView] Processing formset. Number of forms in formset: {len(formset.forms)}")
 
             # Store saved main items by their form prefix to link extras later
             # A main item is one that is not an extra itself (has no parent_item_ref)
@@ -409,20 +429,14 @@ class OrderUpdateView(LoginRequiredMixin, StaffRequiredMixin, UpdateView):
 
             # Stage 1: Handle deletions (remains mostly the same)
             for item_form_idx, item_form in enumerate(formset.forms):
-                print(f"[OrderUpdateView DELETION_STAGE] Processing item_form {item_form_idx}, prefix: {item_form.prefix}")
                 if formset.can_delete and item_form.cleaned_data.get('DELETE', False):
                     if item_form.instance.pk: 
                         item_to_delete = item_form.instance
                         # If it's a parent item, its children (extras) will be deleted by CASCADE if parent_item FK is set up.
                         deleted_items_info.append(str(item_to_delete.menu_item.name if item_to_delete.menu_item else f"Item ID {item_to_delete.pk}"))
-                        print(f"[OrderUpdateView DELETION_STAGE] Deleting OrderItem instance: {item_to_delete} (PK: {item_to_delete.pk})")
                         item_to_delete.delete()
-                        print(f"[OrderUpdateView DELETION_STAGE] Deleted OrderItem PK: {item_to_delete.pk}")
-                    else:
-                        print(f"[OrderUpdateView DELETION_STAGE] Item_form {item_form.prefix} marked DELETE but not an existing instance.")
             
             # Stage 2: Process and Save MAIN items first (items that are NOT extras)
-            print(f"[OrderUpdateView SAVE_MAIN_ITEMS_STAGE] Starting to process and save MAIN items.")
             for item_form_idx, item_form in enumerate(formset.forms):
                 if not (formset.can_delete and item_form.cleaned_data.get('DELETE', False)): # If not marked for deletion
                     # Check if this form is for an extra by looking for parent_item_ref in POST data
@@ -445,9 +459,7 @@ class OrderUpdateView(LoginRequiredMixin, StaffRequiredMixin, UpdateView):
                             instance.order = self.object 
                             instance.parent_item = None # Explicitly ensure main items have no parent
                             
-                            print(f"[OrderUpdateView SAVE_MAIN_ITEMS_STAGE] About to save MAIN OrderItem instance (from form {item_form.prefix}): Menu: {instance.menu_item}, Qty: {instance.quantity}")
                             instance.save() 
-                            print(f"[OrderUpdateView SAVE_MAIN_ITEMS_STAGE] Saved MAIN OrderItem instance. PK: {instance.pk}, Form Prefix: {item_form.prefix}")
                             saved_main_items_by_prefix[item_form.prefix] = instance # Store by form prefix
 
                             if not item_form.instance.pk or item_form.instance.pk != instance.pk : # if it was a new item (no initial pk)
@@ -455,13 +467,9 @@ class OrderUpdateView(LoginRequiredMixin, StaffRequiredMixin, UpdateView):
                             else: # it was an existing item that changed
                                 updated_items_info.append(instance.menu_item.name if instance.menu_item else "Unknown Main Item")
                         elif item_form.instance.pk: # Existing main item, unchanged but still need to track it for potential extras
-                             print(f"[OrderUpdateView SAVE_MAIN_ITEMS_STAGE] Existing MAIN item (form {item_form.prefix}, PK {item_form.instance.pk}) was unchanged but tracked.")
                              saved_main_items_by_prefix[item_form.prefix] = item_form.instance
-                    else:
-                        print(f"[OrderUpdateView SAVE_MAIN_ITEMS_STAGE] Item form {item_form.prefix} has parent_item_ref='{parent_item_form_prefix_ref}', will be processed as EXTRA later.")
 
             # Stage 3: Process and Save EXTRA items, linking them to their parents
-            print(f"[OrderUpdateView SAVE_EXTRA_ITEMS_STAGE] Starting to process and save EXTRA items.")
             for item_form_idx, item_form in enumerate(formset.forms):
                 if not (formset.can_delete and item_form.cleaned_data.get('DELETE', False)): # If not marked for deletion
                     parent_ref_key = f"{item_form.prefix}-parent_item_ref"
@@ -475,14 +483,11 @@ class OrderUpdateView(LoginRequiredMixin, StaffRequiredMixin, UpdateView):
                             parent_main_item_instance = saved_main_items_by_prefix.get(parent_item_form_prefix_ref)
                             if parent_main_item_instance:
                                 extra_instance.parent_item = parent_main_item_instance
-                                print(f"[OrderUpdateView SAVE_EXTRA_ITEMS_STAGE] Linking EXTRA item (form {item_form.prefix}) to PARENT item (form {parent_item_form_prefix_ref}, PK {parent_main_item_instance.pk})")
                             else:
-                                print(f"[OrderUpdateView SAVE_EXTRA_ITEMS_STAGE] WARNING: Could not find saved PARENT main item for prefix '{parent_item_form_prefix_ref}' for EXTRA item (form {item_form.prefix}). Parent link will be None.")
+                                # Log or handle error: Parent item not found
                                 extra_instance.parent_item = None # Or handle error
 
-                            print(f"[OrderUpdateView SAVE_EXTRA_ITEMS_STAGE] About to save EXTRA OrderItem instance (from form {item_form.prefix}): Menu: {extra_instance.menu_item}, Qty: {extra_instance.quantity}, ParentPK: {extra_instance.parent_item_id if extra_instance.parent_item else 'None'}")
                             extra_instance.save()
-                            print(f"[OrderUpdateView SAVE_EXTRA_ITEMS_STAGE] Saved EXTRA OrderItem instance. PK: {extra_instance.pk}")
                             
                             # Decide if it's new or updated based on its own PK status
                             if not item_form.instance.pk or item_form.instance.pk != extra_instance.pk: # if it was a new extra item
@@ -492,17 +497,7 @@ class OrderUpdateView(LoginRequiredMixin, StaffRequiredMixin, UpdateView):
                         # If an existing extra item is unchanged, it's already linked (or should be), so no specific action here.
                         # The formset handles existing instances correctly if they don't change.
             
-            print("[OrderUpdateView] All item operations (main and extra add/update/delete) supposedly done.")
-            
-            print("[OrderUpdateView] About to call self.object.save() to update totals.")
-            # ... (rest of the logging for items in DB and final Order.save() call remains the same) ...
-            current_items_in_db = list(OrderItem.objects.filter(order=self.object))
-            print(f"[OrderUpdateView] Items for order {self.object.pk} before final save: {len(current_items_in_db)} items.")
-            for item_in_db in current_items_in_db:
-                print(f"  - DB Item: {item_in_db.menu_item.name}, Qty: {item_in_db.quantity}, Subtotal: {item_in_db.subtotal}, PK: {item_in_db.pk}, ParentPK: {item_in_db.parent_item_id}")
-
             self.object.save() 
-            print(f"[OrderUpdateView] Final self.object.save() completed. Order total: {self.object.total_price}")
             
             message_parts = [f'Order #{self.object.order_number or self.object.id} updated successfully!']
             if deleted_items_info:
@@ -514,14 +509,11 @@ class OrderUpdateView(LoginRequiredMixin, StaffRequiredMixin, UpdateView):
             
             success_msg = " | ".join(message_parts)
             messages.success(self.request, success_msg)
-            print(f"[OrderUpdateView] Success message set: {success_msg}")
-            print(f"[OrderUpdateView] Redirecting to {self.get_success_url()}")
             return redirect(self.get_success_url())
             
         except Exception as e:
-            print(f"[OrderUpdateView] EXCEPTION in form_valid: {type(e).__name__} - {str(e)}")
-            import traceback
-            traceback.print_exc() 
+            # import traceback # Keep for debugging if needed
+            # traceback.print_exc() 
             messages.error(self.request, f"CRITICAL Error updating order: {str(e)}. Please check logs.")
             return self.form_invalid(form)
     
@@ -533,27 +525,100 @@ class OrderUpdateView(LoginRequiredMixin, StaffRequiredMixin, UpdateView):
 class OrderStatusUpdateView(LoginRequiredMixin, StaffRequiredMixin, UpdateView):
     """View to quickly update order status"""
     model = Order
-    fields = ['status']
+    form_class = OrderForm # Use OrderForm to include conditional status logic
     template_name = 'orders/order_status_update.html'
+    slug_field = 'order_number'
+    slug_url_kwarg = 'order_number'
     
+    def get_form_kwargs(self):
+        """Pass the instance to the form."""
+        kwargs = super().get_form_kwargs()
+        kwargs.update({'instance': self.object})
+        return kwargs
+
     def get_success_url(self):
-        return reverse('orders:order_detail', kwargs={'pk': self.object.pk})
+        return reverse('orders:order_detail', kwargs={'order_number': self.object.order_number})
     
     def form_valid(self, form):
-        previous_status = Order.objects.get(pk=self.object.pk).status
+        # self.object is already loaded by order_number due to slug_field/slug_url_kwarg
+        # To get the status *before* super().form_valid() potentially changes it,
+        # we fetch a fresh instance or rely on the currently loaded self.object's status if it hasn't been altered by the form yet.
+        # For safety, fetching a fresh instance ensures we get the DB state.
+        previous_status = Order.objects.get(order_number=self.object.order_number).status
         response = super().form_valid(form)
         new_status = self.object.status
         
-        # Add success message with status change details
         messages.success(
             self.request, 
-            f'Order #{self.object.id} status changed from {previous_status} to {new_status}.'
+            f'Order #{self.object.order_number} status changed from {previous_status} to {new_status}.'
         )
         return response
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['title'] = f'Update Status for Order #{self.object.id}'
+        context['title'] = f'Update Status for Order #{self.object.order_number}'
         context['button_text'] = 'Update Status'
         context['order'] = self.object
         return context
+
+
+# Helper function for AJAX status update badge class
+def get_status_badge_class(status_value):
+    mapping = {
+        "Pending": "status-pending",
+        "Accepted": "status-confirmed",
+        "Ready": "status-ready",
+        "Out for Delivery": "status-processing",
+        "Fulfilled": "status-delivered",
+        "Cancelled": "status-cancelled",
+    }
+    return mapping.get(status_value, "bg-secondary") # Default fallback
+
+
+@require_POST # Ensures this view only accepts POST requests
+def ajax_update_order_status(request, order_number):
+    try:
+        order = get_object_or_404(Order, order_number=order_number)
+        new_status = request.POST.get('status')
+
+        # Validate the new_status
+        valid_statuses = [choice[0] for choice in Order.STATUS_CHOICES]
+        if new_status not in valid_statuses:
+            return JsonResponse({'success': False, 'errors': 'Invalid status value provided.'}, status=400)
+
+        # Additional validation: Prevent "Out for Delivery" if order is "Pickup"
+        if order.delivery_type == "Pickup" and new_status == "Out for Delivery":
+            return JsonResponse({
+                'success': False, 
+                'errors': f'Cannot set status to "Out for Delivery" for a Pickup order.'
+            }, status=400)
+
+        if order.status == new_status:
+            return JsonResponse({
+                'success': True,
+                'message': 'Status is already the same.',
+                'order_number': order.order_number,
+                'new_status_value': order.status,
+                'new_status_display': order.get_status_display(),
+                'new_status_badge_class': get_status_badge_class(order.status)
+            })
+
+        with transaction.atomic():
+            order.status = new_status
+            order.save(update_fields=['status'])
+
+        return JsonResponse({
+            'success': True,
+            'order_number': order.order_number,
+            'new_status_value': order.status,
+            'new_status_display': order.get_status_display(),
+            'new_status_badge_class': get_status_badge_class(order.status)
+        })
+
+    except Order.DoesNotExist:
+        return JsonResponse({'success': False, 'errors': 'Order not found.'}, status=404)
+    except Exception as e:
+        # Log the exception e for server-side review
+        # import traceback
+        # traceback.print_exc() # for detailed logging during dev
+        return JsonResponse({'success': False, 'errors': str(e)}, status=500)

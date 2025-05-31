@@ -7,12 +7,12 @@
 
 {% block orders_content %}
 <!-- Page Header -->
-<div class="page-header card shadow-sm mb-4">
+<div class="page-header card shadow-sm">
     <div class="card-body">
         <div class="row align-items-center">
             <div class="col-auto">
                 <div class="page-icon-box">
-                    <i class="fas fa-plus-circle"></i>
+                    <i data-feather="plus-circle"></i>
                 </div>
             </div>
             <div class="col">
@@ -29,8 +29,8 @@
                         <p class="text-muted mb-0">Create a new order for a customer</p>
                     </div>
                     <div class="page-actions">
-                        <a href="{% url 'orders:order_list' %}" class="btn btn-outline-secondary">
-                            <i class="fas fa-arrow-left me-2"></i>Back to Orders
+                        <a href="{% url 'orders:order_list' %}" class="btn btn-secondary">
+                            <i data-feather="arrow-left" class="me-2"></i>Back to Orders
                         </a>
                     </div>
                 </div>
@@ -54,9 +54,8 @@
     <div class="card shadow-sm">
         <div class="card-header bg-light">
             <h5 class="card-title mb-0">
-                <i class="fas fa-user me-2"></i>Customer Information
+                <i data-feather="user" class="me-2"></i>Customer Information
             </h5>
-            <!-- <span class="badge bg-primary">Step 1</span> -->
         </div>
         <div class="card-body">
             <div class="row">
@@ -129,9 +128,8 @@
     <div class="card shadow-sm">
         <div class="card-header bg-light">
             <h5 class="card-title mb-0">
-                <i class="fas fa-shopping-cart me-2"></i>Order Items
+                <i data-feather="shopping-cart" class="me-2"></i>Order Items
             </h5>
-            <!-- <span class="badge bg-primary">Step 2</span> -->
         </div>
         <div class="card-body">
             <!-- Order Items Formset -->
@@ -190,7 +188,7 @@
             <!-- Add Item Button -->
             <div class="d-flex justify-content-end align-items-center border-bottom pb-4 mb-4">
                 <button type="button" id="add-item" class="btn btn-primary">
-                    <i class="fas fa-plus-circle me-2"></i>Add Item
+                    <i data-feather="plus-circle" class="me-2"></i>Add Item
                 </button>
             </div>
 
@@ -202,11 +200,15 @@
                             <table class="table table-borderless mb-0">
                                 <tr>
                                     <td>Items Subtotal:</td>
-                                    <td class="text-end price-display" id="items-subtotal">₵0.00</td>
+                                    <td class="text-end price-display" id="items-subtotal">₵0.00</td> {# JS will update this #}
                                 </tr>
-                                <tr class="table-light">
-                                    <th>Total:</th>
-                                    <th class="text-end price-display" id="order-total">₵0.00</th>
+                                <tr>
+                                    <td>Delivery Fee:</td>
+                                    <td class="text-end price-display" id="delivery-fee-display">₵{% if form.instance.pk %}{{ form.instance.delivery_fee|floatformat:2 }}{% else %}0.00{% endif %}</td> {# Shows saved/default fee #}
+                                </tr>
+                                <tr class="table-light fw-bold">
+                                    <th>Grand Total:</th>
+                                    <th class="text-end price-display" id="grand-total-display">₵{% if form.instance.pk %}{{ form.instance.total_price|floatformat:2 }}{% else %}0.00{% endif %}</th> {# Shows saved/default total #}
                                 </tr>
                             </table>
                         </div>
@@ -220,11 +222,11 @@
             </div>
             
             <div class="d-flex justify-content-between mt-4">
-                <a href="{% url 'orders:order_list' %}" class="btn btn-outline-secondary">
-                    <i class="fas fa-times me-2"></i>Cancel
+                <a href="{% url 'orders:order_list' %}" class="btn btn-secondary">
+                    <i data-feather="x" class="me-2"></i>Cancel
                 </a>
                 <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-check me-2"></i>Create Order
+                    <i data-feather="check" class="me-2"></i>Create Order
                 </button>
             </div>
         </form>
@@ -233,8 +235,8 @@
 {% endblock %}
 
 {% block extra_js %}
-{# {{ block.super }} #} <!-- Temporarily comment out this line -->
 {{ available_extras_data|json_script:"available-extras-data" }}
+{{ DELIVERY_FEES|json_script:"delivery-fees-data" }}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
         let AVAILABLE_EXTRAS = [];
@@ -248,7 +250,6 @@ document.addEventListener('DOMContentLoaded', function() {
         } catch (e) {
             console.error("Error parsing AVAILABLE_EXTRAS data from #available-extras-data:", e);
         }
-        // console.log("Available Extras:", AVAILABLE_EXTRAS); // For debugging
 
         // Improved menu options caching
         let cachedMenuOptionsHTML = '';
@@ -266,7 +267,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Check if the template actually contains more than just the placeholder
                     if (selectElement.innerHTML.trim() && selectElement.innerHTML.trim() !== fallbackOptionHTML.trim() && selectElement.options.length > 1) {
                         cachedMenuOptionsHTML = selectElement.innerHTML;
-                        console.log("Successfully cached/re-cached menu options from #menu-template.");
                     } else {
                         console.warn("Menu template #menu-template found, but seems empty or only contains a placeholder. Using fallback for menu options.");
                         cachedMenuOptionsHTML = fallbackOptionHTML; // Cache the fallback
@@ -284,8 +284,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Enhanced initialization function that handles both new and existing orders
         function initializeOrderItems() {
-            console.log("Initializing order items...");
-            
             const orderItemsContainer = document.getElementById('order-items');
             const totalFormsInput = document.querySelector('[name="items-TOTAL_FORMS"]');
             
@@ -304,11 +302,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 if (existingItems.length > 0) {
                     // Initialize existing items
-                    console.log(`Initializing ${existingItems.length} existing items`);
                     existingItems.forEach(item => initializeItem(item));
                 } else {
                     // Create initial item for new order
-                    console.log("Attempting to create initial item for new order (index 0)");
                     const newItem = createItemTemplate(0);
                     const addItemButton = document.getElementById('add-item'); // Get button for potential disabling
 
@@ -317,7 +313,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         initializeItem(newItem);
                         totalFormsInput.value = '1';
                         if (addItemButton) { // Ensure button text is updated if item is added
-                             addItemButton.innerHTML = '<i class="fas fa-plus-circle me-2"></i>Add Another Item';
+                             addItemButton.innerHTML = '<i data-feather="plus-circle" class="me-2"></i>Add Another Item';
+                             feather.replace();
                         }
                     } else {
                         // createItemTemplate returned null, meaning no menu options
@@ -332,7 +329,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                         if (addItemButton) {
                             addItemButton.disabled = true;
-                            addItemButton.innerHTML = '<i class="fas fa-ban me-2"></i>No Items Available';
+                            addItemButton.innerHTML = '<i data-feather="slash" class="me-2"></i>No Items Available';
+                            feather.replace();
                             // Optionally change style to indicate disabled state more clearly
                             addItemButton.classList.remove('btn-primary');
                             addItemButton.classList.add('btn-secondary');
@@ -342,8 +340,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 // Initial totals calculation
                 updateTotals();
-                
-                console.log("Order items initialization completed");
             } catch (error) {
                 console.error("Error during initialization:", error);
                 if (initializationAttempts < MAX_INIT_ATTEMPTS) {
@@ -380,8 +376,6 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const selectedOption = select.options[select.selectedIndex];
             if (selectedOption && selectedOption.text) {
-                console.log(`Selected option text: "${selectedOption.text}"`);
-                
                 // Extract price with improved pattern matching
                 let price = null;
                 
@@ -405,7 +399,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     const match = selectedOption.text.match(pattern);
                     if (match && match[1]) {
                         price = parseFloat(match[1]);
-                        console.log(`Price found with pattern ${pattern}: ${price}`);
                         break;
                     }
                 }
@@ -413,7 +406,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (price !== null) {
                     // Format with exactly 2 decimal places
                     const formattedPrice = price.toFixed(2);
-                    console.log(`Price found: ₵${formattedPrice} for item in ${item.id}`);
                     
                     // Update display price
                     priceDisplay.value = '₵' + formattedPrice;
@@ -421,7 +413,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Update hidden input for form submission
                     if (unitPriceInput) {
                         unitPriceInput.value = formattedPrice;
-                        console.log(`Updated unit price input to: ${formattedPrice}`);
                     }
                     
                     // Trigger totals update
@@ -444,43 +435,49 @@ document.addEventListener('DOMContentLoaded', function() {
             updateTotals();
         }
 
-        // Calculate and update totals
         function updateTotals() {
-            let subtotal = 0;
+            let itemsSubtotalOnly = 0; // Renamed for clarity
             document.querySelectorAll('.item-row:not([style*="display: none"])').forEach((item, index) => {
                 const priceDisplay = item.querySelector('.item-price');
                 const unitPriceInput = item.querySelector('[name$="-unit_price"]');
                 const quantityInput = item.querySelector('.quantity-input');
                 
                 if (quantityInput) {
-                    // Get price either from unit_price input or price display
                     let price = 0;
                     if (unitPriceInput && unitPriceInput.value) {
                         price = parseFloat(unitPriceInput.value) || 0;
                     } else if (priceDisplay) {
-                        price = parseFloat(priceDisplay.value.replace('₵', '').replace('$', '')) || 0;
+                        price = parseFloat(priceDisplay.value.replace(/[₵$]/g, '')) || 0; // Allow for $ or ₵
                     }
                     
                     const quantity = parseInt(quantityInput.value) || 0;
                     const itemTotal = price * quantity;
-                    subtotal += itemTotal;
-                    
-                    console.log(`Item ${index}: ${quantity} x ${price} = ${itemTotal}`);
+                    itemsSubtotalOnly += itemTotal;
                 }
             });
             
-            const itemsSubtotalElement = document.getElementById('items-subtotal');
-            const orderTotalElement = document.getElementById('order-total');
+            const itemsSubtotalDisplayElement = document.getElementById('items-subtotal');
+            const deliveryFeeDisplayElement = document.getElementById('delivery-fee-display');
+            const grandTotalDisplayElement = document.getElementById('grand-total-display'); // Corrected ID
             
-            if (itemsSubtotalElement) {
-                itemsSubtotalElement.textContent = '₵' + subtotal.toFixed(2);
+            if (itemsSubtotalDisplayElement) {
+                itemsSubtotalDisplayElement.textContent = '₵' + itemsSubtotalOnly.toFixed(2);
+            }
+
+            let deliveryFee = 0;
+            if (deliveryFeeDisplayElement) {
+                const feeText = deliveryFeeDisplayElement.textContent.replace(/[^0-9.]/g, ''); 
+                if (feeText) {
+                    deliveryFee = parseFloat(feeText);
+                    if (isNaN(deliveryFee)) deliveryFee = 0;
+                }
             }
             
-            if (orderTotalElement) {
-                orderTotalElement.textContent = '₵' + subtotal.toFixed(2);
+            const grandTotal = itemsSubtotalOnly + deliveryFee;
+
+            if (grandTotalDisplayElement) { 
+                grandTotalDisplayElement.textContent = '₵' + grandTotal.toFixed(2);
             }
-            
-            console.log(`Order total updated: ₵${subtotal.toFixed(2)}`);
         }
 
         // Update element attributes for new items
@@ -501,7 +498,6 @@ document.addEventListener('DOMContentLoaded', function() {
         // Initialize single item with improved error handling
         function initializeItem(item) {
             try { // Add try here
-                console.log(`Initializing item: ${item.id}`);
                 const select = item.querySelector('select[name*="menu_item"]');
                 const quantityInput = item.querySelector('.quantity-input');
                 
@@ -529,14 +525,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     updateItemPrice(item); // Update price
                     select.addEventListener('change', () => { // Add change listener
-                        console.log(`Menu item changed for ${item.id}`);
                         updateItemPrice(item);
                     });
                 }
 
                 if (quantityInput) {
                     quantityInput.addEventListener('change', () => {
-                        console.log(`Quantity changed for ${item.id}`);
                         updateTotals();
                     });
                 }
@@ -609,8 +603,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                 
                                 <!-- Remove Button -->
                                 <div class="col-md-2 d-flex align-items-end">
-                                    <button type="button" class="btn btn-outline-danger mb-3 remove-item">
-                                        <i class="fas fa-trash-alt"></i>
+                                    <button type="button" class="btn btn-danger mb-3 remove-item">
+                                        <i data-feather="trash-2"></i>
                                     </button>
                                     <input type="checkbox" name="items-${index}-DELETE" class="d-none">
                                     <input type="hidden" name="items-${index}-id" value="">
@@ -621,8 +615,8 @@ document.addEventListener('DOMContentLoaded', function() {
                             <!-- New block for Add Extra button and its container -->
                             <div class="row mt-2">
                                 <div class="col-12 text-end">
-                                    <button type="button" class="btn btn-sm btn-outline-success add-extra-btn" data-item-prefix="items-${index}">
-                                        <i class="fas fa-plus"></i> Add Extra
+                                    <button type="button" class="btn btn-sm btn-success add-extra-btn" data-item-prefix="items-${index}">
+                                        <i data-feather="plus"></i> Add Extra
                                     </button>
                                 </div>
                             </div>
@@ -656,7 +650,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <input type="hidden" name="items-${formsetIndex}-parent_item_ref" value="${parentItemFormPrefix}">
                         <div class="row align-items-center">
                             <div class="col-md-4">
-                                <small class="text-muted"><i class="fas fa-level-up-alt fa-rotate-90 me-1"></i> Extra:</small>
+                                <small class="text-muted"><i data-feather="corner-down-right" class="me-1"></i> Extra:</small>
                                 <strong>${extraMenuItem.name}</strong>
                             </div>
                             <div class="col-md-2">
@@ -669,8 +663,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <input type="hidden" name="items-${formsetIndex}-unit_price" class="unit-price-input" value="${formattedPrice}">
                             </div>
                             <div class="col-md-3 d-flex align-items-center justify-content-end">
-                                <button type="button" class="btn btn-sm btn-outline-danger remove-item remove-extra-btn">
-                                    <i class="fas fa-times"></i>
+                                <button type="button" class="btn btn-sm btn-danger remove-item remove-extra-btn">
+                                    <i data-feather="x"></i>
                                 </button>
                                 <input type="checkbox" name="items-${formsetIndex}-DELETE" id="items-${formsetIndex}-DELETE" class="d-none">
                                 <input type="hidden" name="items-${formsetIndex}-id" id="items-${formsetIndex}-id" value="">
@@ -688,8 +682,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Place this function after createExtraRowHTML
         function initializeExtraRow(extraRowElement) {
-            // console.log(`[initializeExtraRow] Initializing extra row:`, extraRowElement.id);
-
             const quantityInput = extraRowElement.querySelector('.extra-quantity-input'); // Use specific class if needed
             const removeButton = extraRowElement.querySelector('.remove-extra-btn'); // Use specific class
             const unitPriceInput = extraRowElement.querySelector('.unit-price-input'); // Hidden unit price
@@ -699,18 +691,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
-            // Price is already set by createExtraRowHTML, but we can log it
-            // console.log(`[initializeExtraRow] Extra item: ${extraRowElement.id}, Initial unit price: ${unitPriceInput.value}`);
-
             // Event listener for quantity change
             quantityInput.addEventListener('input', function() { // 'input' for immediate response
-                // console.log(`[initializeExtraRow] Quantity changed for extra: ${extraRowElement.id}`);
                 updateTotals();
             });
 
             // Event listener for remove button
             removeButton.addEventListener('click', function() {
-                // console.log(`[initializeExtraRow] Remove clicked for extra: ${extraRowElement.id}`);
                 const deleteCheckbox = extraRowElement.querySelector('input[name$="-DELETE"]');
                 if (deleteCheckbox) {
                     deleteCheckbox.checked = true;
@@ -721,9 +708,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     // and no DELETE checkbox exists (e.g. if template was different)
                     // we might remove it from DOM directly. But standard formset practice uses DELETE.
                     console.warn('[initializeExtraRow] DELETE checkbox not found for extra row:', extraRowElement.id);
-                    // As a fallback, just remove from DOM if no DELETE checkbox
-                    // extraRowElement.remove(); 
-                    // updateTotals();
                 }
             });
         }
@@ -768,7 +752,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         </div>
                         <div class="text-end">
                             <button type="button" class="btn btn-sm btn-success confirm-add-selected-extra me-1">Add</button>
-                            <button type="button" class="btn btn-sm btn-outline-secondary cancel-add-selected-extra">Cancel</button>
+                            <button type="button" class="btn btn-sm btn-secondary cancel-add-selected-extra">Cancel</button>
                         </div>
                     `;
                     
@@ -798,7 +782,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                             const newExtraRowElement = createExtraRowHTML(formsetIndex, selectedExtraDetails, parentItemFormPrefix);
                             extrasContainer.insertBefore(newExtraRowElement, tempUI); // Insert before the temp UI
-
+                            feather.replace(); // Render newly added feather icon in extra row
                             initializeExtraRow(newExtraRowElement);
 
                             totalFormsInput.value = formsetIndex + 1;
@@ -827,8 +811,6 @@ document.addEventListener('DOMContentLoaded', function() {
             addItemButton.addEventListener('click', () => {
                 // Outer try-catch for the entire click handler logic
                 try {
-                    console.log("Add item button clicked");
-                    
                     // Get total forms count
                     const totalFormsInput = document.querySelector('[name="items-TOTAL_FORMS"]');
                     if (!totalFormsInput) {
@@ -840,7 +822,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                     
                     const newIndex = parseInt(totalFormsInput.value);
-                    console.log(`Creating new item with index: ${newIndex}`);
                     
                     const newItem = createItemTemplate(newIndex);
                     if (!newItem) {
@@ -857,16 +838,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                     
                     orderItemsContainer.appendChild(newItem);
-                    console.log(`Added new item with ID: item-${newIndex}`);
+                    feather.replace(); // Render newly added feather icons in item row
                     
                     totalFormsInput.value = (newIndex + 1).toString();
-                    console.log(`Updated total forms count to: ${totalFormsInput.value}`);
                     
                     initializeItem(newItem); // This function now has its own internal try-catch
                     
                     // Ensure the button is enabled and text is correct if it wasn't disabled by initializeOrderItems
                     if (!addItemButton.disabled) {
-                        addItemButton.innerHTML = '<i class="fas fa-plus-circle me-2"></i>Add Another Item';
+                        addItemButton.innerHTML = '<i data-feather="plus-circle" class="me-2"></i>Add Another Item';
+                        feather.replace(); // Render the icon in the button
                     }
                     
                     const menuSelect = newItem.querySelector('select[name*="menu_item"]');
@@ -893,8 +874,6 @@ document.addEventListener('DOMContentLoaded', function() {
         if (orderForm) {
             orderForm.addEventListener('submit', event => {
                 try {
-                    console.log("Form submission started");
-                    
                     // Check for at least one visible item
                     const visibleItems = document.querySelectorAll('.item-row:not([style*="display: none"])');
                     if (visibleItems.length === 0) {
@@ -911,7 +890,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (menuItemSelect && (!menuItemSelect.value || menuItemSelect.value === '')) {
                             menuItemSelect.classList.add('is-invalid');
                             isValid = false;
-                            console.log(`Invalid menu item in row ${index + 1}`);
                         } else if (menuItemSelect) {
                             menuItemSelect.classList.remove('is-invalid');
                         }
@@ -919,7 +897,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         // Ensure unit price is set
                         const unitPriceInput = item.querySelector('[name$="-unit_price"]');
                         if (unitPriceInput && (!unitPriceInput.value || parseFloat(unitPriceInput.value) <= 0)) {
-                            console.log(`Fixing missing unit price for item ${index + 1}`);
                             // Try to update price one more time
                             updateItemPrice(item);
                         }
@@ -942,10 +919,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                     
                     if (!isValid) {
-                        console.log("Form validation failed");
                         event.preventDefault();
-                    } else {
-                        console.log("Form validation passed, submitting");
                     }
                 } catch (error) {
                     console.error("Error during form validation:", error);
@@ -954,7 +928,56 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
 
-        // --- BEGIN: Added toggleLocationField logic ---
+        let DELIVERY_FEES_JS = {};
+        try {
+            const deliveryFeesDataElement = document.getElementById('delivery-fees-data');
+            if (deliveryFeesDataElement) {
+                DELIVERY_FEES_JS = JSON.parse(deliveryFeesDataElement.textContent);
+            } else {
+                console.warn("Delivery fees data script #delivery-fees-data not found.");
+            }
+        } catch (e) {
+            console.error("Error parsing DELIVERY_FEES_JS data:", e);
+        }
+
+        function updateDynamicDeliveryFeeAndTotals() {
+            const deliveryTypeSelect = document.getElementById('id_delivery_type');
+            const deliveryLocationSelect = document.getElementById('id_delivery_location');
+            const deliveryFeeDisplay = document.getElementById('delivery-fee-display');
+
+            if (!deliveryTypeSelect || !deliveryFeeDisplay) {
+                console.warn("Delivery type select or fee display element not found for dynamic fee update.");
+                return;
+            }
+
+            let calculatedFee = 0.00;
+            const selectedDeliveryType = deliveryTypeSelect.value;
+
+            if (selectedDeliveryType === 'Delivery') {
+                if (deliveryLocationSelect) {
+                    const selectedLocation = deliveryLocationSelect.value;
+                    if (selectedLocation && DELIVERY_FEES_JS.hasOwnProperty(selectedLocation)) {
+                        calculatedFee = parseFloat(DELIVERY_FEES_JS[selectedLocation]);
+                    } else {
+                        calculatedFee = 0.00; 
+                    }
+                }
+            } else if (selectedDeliveryType === 'Pickup') {
+                calculatedFee = 0.00;
+            }
+
+            if (isNaN(calculatedFee)) calculatedFee = 0.00;
+
+            deliveryFeeDisplay.textContent = '₵' + calculatedFee.toFixed(2);
+            
+            if (typeof updateTotals === "function") {
+                updateTotals();
+            } else {
+                console.warn("updateTotals function not found after updating delivery fee.");
+            }
+        }
+
+        // --- BEGIN: Modified toggleLocationField logic ---
         function toggleLocationField(deliveryType) {
             const locationContainer = document.getElementById('delivery-location-container');
             const locationLabel = document.getElementById('location-label') || document.querySelector('label[for="id_delivery_location"]');
@@ -971,20 +994,30 @@ document.addEventListener('DOMContentLoaded', function() {
                     locationInput.required = false;
                 }
             }
+            updateDynamicDeliveryFeeAndTotals(); // Call here
         }
 
         // Ensure deliveryTypeSelect is the one from the form, usually 'id_delivery_type'
         // const localDeliveryTypeSelect = document.querySelector('select[name="delivery_type"]'); // deliveryTypeSelect is already defined at this scope
-        if (deliveryTypeSelect) { // deliveryTypeSelect was initialized around line 1182
-            toggleLocationField(deliveryTypeSelect.value); // Initial state
-            deliveryTypeSelect.addEventListener('change', function() {
-                toggleLocationField(this.value);
+        const deliveryTypeSelectForEvent = document.getElementById('id_delivery_type'); // Use ID for consistency
+        const deliveryLocationSelectForEvent = document.getElementById('id_delivery_location');
+
+        if (deliveryTypeSelectForEvent) { 
+            toggleLocationField(deliveryTypeSelectForEvent.value); // Initial state check
+            deliveryTypeSelectForEvent.addEventListener('change', function() {
+                toggleLocationField(this.value); // This will also call updateDynamicDeliveryFeeAndTotals
             });
         }
-        // --- END: Added toggleLocationField logic ---
+        if (deliveryLocationSelectForEvent) {
+            deliveryLocationSelectForEvent.addEventListener('change', updateDynamicDeliveryFeeAndTotals);
+        }
+        // --- END: Modified toggleLocationField and event listener logic ---
 
-        // Initial totals calculation
-        updateTotals();
+        // Initial totals calculation, which now implicitly includes delivery fee via updateDynamicDeliveryFeeAndTotals
+        // updateTotals(); // Called by updateDynamicDeliveryFeeAndTotals, which is called by toggleLocationField
+        // Explicit initial call to ensure fees are set if toggleLocationField didn't run or fully update
+        updateDynamicDeliveryFeeAndTotals(); 
+
     });
 </script>
 {% endblock %}

@@ -48,30 +48,30 @@ class PaymentForm(forms.ModelForm):
         }
 
 
-class PaystackPaymentForm(forms.Form):
-    phone_number = forms.CharField(
-        max_length=15,
-        help_text="Enter your mobile money number in the format: 024XXXXXXX or 054XXXXXXX",
-        widget=forms.TextInput(attrs={'placeholder': 'e.g., 0241234567'})
-    )
-    
-    def clean_phone_number(self):
-        phone = self.cleaned_data.get('phone_number', '')
-        
-        # Clean up the phone number format
-        if phone.startswith('+'):
-            # Remove the plus sign
-            phone = phone[1:]
-        
-        # Ensure it's a Ghanaian number
-        if phone.startswith('233'):
-            # Already in international format
-            pass
-        elif phone.startswith('0'):
-            # Convert to international format
-            phone = '233' + phone[1:]
-        else:
-            raise forms.ValidationError("Please enter a valid Ghanaian phone number")
-        
-        return phone
+# class PaystackPaymentForm(forms.Form):
+#     phone_number = forms.CharField(
+#         max_length=15,
+#         help_text="Enter your mobile money number in the format: 024XXXXXXX or 054XXXXXXX",
+#         widget=forms.TextInput(attrs={'placeholder': 'e.g., 0241234567'})
+#     )
+#     
+#     def clean_phone_number(self):
+#         phone = self.cleaned_data.get('phone_number', '')
+#         
+#         # Clean up the phone number format
+#         if phone.startswith('+'):
+#             # Remove the plus sign
+#             phone = phone[1:]
+#         
+#         # Ensure it's a Ghanaian number
+#         if phone.startswith('233'):
+#             # Already in international format
+#             pass
+#         elif phone.startswith('0'):
+#             # Convert to international format
+#             phone = '233' + phone[1:]
+#         else:
+#             raise forms.ValidationError("Please enter a valid Ghanaian phone number")
+#         
+#         return phone
 

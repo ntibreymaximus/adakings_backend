@@ -1,4 +1,4 @@
-{% extends 'menu/base_menu.html' %}
+{% extends 'menu/base.html' %}
 
 {% block menu_title %}Delete Category{% endblock %}
 
@@ -9,8 +9,8 @@
             {% csrf_token %}
             <p>Are you sure you want to delete "{{ object }}"?</p>
             <div class="mt-3">
-                <button type="submit" class="btn btn-danger">Delete</button>
-                <a href="{% url 'menu:category_list' %}" class="btn btn-outline-secondary">Cancel</a>
+                <button type="submit" class="btn btn-danger"><i data-feather="trash-2" class="me-1"></i>Delete</button>
+                <a href="{% url 'menu:category_list' %}" class="btn btn-secondary"><i data-feather="x" class="me-1"></i>Cancel</a>
             </div>
         </form>
     </div>

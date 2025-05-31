@@ -40,7 +40,7 @@
 <!-- Stats Row -->
 <div class="row mb-4">
   <div class="col-md-3">
-    <div class="card stats-card bg-primary text-white shadow-sm">
+    <div class="card stats-card bg-primary text-white">
       <div class="card-body d-flex align-items-center">
         <div class="stats-icon">
           <i data-feather="list"></i>
@@ -54,7 +54,7 @@
   </div>
   
   <div class="col-md-3">
-    <div class="card stats-card bg-success text-white shadow-sm">
+    <div class="card stats-card bg-success text-white">
       <div class="card-body d-flex align-items-center">
         <div class="stats-icon">
           <i data-feather="check-circle"></i>
@@ -68,7 +68,7 @@
   </div>
   
   <div class="col-md-3">
-    <div class="card stats-card bg-warning shadow-sm">
+    <div class="card stats-card bg-warning">
       <div class="card-body d-flex align-items-center">
         <div class="stats-icon">
           <i data-feather="clock"></i>
@@ -82,7 +82,7 @@
   </div>
   
   <div class="col-md-3">
-    <div class="card stats-card bg-info text-white shadow-sm">
+    <div class="card stats-card bg-info text-white">
       <div class="card-body d-flex align-items-center">
         <div class="stats-icon">
           <i data-feather="dollar-sign"></i>
@@ -100,7 +100,7 @@
 <div class="card action-card">
   <div class="card-header d-flex justify-content-between align-items-center">
     <h5 class="mb-0"><i data-feather="clock" class="me-2"></i> Recent Orders (Last 5)</h5>
-    <a href="{% url "orders:order_list" %}" class="btn btn-sm btn-outline-primary">View All Orders</a>
+    <a href="{% url "orders:order_list" %}" class="btn btn-sm btn-primary">View All Orders</a>
   </div>
   <div class="card-body p-0">
     <div class="table-responsive">
@@ -127,9 +127,21 @@
             </td>
             <td>{{ order.created_at|date:"H:i" }}</td>
             <td>
-              <span class="badge status-{{ order.status|lower }} py-2 px-3">
-                {{ order.status }}
-              </span>
+              {% if order.status == "Pending" %}
+                <span class="badge status-pending py-2 px-3">{{ order.status }}</span>
+              {% elif order.status == "Accepted" %}
+                <span class="badge status-confirmed py-2 px-3">{{ order.status }}</span>
+              {% elif order.status == "Ready" %}
+                <span class="badge status-ready py-2 px-3">{{ order.status }}</span>
+              {% elif order.status == "Out for Delivery" %}
+                <span class="badge status-processing py-2 px-3">{{ order.status }}</span>
+              {% elif order.status == "Fulfilled" %}
+                <span class="badge status-delivered py-2 px-3">{{ order.status }}</span>
+              {% elif order.status == "Cancelled" %}
+                <span class="badge status-cancelled py-2 px-3">{{ order.status }}</span>
+              {% else %}
+                <span class="badge bg-secondary py-2 px-3">{{ order.status }}</span> {# Fallback #}
+              {% endif %}
             </td>
             <td>
               {% if order.is_paid %}
@@ -141,20 +153,22 @@
             <td>
               {% if order.delivery_type == "Pickup" %}
                 <span class="badge bg-secondary py-2 px-3">Pickup</span>
+              {% elif order.delivery_type == "Delivery" %}
+                <span class="badge bg-info py-2 px-3">{{ order.delivery_location|default:"Delivery" }}</span>
               {% else %}
-                <span class="badge bg-info py-2 px-3">Delivery</span>
+                <span class="badge bg-light text-dark py-2 px-3">{{ order.delivery_type }}</span> {# Fallback for unexpected types #}
               {% endif %}
             </td>
             <td class="price-display">₵{{ order.total_price }}</td>
             <td class="text-end pe-3">
               <div class="btn-group">
-                <a href="{% url "orders:order_detail" order.id %}" class="btn btn-sm btn-primary" title="View Order">
+                <a href="{% url "orders:order_detail" order.order_number %}" class="btn btn-sm btn-primary" title="View Order">
                   <i data-feather="eye"></i>
                 </a>
-                <a href="{% url "orders:order_update" order.id %}" class="btn btn-sm btn-secondary" title="Edit Order">
+                <a href="{% url "orders:order_update" order.order_number %}" class="btn btn-sm btn-secondary" title="Edit Order">
                   <i data-feather="edit"></i>
                 </a>
-                <a href="{% url "orders:order_status_update" order.id %}" class="btn btn-sm btn-info" title="Update Status">
+                <a href="{% url "orders:order_status_update" order.order_number %}" class="btn btn-sm btn-info" title="Update Status">
                   <i data-feather="check-square"></i>
                 </a>
               </div>
@@ -175,6 +189,6 @@
     </div>
   </div>
 </div>
-
+</div>
 <!-- Floating Action Button Removed as per requirements -->
 {% endblock %}

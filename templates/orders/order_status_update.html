@@ -16,7 +16,7 @@
                     <ol class="breadcrumb mb-2">
                         <li class="breadcrumb-item"><a href="{% url 'users:dashboard' %}" class="text-decoration-none">Dashboard</a></li>
                         <li class="breadcrumb-item"><a href="{% url 'orders:order_list' %}" class="text-decoration-none">Orders</a></li>
-                        <li class="breadcrumb-item"><a href="{% url 'orders:order_detail' order.pk %}" class="text-decoration-none">Order {{ order.order_number }}</a></li>
+                        <li class="breadcrumb-item"><a href="{% url 'orders:order_detail' order.order_number %}" class="text-decoration-none">Order {{ order.order_number }}</a></li>
                         <li class="breadcrumb-item active" aria-current="page">Update Status</li>
                     </ol>
                 </nav>
@@ -26,7 +26,7 @@
                         <p class="text-muted mb-0">Change the current status of the order.</p>
                     </div>
                     <div class="page-actions">
-                        <a href="{% url 'orders:order_detail' order.pk %}" class="btn btn-outline-secondary">
+                        <a href="{% url 'orders:order_detail' order.order_number %}" class="btn btn-secondary">
                             <i data-feather="arrow-left" class="me-2"></i>Back to Order Details
                         </a>
                     </div>
@@ -52,7 +52,7 @@
                             {% for status_code, status_name in form.fields.status.choices %}
                                 <input type="radio" class="btn-check" name="{{ form.status.html_name }}" id="status_{{ status_code }}" value="{{ status_code }}" autocomplete="off"
                                     {% if order.status == status_code %}checked disabled{% endif %}>
-                                <label class="btn btn-outline-secondary flex-grow-1" for="status_{{ status_code }}">{{ status_name }}</label>
+                                <label class="btn btn-secondary flex-grow-1" for="status_{{ status_code }}">{{ status_name }}</label>
                             {% endfor %}
                         </div>
                         {% if form.status.errors %}
@@ -67,7 +67,7 @@
                     </div>
 
                     <div class="text-end">
-                        <a href="{% url 'orders:order_detail' order.pk %}" class="btn btn-secondary">
+                        <a href="{% url 'orders:order_detail' order.order_number %}" class="btn btn-secondary">
                             <i data-feather="x" class="me-1"></i>Cancel
                         </a>
                         <button type="submit" class="btn btn-primary" id="submit-status-update-btn">
@@ -86,7 +86,7 @@
             <div class="card-body p-0">
                 {% if order.statushistory_set.all %}
                 <div class="table-responsive">
-                    <table class="table table-hover table-striped align-middle mb-0">
+                    <table class="table table-hover align-middle mb-0"> {# Removed table-striped #}
                         <thead class="table-light">
                             <tr>
                                 <th class="ps-3">Previous Status</th>
@@ -141,7 +141,21 @@
             </div>
             <div class="card-body p-2">
                 <h4 class="mb-1">
-                    <span class="badge status-{{ order.status|lower }} py-2 px-3 fs-6">{{ order.status }}</span>
+                  {% if order.status == "Pending" %}
+                    <span class="badge status-pending py-2 px-3 fs-6">{{ order.status }}</span>
+                  {% elif order.status == "Accepted" %}
+                    <span class="badge status-confirmed py-2 px-3 fs-6">{{ order.status }}</span>
+                  {% elif order.status == "Ready" %}
+                    <span class="badge status-ready py-2 px-3 fs-6">{{ order.status }}</span>
+                  {% elif order.status == "Out for Delivery" %}
+                    <span class="badge status-processing py-2 px-3 fs-6">{{ order.status }}</span>
+                  {% elif order.status == "Fulfilled" %}
+                    <span class="badge status-delivered py-2 px-3 fs-6">{{ order.status }}</span>
+                  {% elif order.status == "Cancelled" %}
+                    <span class="badge status-cancelled py-2 px-3 fs-6">{{ order.status }}</span>
+                  {% else %}
+                    <span class="badge bg-secondary py-2 px-3 fs-6">{{ order.status }}</span> {# Fallback #}
+                  {% endif %}
                 </h4>
                 <p class="text-muted mt-1 mb-0"><small>Last updated: {{ order.updated_at|date:"F j, Y, g:i a" }}</small></p>
             </div>

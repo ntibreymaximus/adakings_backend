@@ -1,139 +1,55 @@
-{% extends "payments/base_payments.html" %}
+{% extends "payments/base.html" %}
 
 {% block title %}Transaction Details - Restaurant Management System{% endblock %}
 
-{% block extra_css %}
-<style>
-  .detail-card {
-    border-radius: 10px;
-    overflow: hidden;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    margin-bottom: 20px;
-  }
-  
-  .table-container {
-    border-radius: 10px;
-    overflow: hidden;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  }
-  
-  .payment-status {
-    padding: 0.5rem 1rem;
-    border-radius: 50px;
-    font-size: 0.875rem;
-    font-weight: 600;
-  }
-  
-  .status-pending {
-    background-color: #fff3cd;
-    color: #856404;
-  }
-  
-  .status-completed {
-    background-color: #d4edda;
-    color: #155724;
-  }
-  
-  .status-failed {
-    background-color: #f8d7da;
-    color: #721c24;
-  }
-  
-  .status-processing {
-    background-color: #cce5ff;
-    color: #004085;
-  }
-  
-  .timeline {
-    position: relative;
-    padding-left: 30px;
-  }
-  
-  .timeline::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    left: 15px;
-    width: 2px;
-    background-color: #dee2e6;
-  }
-  
-  .timeline-item {
-    position: relative;
-    margin-bottom: 1.5rem;
-  }
-  
-  .timeline-marker {
-    position: absolute;
-    left: -30px;
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    background-color: #fff;
-    border: 2px solid #007bff;
-    top: 0;
-    z-index: 1;
-  }
-  
-  .timeline-marker.success {
-    border-color: #28a745;
-  }
-  
-  .timeline-marker.failed {
-    border-color: #dc3545;
-  }
-  
-  .timeline-marker.pending {
-    border-color: #ffc107;
-  }
-  
-  .timeline-content {
-    padding: 1rem;
-    border-radius: 0.5rem;
-    background-color: #f8f9fa;
-  }
-  
-  .card-list-item {
-    border-bottom: 1px solid #eee;
-    padding: 0.75rem 0;
-  }
-  
-  .card-list-item:last-child {
-    border-bottom: none;
-  }
-</style>
-{% endblock %}
 
 {% block payment_content %}
-<h1 class="mb-4">Transaction #{{ transaction.id }}
-  <span class="ms-2">
-    {% if transaction.status == 'completed' %}
-    <span class="payment-status status-completed"><i data-feather="check-circle" class="me-2"></i>Completed</span>
-    {% elif transaction.status == 'pending' %}
-    <span class="payment-status status-pending"><i data-feather="clock" class="me-2"></i>Pending</span>
-    {% elif transaction.status == 'failed' %}
-    <span class="payment-status status-failed"><i data-feather="x-circle" class="me-2"></i>Failed</span>
-    {% else %}
-    <span class="payment-status status-processing"><i data-feather="info" class="me-2"></i>Processing</span>
-    {% endif %}
-  </span>
-</h1>
-<!-- Navigation buttons -->
-<div class="mb-4">
-  <a href="{% url 'payments:transaction_list' %}" class="btn btn-outline-secondary">
-    <i data-feather="arrow-left"></i> Back to Transactions
-  </a>
-  
-  {% if transaction.order %}
-  <a href="{% url 'orders:order_detail' transaction.order.id %}" class="btn btn-outline-primary ms-2">
-    <i data-feather="list"></i> View Order #{{ transaction.order.id }}
-  </a>
-  {% endif %}
+<!-- Page Header -->
+<div class="page-header card shadow-sm">
+  <div class="card-body">
+    <div class="row align-items-center">
+      <div class="col-auto">
+        <div class="page-icon-box">
+          <i data-feather="file-text"></i>
+        </div>
+      </div>
+      <div class="col">
+        <nav aria-label="breadcrumb">
+          <ol class="breadcrumb mb-2">
+            <li class="breadcrumb-item"><a href="{% url 'users:dashboard' %}" class="text-decoration-none">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'payments:transaction_list' %}" class="text-decoration-none">Transactions</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Transaction #{{ transaction.id }}</li>
+          </ol>
+        </nav>
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <h1 class="page-title h3 mb-0">Transaction #{{ transaction.id }}</h1>
+            <p class="text-muted mb-0">
+              Status: 
+              {% if transaction.status == 'completed' %}<span class="badge status-delivered py-2 px-3">Completed</span>
+              {% elif transaction.status == 'pending' %}<span class="badge status-pending py-2 px-3">Pending</span>
+              {% elif transaction.status == 'failed' %}<span class="badge status-cancelled py-2 px-3">Failed</span>
+              {% else %}<span class="badge bg-secondary py-2 px-3">{{ transaction.get_status_display|default:"Processing" }}</span>{% endif %}
+            </p>
+          </div>
+          <div class="page-actions">
+            <a href="{% url 'payments:transaction_list' %}" class="btn btn-secondary btn-sm">
+                <i data-feather="arrow-left" class="me-1"></i> Back to Transactions
+            </a>
+            {% if transaction.order %}
+            <a href="{% url 'orders:order_detail' transaction.order.order_number %}" class="btn btn-primary btn-sm ms-2">
+                <i data-feather="list" class="me-1"></i> View Order #{{ transaction.order.order_number }}
+            </a>
+            {% endif %}
+        </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- Main transaction details -->
-<div class="row">
+<div class="row mt-4">
   <div class="col-lg-8">
     <!-- Transaction Info Card -->
     <div class="card detail-card">
@@ -143,73 +59,56 @@
       <div class="card-body">
         <div class="row">
           <div class="col-md-6">
-            <div class="card-list-item">
-              <small class="text-muted d-block">Amount</small>
-              <span class="fs-4 fw-bold">₵{{ transaction.amount|floatformat:2 }}</span>
-            </div>
-            
-            <div class="card-list-item">
-              <small class="text-muted d-block">Payment Method</small>
-              {% if transaction.payment_method == 'cash' %}
-              <span><i data-feather="dollar-sign" class="text-success me-1"></i> Cash</span>
-              {% else %}
-              <span><i data-feather="smartphone" class="text-primary me-1"></i> Mobile Money</span>
+            <dl class="row mb-0">
+              <dt class="col-sm-4">Amount</dt>
+              <dd class="col-sm-8"><span class="fs-4 fw-bold">₵{{ transaction.amount|floatformat:2 }}</span></dd>
+
+              <dt class="col-sm-4">Payment Method</dt>
+              <dd class="col-sm-8">
+                {% if transaction.payment_method == 'cash' %}
+                <span><i data-feather="dollar-sign" class="text-success me-1"></i> Cash</span>
+                {% else %}
+                <span><i data-feather="smartphone" class="text-primary me-1"></i> Mobile Money</span>
+                {% endif %}
+              </dd>
+
+              <dt class="col-sm-4">Date & Time</dt>
+              <dd class="col-sm-8">{{ transaction.created_at|date:"F d, Y H:i" }}</dd>
+
+              <dt class="col-sm-4">Reference</dt>
+              <dd class="col-sm-8">{{ transaction.reference }}</dd>
+
+              {% if transaction.payment_method == 'mobile_money' %}
+              <dt class="col-sm-4">Mobile Number</dt>
+              <dd class="col-sm-8">{{ transaction.mobile_number|default:"Not provided" }}</dd>
+
+              <dt class="col-sm-4">Paystack Reference</dt>
+              <dd class="col-sm-8">{{ transaction.paystack_reference|default:"Not generated" }}</dd>
               {% endif %}
-            </div>
-            
-            <div class="card-list-item">
-              <small class="text-muted d-block">Date & Time</small>
-              <span>{{ transaction.created_at|date:"F d, Y H:i" }}</span>
-            </div>
-            
-            <div class="card-list-item">
-              <small class="text-muted d-block">Reference</small>
-              <span>{{ transaction.reference }}</span>
-            </div>
-            
-            {% if transaction.payment_method == 'mobile_money' %}
-            <div class="card-list-item">
-              <small class="text-muted d-block">Mobile Number</small>
-              <span>{{ transaction.mobile_number|default:"Not provided" }}</span>
-            </div>
-            
-            <div class="card-list-item">
-              <small class="text-muted d-block">Paystack Reference</small>
-              <span>{{ transaction.paystack_reference|default:"Not generated" }}</span>
-            </div>
-            {% endif %}
+            </dl>
           </div>
           
           <div class="col-md-6">
             {% if transaction.order %}
-            <div class="card-list-item">
-              <small class="text-muted d-block">Order ID</small>
-              <span>#{{ transaction.order.id }}</span>
-            </div>
-            
-            <div class="card-list-item">
-              <small class="text-muted d-block">Customer</small>
-              <span>{{ transaction.order.customer_name }}</span>
-            </div>
-            
-            <div class="card-list-item">
-              <small class="text-muted d-block">Phone</small>
-              <span>{{ transaction.order.customer_phone }}</span>
-            </div>
-            
-            <div class="card-list-item">
-              <small class="text-muted d-block">Order Status</small>
-              <span>{{ transaction.order.status }}</span>
-            </div>
-            
-            <div class="card-list-item">
-              <small class="text-muted d-block">Order Date</small>
-              <span>{{ transaction.order.created_at|date:"F d, Y H:i" }}</span>
-            </div>
+            <dl class="row mb-0">
+              <dt class="col-sm-4">Order ID</dt>
+              <dd class="col-sm-8"><a href="{% url 'orders:order_detail' transaction.order.order_number %}">#{{ transaction.order.order_number }}</a></dd>
+
+              <dt class="col-sm-4">Customer</dt>
+              <dd class="col-sm-8">{{ transaction.order.customer_name }}</dd>
+
+              <dt class="col-sm-4">Phone</dt>
+              <dd class="col-sm-8">{{ transaction.order.customer_phone }}</dd>
+
+              <dt class="col-sm-4">Order Status</dt>
+              <dd class="col-sm-8"><span class="badge bg-{{ transaction.order.get_status_badge_class }}">{{ transaction.order.get_status_display }}</span></dd>
+
+              <dt class="col-sm-4">Order Date</dt>
+              <dd class="col-sm-8">{{ transaction.order.created_at|date:"F d, Y H:i" }}</dd>
+            </dl>
             {% else %}
-            <div class="alert alert-warning">
-              <i data-feather="alert-triangle" class="me-2"></i>
-              Order information not available
+            <div class="alert alert-warning d-flex align-items-center">
+              <i data-feather="alert-triangle" class="me-2"></i>Order information not available
             </div>
             {% endif %}
           </div>
@@ -219,36 +118,36 @@
     
     <!-- Order Items Table (if order exists) -->
     {% if transaction.order and order_items %}
-    <div class="card table-container mt-4">
+    <div class="card action-card mt-4"> {# Changed table-container to action-card #}
       <div class="card-header bg-white d-flex justify-content-between align-items-center">
         <h5 class="mb-0">Order Items</h5>
         <span class="badge bg-primary">{{ order_items|length }} items</span>
       </div>
       <div class="card-body p-0">
         <div class="table-responsive">
-          <table class="table mb-0">
+          <table class="table table-hover align-middle mb-0"> {# Added table-hover align-middle #}
             <thead class="table-light">
               <tr>
-                <th>Item</th>
+                <th class="ps-3">Item</th> {# Added ps-3 #}
                 <th>Quantity</th>
                 <th>Unit Price</th>
-                <th class="text-end">Subtotal</th>
+                <th class="text-end pe-3">Subtotal</th> {# Added pe-3 #}
               </tr>
             </thead>
             <tbody>
               {% for item in order_items %}
               <tr>
-                <td>{{ item.menu_item.name }}</td>
+                <td class="ps-3">{{ item.menu_item.name }}</td> {# Added ps-3 #}
                 <td>{{ item.quantity }}</td>
                 <td>₵{{ item.unit_price|floatformat:2 }}</td>
-                <td class="text-end">₵{{ item.subtotal|floatformat:2 }}</td>
+                <td class="text-end pe-3">₵{{ item.subtotal|floatformat:2 }}</td> {# Added pe-3 #}
               </tr>
               {% endfor %}
             </tbody>
             <tfoot class="table-light">
               <tr>
-                <th colspan="3" class="text-end">Total:</th>
-                <th class="text-end">₵{{ order_total|floatformat:2 }}</th>
+                <th colspan="3" class="text-end ps-3">Total:</th> {# Added ps-3 (may need review for colspan) #}
+                <th class="text-end pe-3">₵{{ order_total|floatformat:2 }}</th> {# Added pe-3 #}
               </tr>
             </tfoot>
           </table>
@@ -280,7 +179,12 @@
                 {% if transaction.payment_method == 'cash' %}Cash
                 {% else %}Mobile Money{% endif %}
               </p>
-              <p class="mb-0">Status: {{ transaction.status }}</p>
+              <p class="mb-0">Status: 
+                {% if transaction.status == 'completed' %}<span class="badge status-delivered py-2 px-3">Completed</span>
+                {% elif transaction.status == 'pending' %}<span class="badge status-pending py-2 px-3">Pending</span>
+                {% elif transaction.status == 'failed' %}<span class="badge status-cancelled py-2 px-3">Failed</span>
+                {% else %}<span class="badge bg-secondary py-2 px-3">{{ transaction.get_status_display|default:"Processing" }}</span>{% endif %}
+              </p>
             </div>
           </div>
           
@@ -295,15 +199,17 @@
             <div class="timeline-content">
               <h6 class="mb-1">{{ entry.status|title }}</h6>
               <p class="text-muted mb-1">{{ entry.created_at|date:"F d, Y H:i" }}</p>
-              <p class="mb-0">Transaction ID: {{ entry.transaction_id }}</p>
+              <p class="mb-0"><strong>Transaction ID:</strong> {{ entry.transaction_id }}</p>
               {% if entry.is_verified %}
-              <p class="mb-0"><span class="badge bg-success">Verified</span></p>
+              <span class="badge status-confirmed py-2 px-3 mt-2">Verified</span>
               {% endif %}
             </div>
           </div>
           {% empty %}
-          <div class="text-center py-3">
-            <p class="text-muted">No transaction history available</p>
+          <div class="text-center py-4">
+            <i data-feather="clock" class="text-muted mb-3" style="width: 48px; height: 48px;"></i>
+            <h6 class="text-muted">No Transaction History</h6>
+            <p class="text-muted small">There are no additional history entries for this transaction.</p>
           </div>
           {% endfor %}
         </div>

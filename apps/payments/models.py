@@ -11,6 +11,13 @@ from uuid import uuid4
 
 class Payment(models.Model):
     """Model for tracking payments for orders"""
+    PAYMENT_TYPE_PAYMENT = 'payment'
+    PAYMENT_TYPE_REFUND = 'refund'
+    PAYMENT_TYPE_CHOICES = [
+        (PAYMENT_TYPE_PAYMENT, 'Payment'),
+        (PAYMENT_TYPE_REFUND, 'Refund'),
+    ]
+
     # Payment Methods
     PAYMENT_METHOD_CASH = 'cash'
     PAYMENT_METHOD_MOBILE = 'mobile_money'
@@ -54,6 +61,12 @@ class Payment(models.Model):
         choices=PAYMENT_STATUS_CHOICES,
         default=STATUS_PENDING
     )
+    payment_type = models.CharField(
+        max_length=10,
+        choices=PAYMENT_TYPE_CHOICES,
+        default=PAYMENT_TYPE_PAYMENT,
+        help_text="Type of transaction (Payment or Refund)"
+    )
     reference = models.UUIDField(
         default=uuid4,
         unique=True,
@@ -85,22 +98,39 @@ class Payment(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     
     def clean(self):
-        # Validate amount does not exceed order total
-        if self.amount > self.order.total_price:
-            raise ValidationError("Payment amount cannot exceed order total")
-        
-        # Mobile payment specific validations - only in second step
+        super().clean() # Call superclass's clean method
+
+        if not self.order_id: # Check if order is linked before accessing self.order
+            # This can happen if the Payment instance is not yet associated with an Order
+            # For example, during form validation before the order foreign key is set.
+            # In such cases, order-dependent validations should be skipped or handled carefully.
+            return
+
+        # Validate amount based on payment_type
+        if self.payment_type == self.PAYMENT_TYPE_PAYMENT:
+            # For a new payment, it shouldn't typically make the order excessively overpaid.
+            # More precise logic for total paid vs. total_price will be in the view/form.
+            # A very basic check: a single payment shouldn't be drastically larger than the order total.
+            if self.amount > (self.order.total_price * Decimal('1.5')): # e.g., allow up to 50% overpayment for a single transaction
+                # raise ValidationError(f"Payment amount (₵{self.amount}) seems too large for the order total (₵{self.order.total_price}).")
+                pass # Decided to handle this with more nuance in views
+
+        elif self.payment_type == self.PAYMENT_TYPE_REFUND:
+            # Ensure refund amount is positive
+            if self.amount <= Decimal('0.00'):
+                raise ValidationError("Refund amount must be positive.")
+            # More complex validation (e.g., not refunding more than available) will be in the view/form
+            # as it requires knowing the order's current payment state.
+
+        # Mobile payment specific validations (existing logic)
         if self.payment_method == self.PAYMENT_METHOD_MOBILE:
-            # Skip validation in first step (when creating initial payment)
-            if getattr(self, '_skip_mobile_validation', False):
-                pass
-            # In second step, validate mobile number
-            elif not self.mobile_number:
-                raise ValidationError("Mobile number is required for mobile payments")
-        else:
-            # For cash payments, mobile number and paystack_reference should be empty
-            self.mobile_number = None
-            self.paystack_reference = None
+            if not getattr(self, '_skip_mobile_validation', False) and not self.mobile_number:
+                raise ValidationError({"mobile_number": "Mobile number is required for mobile payments."})
+        elif self.payment_type == self.PAYMENT_TYPE_PAYMENT: # For non-mobile 'payment' types
+             # Ensure mobile number and Paystack ref are clear if not mobile money
+            if self.payment_method != self.PAYMENT_METHOD_MOBILE:
+                self.mobile_number = None
+                self.paystack_reference = None
     
     def generate_reference(self):
         # Generate unique payment reference
@@ -129,7 +159,9 @@ class Payment(models.Model):
         return reverse('payments:payment_detail', kwargs={'pk': self.pk})
     
     def __str__(self):
-        return f"Payment {self.id} for Order {self.order.id} ({self.get_payment_method_display()}) - {self.get_status_display()}"
+        type_str = f" ({self.get_payment_type_display()})" if self.payment_type == self.PAYMENT_TYPE_REFUND else ""
+        order_identifier = self.order.order_number if self.order else "N/A"
+        return f"Payment {self.id} for Order {order_identifier}{type_str} ({self.get_payment_method_display()}) - {self.get_status_display()} - ₵{self.amount}"
     
     class Meta:
         verbose_name = _('Payment')

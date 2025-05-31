@@ -1,10 +1,10 @@
-﻿{% extends "menu/base_menu.html" %}
+﻿{% extends "menu/base.html" %}
 
 {% block menu_title %}Menu Extras{% endblock %}
 
 {% block menu_content %}
 <!-- Page Header -->
-<div class="page-header card shadow-sm mb-4">
+<div class="page-header card shadow-sm">
     <div class="card-body">
         <div class="row align-items-center">
             <div class="col-auto">
@@ -13,6 +13,13 @@
                 </div>
             </div>
             <div class="col">
+                <nav aria-label="breadcrumb">
+                  <ol class="breadcrumb mb-2">
+                    <li class="breadcrumb-item"><a href="{% url 'users:dashboard' %}" class="text-decoration-none">Dashboard</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'menu:item_list' %}" class="text-decoration-none">Menu Items</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Extras</li>
+                  </ol>
+                </nav>
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <h1 class="page-title h3 mb-0">Menu Extras</h1>
@@ -31,58 +38,55 @@
     </div>
 </div>
 
-<!-- Search and Filters -->
-<div class="card action-card mb-4">
-    <div class="card-header action-card-header">
-        <h5 class="card-title mb-0">Filters</h5>
-    </div>
-    <div class="card-body">
-        <form method="get" class="row g-3">
-            <!-- Search -->
-            <div class="col-md-4">
-                <label for="search_input_extra" class="form-label">Search</label>
-                <div class="input-group">
-                    <span class="input-group-text"><i data-feather="search"></i></span>
-                    <input type="text" class="form-control" name="search" id="search_input_extra" placeholder="Search extras..." value="{{ search_query }}">
-                </div>
-            </div>
-
-            <!-- Availability Filter -->
-            <div class="col-md-3">
-                <label for="availability_select_extra" class="form-label">Availability</label>
-                <select name="availability" id="availability_select_extra" class="form-select">
-                    <option value="">All Items</option>
-                    <option value="available" {% if selected_availability == "available" %}selected{% endif %}>Available Only</option>
-                    <option value="unavailable" {% if selected_availability == "unavailable" %}selected{% endif %}>Unavailable Only</option>
-                </select>
-            </div>
-
-            <!-- Sort -->
-            <div class="col-md-3">
-                <label for="sort_select_extra" class="form-label">Sort By</label>
-                <select name="sort" id="sort_select_extra" class="form-select">
-                    <option value="name" {% if sort_by == "name" or not sort_by %}selected{% endif %}>Sort by Name</option>
-                    <option value="price" {% if sort_by == "price" %}selected{% endif %}>Price (Low to High)</option>
-                    <option value="price-desc" {% if sort_by == "price-desc" %}selected{% endif %}>Price (High to Low)</option>
-                </select>
-            </div>
-
-            <!-- Action Buttons -->
-            <div class="col-md-2 d-flex align-items-end">
-                <div class="d-flex gap-2 w-100">
-                    <button type="submit" class="btn btn-primary flex-grow-1">
-                        <i data-feather="filter" class="me-1"></i> Apply
-                    </button>
-                    <a href="{% url "menu:extra_list" %}" class="btn btn-secondary" title="Reset Filters">
-                        <i data-feather="rotate-ccw"></i>
-                    </a>
-                </div>
-            </div>
-        </form>
-    </div>
-</div>
-
 <!-- Extras List -->
+{% if is_admin %}
+<!-- Search and Filters -->
+<div class="mb-4"> {# Removed card class, added margin-bottom #}
+    <form method="get" class="row g-3 align-items-end"> {# Added align-items-end for better vertical alignment of form elements #}
+        <!-- Search -->
+        <div class="col-md-4">
+            
+            <div class="input-group">
+                <span class="input-group-text"><i data-feather="search"></i></span>
+                <input type="text" class="form-control" name="search" id="search_input_extra" placeholder="Search extras..." value="{{ search_query }}">
+            </div>
+        </div>
+
+        <!-- Availability Filter -->
+        <div class="col-md-3">
+            
+            <select name="availability" id="availability_select_extra" class="form-select">
+                <option value="">All Items</option>
+                <option value="available" {% if selected_availability == "available" %}selected{% endif %}>Available Only</option>
+                <option value="unavailable" {% if selected_availability == "unavailable" %}selected{% endif %}>Unavailable Only</option>
+            </select>
+        </div>
+
+        <!-- Sort -->
+        <div class="col-md-3">
+            
+            <select name="sort" id="sort_select_extra" class="form-select">
+                <option value="name" {% if sort_by == "name" or not sort_by %}selected{% endif %}>Sort by Name</option>
+                <option value="price" {% if sort_by == "price" %}selected{% endif %}>Price (Low to High)</option>
+                <option value="price-desc" {% if sort_by == "price-desc" %}selected{% endif %}>Price (High to Low)</option>
+            </select>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="col-md-2"> {# Removed d-flex align-items-end, handled by form's align-items-end #}
+            <div class="d-flex gap-2 w-100">
+                <button type="submit" class="btn btn-primary flex-grow-1">
+                    <i data-feather="filter" class="me-1"></i> Apply
+                </button>
+                <a href="{% url "menu:extra_list" %}" class="btn btn-secondary" title="Reset Filters">
+                    <i data-feather="rotate-ccw"></i>
+                </a>
+            </div>
+        </div>
+    </form>
+</div>
+{% endif %}
+
 <div class="card action-card">
     <div class="card-header action-card-header d-flex justify-content-between align-items-center">
         <h5 class="mb-0">Extra Items</h5>

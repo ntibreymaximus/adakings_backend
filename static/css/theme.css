@@ -1,5 +1,3 @@
-
-
 /*
     Consolidated Theme CSS
     Derived from styles in base.html, orders/base.html, 
@@ -13,7 +11,7 @@
     --sidebar-collapsed-width: 60px;
     --header-height: 60px;
 
-    /* Dark Sidebar Specific Colors */
+    /* Dark Sidebar Specific Colors - These might remain if sidebar is kept dark and distinct */
     --sidebar-actual-bg-color: #2D3748 !important; /* Dark Sidebar Background */
     --sidebar-text-color: #E2E8F0 !important; /* Dark Sidebar Text */
     --sidebar-text-hover-color: #FFFFFF; /* Dark Sidebar Text Hover */
@@ -42,6 +40,11 @@
     --border-radius: var(--bs-border-radius);
     --border-radius-lg: var(--bs-border-radius-lg);
     --input-padding: 0.625rem 0.875rem; /* Custom input padding if different from LUX */
+
+    /* Sneat-inspired variables */
+    --sneat-card-shadow: 0 2px 6px 0 rgba(67, 89, 113, 0.12);
+    --sneat-input-focus-shadow: 0 0 0 .25rem rgba(var(--bs-primary-rgb), .25); /* Standard BS5, adjust if Sneat is different */
+    --sneat-card-border-radius: 0.5rem; /* Example, adjust as per Sneat's look */
 }
 
 /* Base & Body ============================================================== */
@@ -62,6 +65,12 @@ i[data-feather] svg {
     /* stroke-width is set by feather.replace() to 2 by default */
     stroke: currentColor; /* Inherit color from parent for stroke */
     fill: none;           /* Feather icons are typically stroke-based */
+}
+
+.feather-sm {
+  width: 14px !important; /* Added !important for specificity if needed */
+  height: 14px !important;/* Added !important for specificity if needed */
+  vertical-align: middle; 
 }
 
 /* Sidebar Layout =========================================================== */
@@ -136,7 +145,7 @@ i[data-feather] svg {
     padding: 0.6rem 0.75rem; /* Slightly more padding */
     margin: 0.125rem 0;
     border-radius: var(--border-radius);
-    transition: var(--transition-standard);
+    transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
     display: flex;
     align-items: center;
     gap: 0.85rem; /* Increased gap */
@@ -147,11 +156,12 @@ i[data-feather] svg {
 }
 
 .nav-link i {
-    font-size: 1rem; /* Ensure icons are not too small */
-    min-width: 1.25rem;
+    font-size: 1em; /* Ensure icons are not too small */
     text-align: center;
     color: var(--sidebar-icon-color);
-    transition: color 0.2s ease;
+    transition: color 0.2s ease-in-out;
+    flex-shrink: 0; /* Add this */
+    line-height: 1;   /* Add this */
 }
 
 .nav-link:hover {
@@ -165,12 +175,18 @@ i[data-feather] svg {
 .nav-link.active {
     color: var(--sidebar-text-hover-color); /* Ensure text is bright on active bg */
     background: var(--sidebar-active-bg); /* Uses --bs-primary via :root */
-    font-weight: 500; /* Slightly bolder for active */
-    border-left: 3px solid var(--sidebar-active-bg); /* Use the same active background color for border */
-    padding-left: calc(0.75rem - 3px); /* Original padding-left was 0.75rem */
 }
 .nav-link.active i {
     color: var(--sidebar-text-hover-color); /* Ensure icon is bright on active bg */
+}
+
+.nav-link.active-sub {
+    color: var(--sidebar-text-hover-color) !important;
+    background: var(--sidebar-active-bg) !important;
+}
+
+.nav-link.active-sub i {
+    color: var(--sidebar-text-hover-color) !important;
 }
 
 
@@ -270,6 +286,13 @@ i[data-feather] svg {
 
 /* Cards ===================================================================== */
 /* LUX theme handles .card, .card-header, .card-body base styling */
+/* Enhancing with Sneat-inspired shadow and radius */
+.card {
+    box-shadow: var(--sneat-card-shadow);
+    border-radius: var(--sneat-card-border-radius);
+    /* Cerulean/LUX handles border, background, etc. */
+}
+
 /* Customizations for card headers if needed beyond LUX defaults */
 /* Example: .card-header .card-title can be styled if needed */
 .card-header .card-title {
@@ -298,7 +321,7 @@ i[data-feather] svg {
 .table tbody tr:hover {
     background-color: var(--table-row-hover-bg); /* Uses custom var */
     /* LUX might provide its own hover, this would override */
-|}
+}
 
 /* Action Cards (Style from Dashboard) */
 .action-card {
@@ -323,6 +346,34 @@ i[data-feather] svg {
     margin-bottom: 0;
     font-size: 1.05rem; /* Slightly larger than default card title in theme.css */
 }
+
+/* Modals =================================================================== */
+/* LUX theme handles .modal-content, .modal-header, .modal-body, .modal-footer styling */
+/* Enhancing with Sneat-inspired touches */
+
+.modal-content {
+    box-shadow: var(--sneat-card-shadow);
+    border-radius: var(--sneat-card-border-radius);
+    border: 1px solid var(--bs-border-color-translucent, #dee2e6); /* Ensure a consistent border */
+    /* Cerulean handles background color. */
+}
+
+.modal-header {
+    /* Cerulean styles the background and text color. */
+    /* padding: 1rem 1.25rem; */ /* Default BS padding is usually fine */
+    border-bottom: 1px solid var(--bs-border-color-translucent, #dee2e6); /* Ensure a clean border */
+}
+
+.modal-header .modal-title {
+    font-size: 1.125rem; /* Or 1.25rem if a larger title is preferred */
+    /* Cerulean handles font weight and color */
+}
+
+.modal-footer {
+    /* Cerulean styles the background. */
+    border-top: 1px solid var(--bs-border-color-translucent, #dee2e6); /* Ensure a clean border */
+}
+
 
 /* Forms ==================================================================== */
 .form-label {
@@ -394,22 +445,7 @@ textarea.form-control {
 .btn-group .btn i {
     font-size: 0.9rem; /* Icon size within these smaller buttons */
 }
-/* Hover for table action buttons */
-/* .btn-group .btn-outline-primary { border-color: #e9ecef; } */
-/* .btn-group .btn-outline-secondary { border-color: #e9ecef; } */
-/* .btn-group .btn-outline-info { border-color: #e9ecef; } */
 
-/*
-.btn-group .btn:hover { /* More subtle hover for table action buttons */
-/*    background-color: rgba(0,0,0,0.04); /* Universal subtle hover */
-    /* border-color: currentColor; Keep border consistent or use current color */
-/*    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-    transform: none; /* Usually no transform for tiny buttons */
-/*}
-*/
-
-
-/* Badges =================================================================== */
 /* Badges =================================================================== */
 /* LUX theme handles .badge and .bg-* utilities for badges. */
 /* Custom status badge styling (if specific visual treatment is needed beyond LUX bg-* utils) */
@@ -499,8 +535,6 @@ select option, optgroup { /* From order_update.html */
     /* margin-bottom: 1rem; */ /* Handled by card margin */
 }
 .item-row:hover { /* For item rows that are cards */
-    /* transform: translateY(-2px); */ /* Can be too jumpy if item rows are not cards */
-    /* box-shadow: var(--shadow-hover); */
 }
 .item-price[data-price-type="display"] { /* From order_update.html for currency symbol */
     position: relative;
@@ -516,6 +550,35 @@ select option, optgroup { /* From order_update.html */
     color: var(--text-muted);
 }
 
+
+/* Popover Customizations ================================================= */
+.popover {
+  max-width: 350px !important; /* Ensure popover doesn't get too wide */
+  /* LUX theme might define z-index, ensure it's appropriate if issues arise */
+  /* z-index: 1070; /* Example if default popover z-index isn't high enough */
+}
+
+.order-items-popover .list-unstyled {
+  font-size: 0.875rem; /* Slightly smaller font for popover content */
+  margin-bottom: 0; /* Remove default ul margin */
+}
+
+.order-items-popover .list-unstyled strong {
+  font-size: 0.9rem; /* Slightly larger for item name */
+}
+
+.order-items-popover .list-unstyled .border-bottom:last-child {
+  border-bottom: none !important; /* Remove border from last main item in the list */
+}
+
+/* Ensure popover body has no default padding if our content manages it */
+.popover-body {
+    padding: 0.75rem; /* Or your desired padding if overriding Bootstrap defaults */
+}
+.order-items-popover { /* This is the div inside popover-body */
+    /* If .popover-body already has padding, this div might not need it,
+       or set popover-body padding to 0 and control padding here */
+}
 
 /* Floating Action Button ================================================== */
 .floating-action-button {
@@ -578,6 +641,34 @@ select option, optgroup { /* From order_update.html */
     left: calc(var(--sidebar-collapsed-width) - 14px - 0.75rem);
 }
 
+/* Additional rules for collapsed sidebar content */
+.sidebar.collapsed .nav-link {
+    justify-content: center; /* Center the icon */
+    padding-left: 0;         /* Adjust padding for better centering */
+    padding-right: 0;
+    gap: 0;                  /* Remove gap as text span is hidden */
+}
+
+.sidebar.collapsed .nav-link i {
+    margin: 0; /* Ensure icon itself has no extra margins affecting centering */
+}
+
+/* Hide the dropdown arrow icons (chevrons) when sidebar is collapsed */
+.sidebar.collapsed .nav-link i.ms-auto[data-feather="chevron-down"],
+.sidebar.collapsed .nav-link i.ms-auto[data-feather="chevron-up"] {
+    display: none !important;
+}
+
+/* Refined active state for collapsed sidebar */
+.sidebar.collapsed .nav-link.active,
+.sidebar.collapsed .nav-link.active-sub {
+    background-color: transparent !important; /* Remove the full background color */
+}
+
+.sidebar.collapsed .nav-link.active i,
+.sidebar.collapsed .nav-link.active-sub i {
+    color: var(--sidebar-active-bg) !important; /* Make the icon color the active color (e.g., --bs-primary) */
+}
 
 /* Responsive Adjustments =================================================== */
 /* Mobile Sidebar Toggle Button */
@@ -633,8 +724,6 @@ select option, optgroup { /* From order_update.html */
     justify-content: center;
     width: 48px; /* Example explicit size */
     height: 48px; /* Example explicit size */
-    /* background-color: rgba(255,255,255,0.1); /* Example if needed for contrast on colored cards */
-    /* border-radius: var(--border-radius); */
     margin-right: 0.75rem;
 }
 /* Ensure icon color contrasts with stats card background if specific */
@@ -656,11 +745,6 @@ td[colspan="8"] .text-muted i[data-feather] {
     /* color: var(--text-muted); /* Already text-muted class on parent */
 }
 
-/* BEGIN: Content from orders_specific.css */
-/* The following section from "orders_specific.css" is mostly redundant */
-/* Specific badge styling (if different from above) and other specific overrides can go here. */
-/* Most of the duplicated .badge, .status-*, table, button, card, typography rules from the original
-   orders_specific.css block have been removed as they are now handled by LUX or earlier consolidated rules. */
 
 /* Order items styles (custom, keep) */
 .order-item-extra {

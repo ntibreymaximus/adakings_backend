@@ -1,15 +1,47 @@
-{% extends "payments/base_payments.html" %}
+{% extends "payments/base.html" %}
 
 {% block payment_content %}
-<div class="card mb-4">
+<!-- Page Header -->
+<div class="page-header card shadow-sm">
+  <div class="card-body">
+    <div class="row align-items-center">
+      <div class="col-auto">
+        <div class="page-icon-box">
+          <i data-feather="dollar-sign"></i>
+        </div>
+      </div>
+      <div class="col">
+        <nav aria-label="breadcrumb">
+          <ol class="breadcrumb mb-2">
+            <li class="breadcrumb-item"><a href="{% url 'users:dashboard' %}" class="text-decoration-none">Dashboard</a></li>
+            {% if payment.order %}
+            <li class="breadcrumb-item"><a href="{% url 'orders:order_list' %}" class="text-decoration-none">Orders</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'orders:order_detail' payment.order.order_number %}" class="text-decoration-none">Order #{{ payment.order.order_number }}</a></li>
+            {% endif %}
+            <li class="breadcrumb-item active" aria-current="page">Cash Payment</li>
+          </ol>
+        </nav>
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <h1 class="page-title h3 mb-0">Cash Payment{% if payment.order %} for Order #{{ payment.order.order_number }}{% endif %}</h1>
+            <p class="text-muted mb-0">Confirm receipt of cash payment.</p>
+          </div>
+          <div class="page-actions"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-4 mt-4">
     <div class="card-header bg-primary text-white">
         <h5 class="card-title mb-0">
-            <i class="fas fa-money-bill-wave me-2"></i>Cash Payment
+            <i data-feather="dollar-sign" class="me-2"></i>Cash Payment
         </h5>
     </div>
     <div class="card-body">
         <div class="alert alert-info">
-            <i class="fas fa-info-circle me-2"></i>Customer is paying <strong>${{ payment.amount }}</strong> in cash for Order #{{ payment.order.id }}
+            <i data-feather="info" class="me-2"></i>Customer is paying <strong>${{ payment.amount }}</strong> in cash for Order #{{ payment.order.order_number }}
         </div>
         
         <div class="row mb-4">
@@ -18,13 +50,13 @@
                 <div class="card payment-card h-100">
                     <div class="card-header bg-light">
                         <h5 class="card-title mb-0">
-                            <i class="fas fa-shopping-cart me-2"></i>Order Details
+                            <i data-feather="shopping-cart" class="me-2"></i>Order Details
                         </h5>
                     </div>
                     <div class="card-body">
                         <div class="d-flex justify-content-between mb-2">
                             <span>Order #:</span>
-                            <span class="fw-bold">{{ payment.order.id }}</span>
+                            <span class="fw-bold">{{ payment.order.order_number }}</span>
                         </div>
                         <div class="d-flex justify-content-between mb-2">
                             <span>Date:</span>
@@ -55,13 +87,13 @@
                 <div class="card payment-card h-100">
                     <div class="card-header bg-light">
                         <h5 class="card-title mb-0">
-                            <i class="fas fa-credit-card me-2"></i>Payment Details
+                            <i data-feather="credit-card" class="me-2"></i>Payment Details
                         </h5>
                     </div>
                     <div class="card-body">
                         <div class="text-center mb-4">
                             <div class="payment-icon">
-                                <i class="fas fa-money-bill-wave text-success fa-3x"></i>
+                                <i data-feather="dollar-sign" class="text-success feather-3x"></i>
                             </div>
                             <h3>${{ payment.amount }}</h3>
                             <p class="text-muted">Cash Payment</p>
@@ -71,13 +103,13 @@
                         <div class="text-center">
                             <div class="alert alert-{{ payment.status }} py-2">
                                 {% if payment.status == 'completed' %}
-                                    <i class="fas fa-check-circle me-2"></i>Payment Completed
+                                    <i data-feather="check-circle" class="me-2"></i>Payment Completed
                                 {% elif payment.status == 'pending' %}
-                                    <i class="fas fa-clock me-2"></i>Payment Pending
+                                    <i data-feather="clock" class="me-2"></i>Payment Pending
                                 {% elif payment.status == 'failed' %}
-                                    <i class="fas fa-times-circle me-2"></i>Payment Failed
+                                    <i data-feather="x-circle" class="me-2"></i>Payment Failed
                                 {% else %}
-                                    <i class="fas fa-info-circle me-2"></i>{{ payment.get_status_display }}
+                                    <i data-feather="info" class="me-2"></i>{{ payment.get_status_display }}
                                 {% endif %}
                             </div>
                         </div>
@@ -90,7 +122,7 @@
         <div class="card mb-4">
             <div class="card-header bg-light">
                 <h5 class="card-title mb-0">
-                    <i class="fas fa-user-check me-2"></i>Staff Actions
+                    <i data-feather="user-check" class="me-2"></i>Staff Actions
                 </h5>
             </div>
             <div class="card-body">
@@ -107,18 +139,18 @@
                     
                     <div class="d-grid gap-2 d-md-flex justify-content-md-center">
                         <button type="submit" class="btn btn-success btn-lg">
-                            <i class="fas fa-check-circle me-2"></i>Mark as Paid
+                            <i data-feather="check-circle" class="me-2"></i>Mark as Paid
                         </button>
                     </div>
                 </form>
                 {% else %}
                 <div class="text-center">
                     <div class="alert alert-success">
-                        <i class="fas fa-check-circle me-2"></i>Payment has been marked as completed.
+                        <i data-feather="check-circle" class="me-2"></i>Payment has been marked as completed.
                     </div>
                     
-                    <a href="{% url 'orders:order_detail' pk=payment.order.id %}" class="btn btn-primary">
-                        <i class="fas fa-eye me-2"></i>View Order Details
+                    <a href="{% url 'orders:order_detail' payment.order.order_number %}" class="btn btn-primary">
+                        <i data-feather="eye" class="me-2"></i>View Order Details
                     </a>
                 </div>
                 {% endif %}
@@ -127,13 +159,13 @@
         
         <!-- Navigation Buttons -->
         <div class="d-flex justify-content-between">
-            <a href="{% url 'orders:order_detail' pk=payment.order.id %}" class="btn btn-outline-secondary">
-                <i class="fas fa-arrow-left me-2"></i>Back to Order
+            <a href="{% url 'orders:order_detail' payment.order.order_number %}" class="btn btn-secondary">
+                <i data-feather="arrow-left" class="me-2"></i>Back to Order
             </a>
             
             {% if payment.status == 'completed' %}
-            <a href="{% url 'orders:order_list' %}" class="btn btn-outline-primary">
-                <i class="fas fa-list me-2"></i>Return to Orders
+            <a href="{% url 'orders:order_list' %}" class="btn btn-primary">
+                <i data-feather="list" class="me-2"></i>Return to Orders
             </a>
             {% endif %}
         </div>
@@ -148,10 +180,10 @@ document.addEventListener('DOMContentLoaded', function() {
     if (cashPaymentForm) {
         cashPaymentForm.addEventListener('submit', function(event) {
             const submitButton = cashPaymentForm.querySelector('button[type="submit"]');
-            if (submitButton) {
-                submitButton.disabled = true;
-                submitButton.innerHTML = `<i class="fas fa-spinner fa-spin me-2"></i>Processing...`;
-            }
+                if (submitButton) {
+                    submitButton.disabled = true;
+                    submitButton.innerHTML = `<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Processing...`;
+                }
         });
     }
 });

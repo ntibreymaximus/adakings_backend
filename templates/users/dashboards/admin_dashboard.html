@@ -9,7 +9,7 @@
 <div class="container-fluid px-4 py-4">
 
 <!-- Page Header -->
-<div class="page-header card shadow-sm mb-4">
+<div class="page-header card shadow-sm">
   <div class="card-body">
     <div class="row align-items-center">
       <div class="col-auto">
@@ -38,7 +38,7 @@
 <!-- Stats Cards -->
 <div class="row mb-4">
   <div class="col-xl-3 col-md-6 mb-4">
-    <div class="card stats-card bg-primary text-white shadow-sm">
+    <div class="card stats-card bg-primary text-white">
       <div class="card-body d-flex align-items-center">
         <div class="stats-icon">
           <i data-feather="shield"></i>
@@ -52,7 +52,7 @@
   </div>
 
   <div class="col-xl-3 col-md-6 mb-4">
-    <div class="card stats-card bg-success text-white shadow-sm">
+    <div class="card stats-card bg-success text-white">
       <div class="card-body d-flex align-items-center">
         <div class="stats-icon">
           <i data-feather="bell"></i>
@@ -66,7 +66,7 @@
   </div>
 
   <div class="col-xl-3 col-md-6 mb-4">
-    <div class="card stats-card bg-warning shadow-sm"> {# text-dark is default for bg-warning in Bootstrap #}
+    <div class="card stats-card bg-warning"> {# text-dark is default for bg-warning in Bootstrap #}
       <div class="card-body d-flex align-items-center">
         <div class="stats-icon"> {# theme.css handles icon color for bg-warning #}
           <i data-feather="coffee"></i>
@@ -80,7 +80,7 @@
   </div>
 
   <div class="col-xl-3 col-md-6 mb-4">
-    <div class="card stats-card bg-info text-white shadow-sm">
+    <div class="card stats-card bg-info text-white">
       <div class="card-body d-flex align-items-center">
         <div class="stats-icon">
           <i data-feather="truck"></i>
@@ -92,47 +92,71 @@
       </div>
     </div>
   </div>
+
+  <div class="col-xl-3 col-md-6 mb-4">
+    <div class="card stats-card bg-info text-white">
+      <div class="card-body d-flex align-items-center">
+        <div class="stats-icon">
+          <i data-feather="shopping-cart"></i>
+        </div>
+        <div class="ms-3">
+          <h3 class="mb-0">{{ today_orders|default:"0" }}</h3>
+          <div class="text-white-50">Orders Today</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-3 col-md-6 mb-4">
+    <div class="card stats-card bg-success text-white">
+      <div class="card-body d-flex align-items-center">
+        <div class="stats-icon">
+          <i data-feather="dollar-sign"></i>
+        </div>
+        <div class="ms-3">
+          <h3 class="mb-0">₵{{ revenue_today|default:"0.00" }}</h3>
+          <div class="text-white-50">Revenue Today</div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
+<!-- Main content row for charts and tables -->
 <div class="row">
-  <!-- Recent Users -->
-  <div class="col-12 mb-4">
-    <div class="card action-card">
-      <div class="action-card-header">
-        <i data-feather="clock"></i> Recently Added Staff
+
+  <!-- Recent Orders -->
+  <div class="col-xl-6 col-lg-12 mb-4">
+    <div class="card action-card"> {# Added action-card #}
+      <div class="card-header">
+        <i data-feather="list" class="me-2"></i>Recent Orders
       </div>
-      <div class="card-body">
+      <div class="card-body p-0"> {# Added p-0 #}
         <div class="table-responsive">
-          <table class="table table-hover">
-            <thead>
+          <table class="table table-hover align-middle mb-0"> {# Added align-middle mb-0 #}
+            <thead class="table-light"> {# Added table-light #}
               <tr>
-                <th>Name</th>
-                <th>Role</th>
-                <th>Staff ID</th>
-                <th>Date Joined</th>
-                <th>Action</th>
+                <th class="ps-3">Order ID</th> {# Added ps-3 #}
+                <th>Customer</th>
+                <th>Items</th>
+                <th>Total</th>
+                <th>Status</th>
+                <th class="text-end pe-3">Date</th> {# Added text-end pe-3 #}
               </tr>
             </thead>
             <tbody>
-              {% for user in recent_users %}
+              {% for order in recent_orders %}
               <tr>
-                <td>{{ user.get_full_name|default:user.username }}</td>
-                <td>
-                  <span class="badge {% if user.role == "admin" %}bg-primary{% elif user.role == "frontdesk" %}bg-success{% elif user.role == "kitchen" %}bg-warning text-dark{% elif user.role == "delivery" %}bg-info{% else %}bg-secondary{% endif %}">
-                    {{ user.get_role_display }}
-                  </span>
-                </td>
-                <td>{{ user.staff_id|default:"Not assigned" }}</td>
-                <td>{{ user.date_joined|date:"M d, Y" }}</td>
-                <td>
-                  <a href="{% url "users:staff_detail" user.id %}" class="btn btn-sm btn-info">
-                    <i data-feather="edit-2"></i>
-                  </a>
-                </td>
+                <td class="ps-3"><a href="{% url 'orders:order_detail' order.order_number %}">{{ order.order_number }}</a></td> {# Added ps-3 #}
+                <td>{{ order.customer_name|default:"N/A" }}</td>
+                <td>{{ order.item_count|default:"N/A" }}</td>
+                <td>₵{{ order.total|default:"0.00" }}</td>
+                <td><span class="badge bg-{{ order.get_status_badge_class }}">{{ order.get_status_display }}</span></td>
+                <td class="text-end pe-3">{{ order.created_at|date:"M d, Y H:i" }}</td> {# Added text-end pe-3 #}
               </tr>
               {% empty %}
               <tr>
-                <td colspan="5" class="text-center">No recent staff additions</td>
+                <td colspan="6" class="text-center">No recent orders found.</td>
               </tr>
               {% endfor %}
             </tbody>
@@ -140,52 +164,139 @@
         </div>
       </div>
       <div class="card-footer text-end">
-        <a href="{% url "users:staff_list" %}" class="btn btn-primary btn-sm">View All Staff</a>
+        <a href="{% url 'orders:order_list' %}" class="btn btn-sm btn-primary">View All Orders</a>
       </div>
     </div>
   </div>
-</div>
 
-<!-- System Status -->
-<div class="row">
-  <div class="col-12 mb-4">
-    <div class="card action-card">
-      <div class="action-card-header">
-        <i data-feather="pie-chart"></i> Staff Distribution
+  <!-- Recent Transactions -->
+  <div class="col-xl-6 col-lg-12 mb-4">
+    <div class="card action-card"> {# Added action-card #}
+      <div class="card-header">
+        <i data-feather="credit-card" class="me-2"></i>Recent Payments
       </div>
-      <div class="card-body">
-        <div class="row">
-          <div class="col-md-6">
-            <div class="text-center mt-3">
-              <p><strong>Total Staff:</strong> {{ total_staff }}</p>
-            </div>
-          </div>
-          <div class="col-md-6">
-            <h5 class="mb-3">Role Distribution</h5>
-            <div class="progress mb-3" style="height: 25px">
-              <div class="progress-bar bg-primary" role="progressbar" style="width: {{ admin_percentage }}%" aria-valuenow="{{ admin_count|default:0 }}" aria-valuemin="0" aria-valuemax="{{ total_staff }}">
-                Admins ({{ admin_percentage }}%)
-              </div>
-            </div>
-            <div class="progress mb-3" style="height: 25px">
-              <div class="progress-bar bg-success" role="progressbar" style="width: {{ frontdesk_percentage }}%" aria-valuenow="{{ frontdesk_count|default:0 }}" aria-valuemin="0" aria-valuemax="{{ total_staff }}">
-                Frontdesk ({{ frontdesk_percentage }}%)
-              </div>
-            </div>
-            <div class="progress mb-3" style="height: 25px">
-              <div class="progress-bar bg-warning" role="progressbar" style="width: {{ kitchen_percentage }}%" aria-valuenow="{{ kitchen_count|default:0 }}" aria-valuemin="0" aria-valuemax="{{ total_staff }}">
-                Kitchen ({{ kitchen_percentage }}%)
-              </div>
-            </div>
-            <div class="progress mb-3" style="height: 25px">
-              <div class="progress-bar bg-info" role="progressbar" style="width: {{ delivery_percentage }}%" aria-valuenow="{{ delivery_count|default:0 }}" aria-valuemin="0" aria-valuemax="{{ total_staff }}">
-                Delivery ({{ delivery_percentage }}%)
-              </div>
-            </div>
-          </div>
+      <div class="card-body p-0"> {# Added p-0 #}
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0"> {# Added align-middle mb-0 #}
+            <thead class="table-light"> {# Added table-light #}
+              <tr>
+                <th class="ps-3">Payment ID</th> {# Added ps-3 #}
+                <th>Order ID</th>
+                <th>Amount</th>
+                <th>Method</th>
+                <th>Status</th>
+                <th class="text-end pe-3">Date</th> {# Added text-end pe-3 #}
+              </tr>
+            </thead>
+            <tbody>
+              {% for payment in recent_transactions %}
+              <tr>
+                <td class="ps-3"><a href="{% url 'payments:transaction_detail' payment.pk %}">{{ payment.reference|truncatechars:15 }}</a></td> {# Added ps-3 #}
+                <td><a href="{% if payment.order %}{% url 'orders:order_detail' payment.order.order_number %}{% else %}#{% endif %}">{{ payment.order.order_number }}</a></td>
+                <td>₵{{ payment.amount|default:"0.00" }}</td>
+                <td>{{ payment.get_payment_method_display }}</td>
+                <td><span class="badge bg-{{ payment.get_status_badge_class }}">{{ payment.get_status_display }}</span></td>
+                <td class="text-end pe-3">{{ payment.timestamp|date:"M d, Y H:i" }}</td> {# Added text-end pe-3 #}
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="6" class="text-center">No recent payments found.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
         </div>
       </div>
+      <div class="card-footer text-end">
+        <a href="{{ transaction_list_url|default:"#" }}" class="btn btn-sm btn-primary">View All Payments</a>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="row">
+  <!-- Order Trends Chart -->
+  <div class="col-xl-8 col-lg-7 mb-4">
+    <div class="card">
+      <div class="card-header">
+        <i data-feather="bar-chart-2" class="me-2"></i>Order Trends (Last 14 Days)
+      </div>
+      <div class="card-body">
+        <canvas id="orderTrendsChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Top Selling Items -->
+  <div class="col-xl-4 col-lg-5 mb-4">
+    <div class="card">
+      <div class="card-header">
+        <i data-feather="star" class="me-2"></i>Top Selling Items
+      </div>
+      <div class="card-body">
+        {% if top_selling_items %}
+        <ul class="list-group list-group-flush">
+          {% for item in top_selling_items %}
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <div>
+              <strong>{{ item.name }}</strong>
+              <small class="d-block text-muted">{{ item.item_type }}</small>
+            </div>
+            <span class="badge bg-primary rounded-pill">{{ item.order_count }} orders</span>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-center">No sales data available for top items.</p>
+        {% endif %}
+      </div>
+       <div class="card-footer text-end">
+        <a href="#" class="btn btn-sm btn-secondary">View Full Menu (URL to be fixed)</a>
+      </div>
     </div>
   </div>
 </div>
+</div>
+
 {% endblock %}
+
+{% block extra_js %}
+{{ block.super }} {# In case base.html has an extra_js block #}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    // Order Trends Chart
+    var ctxOrderTrends = document.getElementById('orderTrendsChart');
+    if (ctxOrderTrends) {
+      ctxOrderTrends = ctxOrderTrends.getContext('2d');
+      new Chart(ctxOrderTrends, {
+        type: 'line',
+        data: {
+          labels: {{ order_dates|safe }}, // From view context
+          datasets: [{
+            label: 'Orders per Day',
+            data: {{ order_counts|safe }}, // From view context
+            borderColor: 'rgba(0, 123, 255, 1)',
+            backgroundColor: 'rgba(0, 123, 255, 0.1)',
+            fill: true,
+            tension: 0.3
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                stepSize: 1 // Ensure y-axis shows whole numbers for counts
+              }
+            }
+          }
+        }
+      });
+    }
+  });
+</script>
+{% endblock extra_js %}

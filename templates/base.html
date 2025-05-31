@@ -1,12 +1,11 @@
-{% load static %}
+﻿{% load static %}
 <!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{% block title %}Restaurant Management System{% endblock %}</title>
-    <link href="https://bootswatch.com/5/cerulean/bootstrap.min.css" rel="stylesheet"/>
-    <!-- <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/> -->
+    <link rel="stylesheet" href="https://bootswatch.com/5/cerulean/bootstrap.min.css" />
     <link rel="stylesheet" href="{% static 'css/theme.css' %}">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     {% block extra_css %}{% endblock %}
@@ -24,7 +23,6 @@
       <div class="sidebar-content">
         <!-- Dashboard Section -->
         <div class="nav-section">
-          <div class="nav-section-title">Main</div>
           <a href="{% url "users:dashboard" %}" class="nav-link {% if request.resolver_match.url_name == "dashboard" %}active{% endif %}">
             <i data-feather="home"></i>
             <span>Dashboard</span>
@@ -34,44 +32,72 @@
         <!-- Orders Section -->
                   {% if user.is_frontdesk or user.is_admin %}
           <div class="nav-section">
-            <div class="nav-section-title">Orders</div>
-            <a href="{% url "orders:order_list" %}" class="nav-link {% if request.resolver_match.app_name == 'orders' %}active{% endif %}">
-              <i data-feather="list"></i>
+            <a class="nav-link" href="#ordersSubmenu" data-bs-toggle="collapse" data-bs-target="#ordersSubmenu" aria-expanded="{% if request.resolver_match.app_name == 'orders' %}true{% else %}false{% endif %}" role="button" aria-controls="ordersSubmenu">
+              <i data-feather="shopping-cart"></i>
               <span>Orders</span>
+              <i data-feather="chevron-down" class="ms-auto"></i>
             </a>
+            <div class="collapse {% if request.resolver_match.app_name == 'orders' %}show{% endif %}" id="ordersSubmenu">
+              <ul class="nav flex-column ms-3">
+                <li class="nav-item">
+                  <a href="{% url "orders:order_create" %}" class="nav-link sub-link {% if request.resolver_match.url_name == "order_create" %}active-sub{% endif %}">
+                    <i data-feather="plus-circle" class="sub-icon me-2"></i><span>New Order</span>
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a href="{% url "orders:order_list" %}" class="nav-link sub-link {% if request.resolver_match.url_name == "order_list" %}active-sub{% endif %}">
+                    <i data-feather="clipboard" class="sub-icon me-2"></i><span>Order List</span>
+                  </a>
+                </li>
+              </ul>
+            </div>
           </div>
           {% endif %}
 
         <!-- Menu Section -->
         <div class="nav-section">
-          <div class="nav-section-title">Menu</div>
-          <a href="{% url "menu:item_list" %}" class="nav-link {% if "menu/items" in request.path %}active{% endif %}">
-            <i data-feather="archive"></i>
-            <span>Menu Items</span>
-           </a>
-          <a href="{% url "menu:extra_list" %}" class="nav-link {% if "menu/extras" in request.path %}active{% endif %}">
-            <i data-feather="plus-circle"></i>
-            <span>Extras</span>
+          <a href="{% url 'menu:item_list' %}" class="nav-link {% if request.resolver_match.app_name == 'menu' and request.resolver_match.url_name == 'item_list' %}active{% endif %}">
+            <i data-feather="book-open"></i>
+            <span>Menu</span>
           </a>
         </div>
+
+        <!-- Payments Section -->
+        {% if user.is_admin %}
+        <div class="nav-section">
+          <a href="{% url 'payments:transaction_list' %}" class="nav-link {% if request.resolver_match.app_name == 'payments' and request.resolver_match.url_name == 'transaction_list' %}active{% endif %}">
+            <i data-feather="dollar-sign"></i>
+            <span>Transactions</span>
+          </a>
+        </div>
+        {% endif %}
 
         {% if user.is_admin %}
         <!-- Staff Management -->
         <div class="nav-section">
-          <div class="nav-section-title">Staff</div>
-          <a href="{% url "users:staff_list" %}" class="nav-link {% if "staff/list" in request.path %}active{% endif %}">
+          <a class="nav-link" href="#staffSubmenu" data-bs-toggle="collapse" data-bs-target="#staffSubmenu" aria-expanded="{% if request.resolver_match.app_name == 'users' %}true{% else %}false{% endif %}" role="button" aria-controls="staffSubmenu">
             <i data-feather="users"></i>
-            <span>Manage Staff</span>
+            <span>Staff</span>
+            <i data-feather="chevron-down" class="ms-auto"></i>
           </a>
-          <a href="{% url "users:staff_register" %}" class="nav-link {% if "staff/register" in request.path %}active{% endif %}">
-            <i data-feather="user-plus"></i>
-            <span>Add Staff</span>
-          </a>
+          <div class="collapse {% if request.resolver_match.app_name == 'users' %}show{% endif %}" id="staffSubmenu">
+            <ul class="nav flex-column ms-3">
+              <li class="nav-item">
+                <a href="{% url "users:staff_register" %}" class="nav-link sub-link {% if request.resolver_match.app_name == 'users' and request.resolver_match.url_name == 'staff_register' %}active-sub{% endif %}">
+                  <i data-feather="user-plus" class="sub-icon me-2"></i><span>Add Staff</span>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="{% url "users:staff_list" %}" class="nav-link sub-link {% if request.resolver_match.app_name == 'users' and request.resolver_match.url_name == 'staff_list' %}active-sub{% endif %}">
+                  <i data-feather="list" class="sub-icon me-2"></i><span>Manage Staff</span>
+                </a>
+              </li>
+            </ul>
+          </div>
         </div>
 
         <!-- Reports & Settings -->
         <div class="nav-section">
-          <div class="nav-section-title">System</div>
           <a href="#" class="nav-link">
             <i data-feather="bar-chart-2"></i>
             <span>Reports</span></a>
@@ -88,7 +114,6 @@
 
       <div class="sidebar-footer">
         <div class="nav-section">
-          <div class="nav-section-title">Account</div>
           <a href="{% url "users:profile" %}" class="nav-link">
             <i data-feather="user"></i>
             <span>Profile</span>
@@ -144,23 +169,16 @@
           const navTexts = $(".nav-link span");
           const sectionTitles = $(".nav-section-title");
           function toggleSidebar() {
-            console.log("[Sidebar] toggleSidebar called. Initial sidebar classes:", sidebar.attr('class'));
-            console.log("[Sidebar] brandText found:", brandText.length, "navTexts found:", navTexts.length, "sectionTitles found:", sectionTitles.length);
-
             sidebar.toggleClass("collapsed");
-            console.log("[Sidebar] Sidebar classes after toggle:", sidebar.attr('class'));
 
             const isCollapsed = sidebar.hasClass("collapsed");
-            console.log("[Sidebar] isCollapsed:", isCollapsed);
 
             // Toggle visibility of text elements
             if (isCollapsed) {
-              console.log("[Sidebar] Hiding text elements.");
               brandText.hide();
               navTexts.hide();
               sectionTitles.hide();
             } else {
-              console.log("[Sidebar] Showing text elements.");
               brandText.show();
               navTexts.show();
               sectionTitles.show();
@@ -170,8 +188,6 @@
             const iconContainer = sidebarCollapse; // The button element
             const newIconName = isCollapsed ? 'chevron-right' : 'chevron-left';
             
-            console.log("[Sidebar] Attempting to update icon to:", newIconName);
-
             // Remove any existing icon (whether it's <i> or <svg>) from the button
             iconContainer.empty(); 
             
@@ -183,11 +199,9 @@
             // Tell Feather Icons to process the new icon
             // This will scan for data-feather attributes and replace them.
             feather.replace({ width: '1em', height: '1em', 'stroke-width': 2 }); 
-            console.log("[Sidebar] Icon updated to:", newIconName, "and feather.replace() called.");
 
             // Store state in localStorage
             localStorage.setItem("sidebarCollapsed", isCollapsed);
-            console.log("[Sidebar] localStorage 'sidebarCollapsed' set to:", isCollapsed);
           }
           // Initialize sidebar state from localStorage
           if (localStorage.getItem("sidebarCollapsed") === "true") {

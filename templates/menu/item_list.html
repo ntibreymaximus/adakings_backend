@@ -1,10 +1,10 @@
-﻿{% extends "menu/base_menu.html" %}
+﻿{% extends "menu/base.html" %}
 
 {% block menu_title %}Menu Items{% endblock %}
 
 {% block menu_content %}
 <!-- Page Header -->
-<div class="page-header card shadow-sm mb-4">
+<div class="page-header card shadow-sm">
     <div class="card-body">
         <div class="row align-items-center">
             <div class="col-auto">
@@ -13,7 +13,17 @@
                 </div>
             </div>
             <div class="col">
-                <!-- Breadcrumb is handled by menu/base_menu.html, so not repeated here -->
+                <nav aria-label="breadcrumb">
+                  <ol class="breadcrumb mb-2">
+                    <li class="breadcrumb-item"><a href="{% url 'users:dashboard' %}" class="text-decoration-none">Dashboard</a></li>
+                    {% if item_type == 'extra' %}
+                    <li class="breadcrumb-item"><a href="{% url 'menu:item_list' %}" class="text-decoration-none">Menu Items</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Extras</li>
+                    {% else %}
+                    <li class="breadcrumb-item active" aria-current="page">Menu Items</li>
+                    {% endif %}
+                  </ol>
+                </nav>
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <h1 class="page-title h3 mb-0">Menu Items</h1>
@@ -33,55 +43,50 @@
 </div>
 
 <!-- Search and Filters -->
-<div class="card action-card mb-4">
-    <div class="card-header action-card-header">
-        <h5 class="card-title mb-0">Filters</h5>
+{% if is_admin or is_frontdesk %}
+<form method="get" class="row g-3 mb-4">
+    <!-- Search -->
+    <div class="col-md-4">
+        
+        <div class="input-group">
+            <span class="input-group-text"><i data-feather="search"></i></span>
+            <input type="text" class="form-control" name="search" id="search_input" placeholder="Search items..." value="{{ search_query }}">
+        </div>
     </div>
-    <div class="card-body">
-        <form method="get" class="row g-3">
-            <!-- Search -->
-            <div class="col-md-4">
-                <label for="search_input" class="form-label">Search</label>
-                <div class="input-group">
-                    <span class="input-group-text"><i data-feather="search"></i></span>
-                    <input type="text" class="form-control" name="search" id="search_input" placeholder="Search items..." value="{{ search_query }}">
-                </div>
-            </div>
 
-            <!-- Availability Filter -->
-            <div class="col-md-3">
-                <label for="availability_select" class="form-label">Availability</label>
-                <select name="availability" id="availability_select" class="form-select">
-                    <option value="">All Items</option>
-                    <option value="available" {% if selected_availability == "available" %}selected{% endif %}>Available Only</option>
-                    <option value="unavailable" {% if selected_availability == "unavailable" %}selected{% endif %}>Unavailable Only</option>
-                </select>
-            </div>
-
-            <!-- Sort -->
-            <div class="col-md-3">
-                <label for="sort_select" class="form-label">Sort By</label>
-                <select name="sort" id="sort_select" class="form-select">
-                    <option value="name" {% if sort_by == "name" %}selected{% endif %}>Sort by Name</option>
-                    <option value="price" {% if sort_by == "price" %}selected{% endif %}>Price (Low to High)</option>
-                    <option value="price-desc" {% if sort_by == "price-desc" %}selected{% endif %}>Price (High to Low)</option>
-                </select>
-            </div>
-
-            <!-- Action Buttons -->
-            <div class="col-md-2 d-flex align-items-end">
-                <div class="d-flex gap-2 w-100">
-                    <button type="submit" class="btn btn-primary flex-grow-1">
-                        <i data-feather="filter" class="me-1"></i> Apply
-                    </button>
-                    <a href="{% url "menu:item_list" %}" class="btn btn-secondary" title="Reset Filters">
-                        <i data-feather="rotate-ccw"></i>
-                    </a>
-                </div>
-            </div>
-        </form>
+    <!-- Availability Filter -->
+    <div class="col-md-3">
+        
+        <select name="availability" id="availability_select" class="form-select">
+            <option value="">All Items</option>
+            <option value="available" {% if selected_availability == "available" %}selected{% endif %}>Available Only</option>
+            <option value="unavailable" {% if selected_availability == "unavailable" %}selected{% endif %}>Unavailable Only</option>
+        </select>
     </div>
-</div>
+
+    <!-- Sort -->
+    <div class="col-md-3">
+        
+        <select name="sort" id="sort_select" class="form-select">
+            <option value="name" {% if sort_by == "name" %}selected{% endif %}>Sort by Name</option>
+            <option value="price" {% if sort_by == "price" %}selected{% endif %}>Price (Low to High)</option>
+            <option value="price-desc" {% if sort_by == "price-desc" %}selected{% endif %}>Price (High to Low)</option>
+        </select>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="col-md-2 d-flex align-items-end">
+        <div class="d-flex gap-2 w-100">
+            <button type="submit" class="btn btn-primary flex-grow-1">
+                <i data-feather="filter" class="me-1"></i> Apply
+            </button>
+            <a href="{% url "menu:item_list" %}" class="btn btn-secondary" title="Reset Filters">
+                <i data-feather="rotate-ccw"></i>
+            </a>
+        </div>
+    </div>
+</form>
+{% endif %}
 
 <!-- Menu Items Table -->
 <div class="card action-card">
@@ -91,31 +96,46 @@
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-hover table-striped align-middle mb-0">
+            <table class="table table-hover align-middle mb-0"> {# Removed table-striped #}
                 <thead class="table-light">
                     <tr>
-                        <th>Name</th>
+                        <th class="ps-3">Name</th> {# Added ps-3 #}
+                        <th>Type</th>
                         <th>Price</th>
                         <th class="text-center">Status</th>
                         {% if is_admin %}
-                        <th class="text-end">Actions</th>
+                        <th class="text-end pe-3">Actions</th> {# Added pe-3 #}
                         {% endif %}
                     </tr>
                 </thead>
                 <tbody>
-                    {% for item in items %}
+                    {% if regular_menu_items %}
                     <tr>
-                        <td class="{% if not item.is_available %}text-muted{% endif %}"><strong>{{ item.name }}</strong></td>
+                        <td colspan="{% if is_admin %}5{% else %}4{% endif %}" class="table-group-header ps-3"><strong class="text-dark">Regular Items</strong></td>
+                    </tr>
+                    {% for item in regular_menu_items %}
+                    <tr>
+                        <td class="ps-3 {% if not item.is_available %}text-muted{% endif %}">{{ item.name }}</td>
+                        <td class="{% if not item.is_available %}text-muted{% endif %}">{{ item.get_item_type_display }}</td>
                         <td class="price-display {% if not item.is_available %}text-muted{% endif %}">{{ item.get_formatted_price }}</td>
                         <td class="text-center">
-                            {% if item.is_available %}
-                                <span class="badge bg-success">Available</span>
+                            {% if is_admin or is_frontdesk %}
+                                <form method="POST" action="{% url 'menu:toggle_availability' item.id %}" style="display: inline;">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm {% if item.is_available %}btn-success{% else %}btn-danger{% endif %}" title="Toggle Availability">
+                                        {% if item.is_available %}Available{% else %}Unavailable{% endif %}
+                                    </button>
+                                </form>
                             {% else %}
-                                <span class="badge bg-danger">Unavailable</span>
+                                {% if item.is_available %}
+                                    <span class="badge bg-success">Available</span>
+                                {% else %}
+                                    <span class="badge bg-danger">Unavailable</span>
+                                {% endif %}
                             {% endif %}
                         </td>
                         {% if is_admin %}
-                        <td class="text-end">
+                        <td class="text-end pe-3">
                             <div class="btn-group">
                                 <a href="{% url "admin:menu_menuitem_change" item.id %}" class="btn btn-sm btn-primary" title="Edit">
                                     <i data-feather="edit"></i>
@@ -127,16 +147,60 @@
                         </td>
                         {% endif %}
                     </tr>
-                    {% empty %}
+                    {% endfor %}
+                    {% endif %}
+
+                    {% if extra_menu_items %}
                     <tr>
-                        <td colspan="{% if is_admin %}4{% else %}3{% endif %}" class="text-center py-4">
+                        <td colspan="{% if is_admin %}5{% else %}4{% endif %}" class="table-group-header ps-3"><strong class="text-dark">Extras</strong></td>
+                    </tr>
+                    {% for item in extra_menu_items %}
+                    <tr>
+                        <td class="ps-3 {% if not item.is_available %}text-muted{% endif %}">{{ item.name }}</td>
+                        <td class="{% if not item.is_available %}text-muted{% endif %}">{{ item.get_item_type_display }}</td>
+                        <td class="price-display {% if not item.is_available %}text-muted{% endif %}">{{ item.get_formatted_price }}</td>
+                        <td class="text-center">
+                            {% if is_admin or is_frontdesk %}
+                                <form method="POST" action="{% url 'menu:toggle_availability' item.id %}" style="display: inline;">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm {% if item.is_available %}btn-success{% else %}btn-danger{% endif %}" title="Toggle Availability">
+                                        {% if item.is_available %}Available{% else %}Unavailable{% endif %}
+                                    </button>
+                                </form>
+                            {% else %}
+                                {% if item.is_available %}
+                                    <span class="badge bg-success">Available</span>
+                                {% else %}
+                                    <span class="badge bg-danger">Unavailable</span>
+                                {% endif %}
+                            {% endif %}
+                        </td>
+                        {% if is_admin %}
+                        <td class="text-end pe-3">
+                            <div class="btn-group">
+                                <a href="{% url "admin:menu_menuitem_change" item.id %}" class="btn btn-sm btn-primary" title="Edit">
+                                    <i data-feather="edit"></i>
+                                </a>
+                                <a href="{% url "admin:menu_menuitem_delete" item.id %}" class="btn btn-sm btn-danger" title="Delete">
+                                    <i data-feather="trash-2"></i>
+                                </a>
+                            </div>
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% endfor %}
+                    {% endif %}
+
+                    {% if not regular_menu_items and not extra_menu_items %}
+                    <tr>
+                        <td colspan="{% if is_admin %}5{% else %}4{% endif %}" class="text-center py-4">
                             <div class="text-muted">
                                 <i data-feather="file-text" class="mb-3" style="width: 48px; height: 48px;"></i>
-                                <p>No menu items found.</p>
+                                <p>No menu items found matching your criteria.</p>
                             </div>
                         </td>
                     </tr>
-                    {% endfor %}
+                    {% endif %}
                 </tbody>
             </table>
         </div>

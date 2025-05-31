@@ -1,15 +1,47 @@
-{% extends "payments/base_payments.html" %}
+{% extends "payments/base.html" %}
 
 {% block payment_content %}
-<div class="card mb-4">
+<!-- Page Header -->
+<div class="page-header card shadow-sm">
+  <div class="card-body">
+    <div class="row align-items-center">
+      <div class="col-auto">
+        <div class="page-icon-box">
+          <i data-feather="smartphone"></i>
+        </div>
+      </div>
+      <div class="col">
+        <nav aria-label="breadcrumb">
+          <ol class="breadcrumb mb-2">
+            <li class="breadcrumb-item"><a href="{% url 'users:dashboard' %}" class="text-decoration-none">Dashboard</a></li>
+            {% if order %}
+            <li class="breadcrumb-item"><a href="{% url 'orders:order_list' %}" class="text-decoration-none">Orders</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'orders:order_detail' order.order_number %}" class="text-decoration-none">Order #{{ order.order_number }}</a></li>
+            {% endif %}
+            <li class="breadcrumb-item active" aria-current="page">Mobile Payment</li>
+          </ol>
+        </nav>
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <h1 class="page-title h3 mb-0">Mobile Money Payment{% if order %} for Order #{{ order.order_number }}{% endif %}</h1>
+            <p class="text-muted mb-0">Enter details for mobile money payment.</p>
+          </div>
+          <div class="page-actions"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-4 mt-4">
     <div class="card-header bg-primary text-white">
         <h5 class="card-title mb-0">
-            <i class="fas fa-mobile-alt me-2"></i>Mobile Money Payment
+            <i data-feather="smartphone" class="me-2"></i>Mobile Money Payment
         </h5>
     </div>
     <div class="card-body">
         <div class="alert alert-info">
-            <i class="fas fa-info-circle me-2"></i>You're paying <strong>${{ payment.amount }}</strong> for Order #{{ order.id }}
+            <i data-feather="info" class="me-2"></i>You're paying <strong>${{ payment.amount }}</strong> for Order #{{ order.order_number }}
         </div>
         
         {% if messages %}
@@ -25,7 +57,7 @@
         
         {% if form.errors %}
         <div class="alert alert-danger mb-4">
-            <h6><i class="fas fa-exclamation-circle me-2"></i>Form Errors:</h6>
+            <h6><i data-feather="alert-circle" class="me-2"></i>Form Errors:</h6>
             <ul class="mb-0">
                 {% for field, errors in form.errors.items %}
                     {% for error in errors %}
@@ -41,7 +73,7 @@
                 <div class="card payment-card h-100">
                     <div class="card-header bg-light">
                         <h5 class="card-title mb-0">
-                            <i class="fas fa-info-circle me-2"></i>Payment Instructions
+                            <i data-feather="info" class="me-2"></i>Payment Instructions
                         </h5>
                     </div>
                     <div class="card-body">
@@ -59,15 +91,15 @@
                             <h6 class="mb-3">Supported Mobile Money Providers:</h6>
                             <div class="d-flex justify-content-around">
                                 <div class="text-center">
-                                    <i class="fas fa-mobile-alt fa-2x text-warning mb-2"></i>
+                                    <i data-feather="smartphone" class="feather-2x text-warning mb-2"></i>
                                     <p class="mb-0">MTN Mobile Money</p>
                                 </div>
                                 <div class="text-center">
-                                    <i class="fas fa-mobile-alt fa-2x text-danger mb-2"></i>
+                                    <i data-feather="smartphone" class="feather-2x text-danger mb-2"></i>
                                     <p class="mb-0">Vodafone Cash</p>
                                 </div>
                                 <div class="text-center">
-                                    <i class="fas fa-mobile-alt fa-2x text-primary mb-2"></i>
+                                    <i data-feather="smartphone" class="feather-2x text-primary mb-2"></i>
                                     <p class="mb-0">AirtelTigo Money</p>
                                 </div>
                             </div>
@@ -80,17 +112,17 @@
                 <div class="card payment-card h-100">
                     <div class="card-header bg-light">
                         <h5 class="card-title mb-0">
-                            <i class="fas fa-credit-card me-2"></i>Payment Details
+                            <i data-feather="credit-card" class="me-2"></i>Payment Details
                         </h5>
                     </div>
                     <div class="card-body">
                         <div class="text-center mb-4">
                             <div class="payment-icon">
-                                <i class="fas fa-mobile-alt text-primary fa-3x"></i>
+                                <i data-feather="smartphone" class="text-primary feather-3x"></i>
                             </div>
                             <h3>${{ payment.amount }}</h3>
                             <p class="text-muted">Mobile Money Payment</p>
-                            <p class="mb-0"><strong>Order:</strong> #{{ order.id }}</p>
+                            <p class="mb-0"><strong>Order:</strong> #{{ order.order_number }}</p>
                             <p class="mb-0"><strong>Reference:</strong> {{ payment.reference }}</p>
                         </div>
                         
@@ -100,7 +132,7 @@
                             <div class="form-group mb-4">
                                 <label for="{{ form.phone_number.id_for_label }}" class="form-label">Mobile Number</label>
                                 <div class="input-group">
-                                    <span class="input-group-text"><i class="fas fa-phone"></i></span>
+                                    <span class="input-group-text"><i data-feather="phone"></i></span>
                                     {{ form.phone_number }}
                                 </div>
                                 <div class="form-text">
@@ -117,11 +149,11 @@
                             </div>
                             
                             <div class="d-flex justify-content-between">
-                                <a href="{% url 'orders:order_detail' pk=order.id %}" class="btn btn-outline-secondary">
-                                    <i class="fas fa-arrow-left me-2"></i>Cancel
+                                <a href="{% url 'orders:order_detail' order.order_number %}" class="btn btn-secondary">
+                                    <i data-feather="arrow-left" class="me-2"></i>Cancel
                                 </a>
                                 <button type="submit" class="btn btn-primary btn-lg">
-                                    <i class="fas fa-check me-2"></i>Continue to Payment
+                                    <i data-feather="check" class="me-2"></i>Continue to Payment
                                 </button>
                             </div>
                         </form>
@@ -174,7 +206,7 @@
                 const submitButton = mobilePaymentForm.querySelector('button[type="submit"]');
                 if (submitButton) {
                     submitButton.disabled = true;
-                    submitButton.innerHTML = `<i class="fas fa-spinner fa-spin me-2"></i>Processing...`;
+                    submitButton.innerHTML = `<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Processing...`;
                 }
             });
         }

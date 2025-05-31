@@ -1,86 +1,330 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}Process Payment | {{ order.customer_name }}{% endblock %}
 
-{% block content %}
-<div class="container mt-5">
-    <div class="row">
-        <div class="col-md-8 offset-md-2">
-            <div class="card">
-                <div class="card-header bg-primary text-white">
-                    <h2 class="mb-0">Process Payment</h2>
-                </div>
-                <div class="card-body">
-                    <h3>Order Details</h3>
-                    <div class="card mb-4">
-                        <div class="card-body">
-                            <h5>Order #{{ order.id }}</h5>
-                            <p><strong>Customer:</strong> {{ order.customer_name }}</p>
-                            <p><strong>Phone:</strong> {{ order.customer_phone }}</p>
-                            <p><strong>Status:</strong> {{ order.get_status_display }}</p>
-                            <p><strong>Total Amount:</strong> GHS {{ order.total_price }}</p>
-                            <p><strong>Date:</strong> {{ order.created_at|date:"F j, Y, g:i a" }}</p>
-                        </div>
-                    </div>
+{% block extra_css %}
+{{ block.super }}
+<style>
+    .payment-method-card { /* Added for consistency */
+        cursor: pointer;
+        border: 2px solid #e9ecef;
+        transition: all 0.2s ease-in-out;
+    }
+    .payment-method-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .payment-method-card.selected {
+        border-color: #0d6efd; /* Bootstrap primary color */
+        background-color: #e7f1ff; /* Light blueish background */
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
+    .payment-method-card.selected .form-check-label,
+    .payment-method-card.selected h5 {
+        color: #0d6efd;
+    }
+    #mobilePaymentDetails {
+        /* display: none; /* Initially hidden - JS will handle based on radio */
+    }
+    /* Ensure icons used are available or use Feather icons */
+</style>
+{% endblock %}
 
-                    <h3>Choose Payment Method</h3>
-                    <form method="POST">
-                        {% csrf_token %}
-                        <div class="form-group mb-4">
-                            <div class="form-check mb-2">
-                                <input class="form-check-input" type="radio" name="payment_method" id="cashPayment" value="Cash" checked>
-                                <label class="form-check-label" for="cashPayment">
-                                    Cash Payment
-                                </label>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input" type="radio" name="payment_method" id="mobilePayment" value="Mobile">
-                                <label class="form-check-label" for="mobilePayment">
-                                    Mobile Payment (Paystack)
-                                </label>
+{% block content %}
+<!-- Page Header -->
+<div class="page-header card shadow-sm">
+  <div class="card-body">
+    <div class="row align-items-center">
+      <div class="col-auto">
+        <div class="page-icon-box">
+          <i data-feather="credit-card"></i>
+        </div>
+      </div>
+      <div class="col">
+        <nav aria-label="breadcrumb">
+          <ol class="breadcrumb mb-2">
+            <li class="breadcrumb-item"><a href="{% url 'users:dashboard' %}" class="text-decoration-none">Dashboard</a></li>
+            {% if order %}
+            <li class="breadcrumb-item"><a href="{% url 'orders:order_list' %}" class="text-decoration-none">Orders</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'orders:order_detail' order.order_number %}" class="text-decoration-none">Order #{{ order.order_number }}</a></li>
+            {% endif %}
+            <li class="breadcrumb-item active" aria-current="page">Process Payment</li>
+          </ol>
+        </nav>
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <h1 class="page-title h3 mb-0">Process Payment{% if order %} for Order #{{ order.order_number }}{% endif %}</h1>
+            <p class="text-muted mb-0">Complete the payment for the order.</p>
+          </div>
+          <div class="page-actions"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="content-wrapper-for-modal" class="mt-4"> {# This wrapper is kept in case modal loading is re-enabled later #}
+
+    <div class="container mb-5 py-4"> {# Removed mt-4 from here as it's on the parent now #}
+        <div class="row justify-content-center">
+            <div class="col-lg-9 col-md-10">
+                <div class="card shadow-lg border-0">
+                    <div class="card-header bg-primary text-white py-3">
+                        <h2 class="mb-0 h4 text-center"><i data-feather="credit-card" class="me-2"></i>Process Payment for Order #{{ order.order_number }}</h2>
+                    </div>
+                    <div class="card-body p-lg-5 p-4">
+                        <div class="mb-4 border-bottom pb-3">
+                            <h5 class="mb-3 text-primary">Order Summary</h5>
+                            <div class="row">
+                                <div class="col-sm-6">
+                                    <p class="mb-1"><strong>Customer:</strong> {{ order.customer_name }}</p>
+                                    <p class="mb-1"><strong>Order ID:</strong> {{ order.order_number }}</p>
+                                </div>
+                                <div class="col-sm-6 text-sm-end">
+                                    <p class="mb-1"><strong>Date:</strong> {{ order.created_at|date:"M d, Y, h:i A" }}</p>
+                                    <p class="mb-1"><strong>Total Amount:</strong> <span class="fw-bold fs-5 text-success">GHS {{ order.total_price|stringformat:"0.2f" }}</span></p>
+                                </div>
                             </div>
                         </div>
-                        
-                        <!-- Mobile Payment Details (show/hide with JavaScript) -->
-                        <div id="mobilePaymentDetails" class="mb-4" style="display: none;">
-                            <div class="form-group mb-3">
-                                <label for="mobile_number">Mobile Number</label>
-                                <input type="text" class="form-control" id="mobile_number" name="mobile_number" placeholder="Enter mobile number (e.g., 0551234567)">
-                                <small class="form-text text-muted">Enter the mobile number linked to your mobile money account.</small>
+
+                        <form method="POST" id="mainPaymentProcessingForm">
+                            {% csrf_token %}
+                            <input type="hidden" name="amount" value="{{ order.total_price|stringformat:"0.2f" }}">
+                            <input type="hidden" name="notes" value=""> 
+
+                            <div class="form-group mb-4">
+                                <h5 class="mb-3 text-primary">Select Payment Method</h5>
+                                <div class="list-group">
+                                    <label class="list-group-item list-group-item-action payment-method-card p-3 rounded mb-2" for="cashPaymentRadio">
+                                        <div class="d-flex w-100 justify-content-between align-items-center">
+                                            <div>
+                                                <input class="form-check-input me-2" type="radio" name="payment_method" id="cashPaymentRadio" value="cash" checked>
+                                                <strong class="mb-1 fs-5">Cash Payment</strong>
+                                                <small class="d-block text-muted">Pay with cash upon delivery or pickup.</small>
+                                            </div>
+                                            <i data-feather="dollar-sign" class="text-success h1 mb-0"></i>
+                                        </div>
+                                    </label>
+                                    <label class="list-group-item list-group-item-action payment-method-card p-3 rounded" for="mobilePaymentRadio">
+                                        <div class="d-flex w-100 justify-content-between align-items-center">
+                                            <div>
+                                                <input class="form-check-input me-2" type="radio" name="payment_method" id="mobilePaymentRadio" value="mobile_money">
+                                                <strong class="mb-1 fs-5">Mobile Money (Paystack)</strong>
+                                                <small class="d-block text-muted">Pay securely using your mobile money account.</small>
+                                            </div>
+                                            <i data-feather="smartphone" class="text-info h1 mb-0"></i>
+                                        </div>
+                                    </label>
+                                </div>
                             </div>
-                        </div>
-                        
-                        <div class="form-group mb-3">
-                            <button type="submit" class="btn btn-primary btn-lg">Process Payment</button>
-                        </div>
-                    </form>
+
+                            <div id="mobilePaymentDetails" class="mb-4 p-3 bg-light rounded border" style="display: none;">
+                                <h5 class="mb-3 text-info"><i data-feather="smartphone" class="me-1"></i>Enter Mobile Money Number</h5>
+                                <div class="form-group">
+                                    <label for="mobile_number_input" class="form-label">Phone Number (e.g., 024XXXXXXX)</label>
+                                    <input type="tel" class="form-control form-control-lg" id="mobile_number_input" name="mobile_number" placeholder="Enter your mobile money number">
+                                    <small class="form-text text-muted">Ensure it's the number registered for mobile money.</small>
+                                </div>
+                            </div>
+                            
+                            <hr class="my-4">
+                            <div class="d-grid gap-2 d-sm-flex justify-content-sm-end">
+                                <a href="{% url 'orders:order_detail' order.order_number %}" class="btn btn-secondary btn-lg">
+                                    <i data-feather="arrow-left" class="me-1"></i>Cancel & Return to Order
+                                </a>
+                                <button type="submit" class="btn btn-success btn-lg">
+                                    <i data-feather="check-circle" class="me-2"></i>Confirm and Process Payment
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
 
 <script>
-    // Show/hide mobile payment details based on selection
-    document.addEventListener('DOMContentLoaded', function() {
-        const cashPayment = document.getElementById('cashPayment');
-        const mobilePayment = document.getElementById('mobilePayment');
-        const mobilePaymentDetails = document.getElementById('mobilePaymentDetails');
-        
-        function toggleMobilePaymentDetails() {
-            if (mobilePayment.checked) {
-                mobilePaymentDetails.style.display = 'block';
-            } else {
-                mobilePaymentDetails.style.display = 'none';
-            }
+document.addEventListener('DOMContentLoaded', function() {
+    const cashPaymentRadio = document.getElementById('cashPaymentRadio');
+    const mobilePaymentRadio = document.getElementById('mobilePaymentRadio');
+    const mobilePaymentDetails = document.getElementById('mobilePaymentDetails');
+    const paymentForm = document.getElementById('mainPaymentProcessingForm');
+    const submitButton = paymentForm.querySelector('button[type="submit"]');
+    const originalSubmitButtonText = submitButton.innerHTML;
+
+    function toggleMobileDetails() {
+        if (mobilePaymentRadio.checked) {
+            mobilePaymentDetails.style.display = 'block';
+        } else {
+            mobilePaymentDetails.style.display = 'none';
         }
-        
-        // Initial check
-        toggleMobilePaymentDetails();
-        
-        // Add event listeners
-        cashPayment.addEventListener('change', toggleMobilePaymentDetails);
-        mobilePayment.addEventListener('change', toggleMobilePaymentDetails);
+    }
+
+    // Initial state
+    toggleMobileDetails();
+
+    cashPaymentRadio.addEventListener('change', toggleMobileDetails);
+    mobilePaymentRadio.addEventListener('change', toggleMobileDetails);
+
+    paymentForm.addEventListener('submit', async function(event) {
+        event.preventDefault();
+        submitButton.disabled = true;
+        submitButton.innerHTML = `<i data-feather="loader" class="me-2"></i>Processing...`;
+        if (typeof feather !== 'undefined') { // Re-apply feather icons if library is loaded
+            feather.replace();
+        }
+
+
+        if (mobilePaymentRadio.checked) {
+            const orderNumber = '{{ order.order_number }}';
+            const mobileNumberInput = document.getElementById('mobile_number_input');
+            const mobileNumber = mobileNumberInput.value.trim();
+            const csrftoken = document.querySelector('input[name="csrfmiddlewaretoken"]').value;
+
+            if (!mobileNumber) {
+                alert('Please enter your mobile money number.');
+                mobileNumberInput.focus();
+                submitButton.disabled = false;
+                submitButton.innerHTML = originalSubmitButtonText;
+                 if (typeof feather !== 'undefined') { feather.replace(); }
+                return;
+            }
+
+            const formData = new URLSearchParams();
+            formData.append('order_number', orderNumber);
+            formData.append('mobile_number', mobileNumber);
+
+            try {
+                const response = await fetch("{% url 'payments:initiate_paystack_modal' %}", {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrftoken,
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-Requested-With': 'XMLHttpRequest' // Important for Django to recognize AJAX
+                    },
+                    body: formData.toString()
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.status === 'success' && data.authorization_url) {
+                    window.location.href = data.authorization_url;
+                } else {
+                    alert(data.message || 'An error occurred. Please try again.');
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = originalSubmitButtonText;
+                    if (typeof feather !== 'undefined') { feather.replace(); }
+                }
+            } catch (error) {
+                console.error('Error initiating Paystack payment:', error);
+                alert('A network error occurred. Please check your connection and try again.');
+                submitButton.disabled = false;
+                submitButton.innerHTML = originalSubmitButtonText;
+                if (typeof feather !== 'undefined') { feather.replace(); }
+            }
+
+        } else if (cashPaymentRadio.checked) {
+            // For cash payment, we can let the form submit traditionally
+            // or implement a similar AJAX call to 'process_cash_payment_modal' if needed.
+            // For now, submitting to PaymentMethodSelectionView which handles direct cash.
+            // The form action is POST to the current URL (PaymentMethodSelectionView)
+            // So, we manually submit the form.
+            event.target.submit();
+        } else {
+            // Should not happen if one is always selected
+            alert("Please select a payment method.");
+            submitButton.disabled = false;
+            submitButton.innerHTML = originalSubmitButtonText;
+            if (typeof feather !== 'undefined') { feather.replace(); }
+        }
     });
+     if (typeof feather !== 'undefined') { // Initial call for feather icons
+        feather.replace();
+    }
+});
 </script>
+
+</div> {# End of content-wrapper-for-modal #}
 {% endblock %}
+```
+
+**File to Revert (`order_detail.html`):**
+`C:\Users\ntibreymaximus\Desktop\Adakings\WebApps\RestaurantApp\templates\orders\order_detail.html`
+
+**Changes for `order_detail.html`:**
+1.  Remove the entire "Payment Process Modal" HTML block (previously lines 351-371 after the last modifications).
+2.  Remove the entire JavaScript block added for modal handling within `{% block extra_js %}` (previously lines 381-443). The `extra_js` block should revert to just `{{ block.super }}` or its original content if any.
+3.  Change the "Pay Now" button (around line 288) back to a direct link, removing the `id="payNowBtn"`:
+    *   From (current state, may vary slightly based on last edits):
+        `<a href="{% url 'payments:process_payment' order.id %}" id="payNowBtn" class="btn btn-primary">...</a>`
+    *   To (original state):
+        `<a href="{% url 'payments:process_payment' order.id %}" class="btn btn-primary">...</a>`
+
+**Reasoning:**
+First, `process_payment.html` is restored to its complete, operational state, including all its necessary JavaScript and modals, all wrapped within `#content-wrapper-for-modal`. The mobile number input name is changed to `mobile_number` and `id` to `mobile_number_input` for cleaner handling in the script.
+Second, `order_detail.html` is reverted: the modal for hosting the payment process is removed, the associated JavaScript is removed, and the "Pay Now" button becomes a simple hyperlink again, directing the user to the `process_payment.html` page as a separate navigation.
+</task>
+</code>
+</action>context:
+- pwd: C:\Users\ntibreymaximus\Desktop\Adakings\WebApps\RestaurantApp
+  home_directory: C:\Users\ntibreymaximus
+- current_time: "2025-05-29T17:55:25.807441100Z"
+- shell_name: pwsh
+  shell_version: 5.1.22621.4391
+- os_category: Windows
+- pwd: C:\Users\ntibreymaximus\Desktop\Adakings\WebApps\RestaurantApp
+  home_directory: C:\Users\ntibreymaximus
+- current_time: "2025-05-29T17:55:43.081849100Z"
+- pwd: C:\Users\ntibreymaximus\Desktop\Adakings\WebApps\RestaurantApp
+  home_directory: C:\Users\ntibreymaximus
+- current_time: "2025-05-29T18:04:44.941632400Z"
+- pwd: C:\Users\ntibreymaximus\Desktop\Adakings\WebApps\RestaurantApp
+  home_directory: C:\Users\ntibreymaximus
+- current_time: "2025-05-29T18:07:31.585625800Z"
+- pwd: C:\Users\ntibreymaximus\Desktop\Adakings\WebApps\RestaurantApp
+  home_directory: C:\Users\ntibreymaximus
+- current_time: "2025-05-29T18:09:25.243337100Z"
+- pwd: C:\Users\ntibreymaximus\Desktop\Adakings\WebApps\RestaurantApp
+  home_directory: C:\Users\ntibreymaximus
+- current_time: "2025-05-29T18:10:02.365276200Z"
+- pwd: C:\Users\ntibreymaximus\Desktop\Adakings\WebApps\RestaurantApp
+  home_directory: C:\Users\ntibreymaximus
+- current_time: "2025-05-29T18:12:10.012859400Z"
+- pwd: C:\Users\ntibreymaximus\Desktop\Adakings\WebApps\RestaurantApp
+  home_directory: C:\Users\ntibreymaximus
+- current_time: "2025-05-29T18:13:06.997975500Z"
+- pwd: C:\Users\ntibreymaximus\Desktop\Adakings\WebApps\RestaurantApp
+  home_directory: C:\Users\ntibreymaximus
+- current_time: "2025-05-29T18:14:28.581458900Z"
+- pwd: C:\Users\ntibreymaximus\Desktop\Adakings\WebApps\RestaurantApp
+  home_directory: C:\Users\ntibreymaximus
+- current_time: "2025-05-29T18:15:48.914064Z"
+- pwd: C:\Users\ntibreymaximus\Desktop\Adakings\WebApps\RestaurantApp
+  home_directory: C:\Users\ntibreymaximus
+- current_time: "2025-05-29T18:18:00.562832800Z"
+- pwd: C:\Users\ntibreymaximus\Desktop\Adakings\WebApps\RestaurantApp
+  home_directory: C:\Users\ntibreymaximus
+- current_time: "2025-05-29T18:24:06.543235Z"
+- pwd: C:\Users\ntibreymaximus\Desktop\Adakings\WebApps\RestaurantApp
+  home_directory: C:\Users\ntibreymaximus
+- current_time: "2025-05-29T18:27:04.409805600Z"
+- pwd: C:\Users\ntibreymaximus\Desktop\Adakings\WebApps\RestaurantApp
+  home_directory: C:\Users\ntibreymaximus
+- current_time: "2025-05-29T18:30:52.820124400Z"
+- pwd: C:\Users\ntibreymaximus\Desktop\Adakings\WebApps\RestaurantApp
+  home_directory: C:\Users\ntibreymaximus
+- current_time: "2025-05-29T18:53:08.421344800Z"
+- pwd: C:\Users\ntibreymaximus\Desktop\Adakings\WebApps\RestaurantApp
+  home_directory: C:\Users\ntibreymaximus
+- current_time: "2025-05-29T18:54:16.396734700Z"
+- pwd: C:\Users\ntibreymaximus\Desktop\Adakings\WebApps\RestaurantApp
+  home_directory: C:\Users\ntibreymaximus
+- current_time: "2025-05-29T18:57:01.577245Z"
+- pwd: C:\Users\ntibreymaximus\Desktop\Adakings\WebApps\RestaurantApp
+  home_directory: C:\Users\ntibreymaximus
+- current_time: "2025-05-29T19:09:13.666851800Z"
+- pwd: C:\Users\ntibreymaximus\Desktop\Adakings\WebApps\RestaurantApp
+  home_directory: C:\Users\ntibreymaximus
+- current_time: "2025-05-29T19:09:57.405636200Z"
+repo_path: C:\Users\ntibreymaximus\Desktop\Adakings\WebApps\RestaurantApp

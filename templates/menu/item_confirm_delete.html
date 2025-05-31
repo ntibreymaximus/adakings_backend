@@ -1,4 +1,4 @@
-{% extends 'menu/base_menu.html' %}
+{% extends 'menu/base.html' %}
 
 {% block menu_title %}Delete Menu Item{% endblock %}
 
@@ -10,7 +10,7 @@
             <p>Are you sure you want to delete "{{ object }}"?</p>
             <div class="mt-3">
                 <button type="submit" class="btn btn-danger">Delete</button>
-                <a href="{% url 'menu:item_list' %}" class="btn btn-outline-secondary">Cancel</a>
+                <a href="{% url 'menu:item_list' %}" class="btn btn-secondary">Cancel</a>
             </div>
         </form>
     </div>

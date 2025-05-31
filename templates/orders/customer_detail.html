@@ -4,14 +4,14 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1>Customer Details</h1>
     <div>
-        <a href="{% url 'orders:customer_list' %}" class="btn btn-outline-secondary me-2">
-            <i class="fas fa-arrow-left me-2"></i>Back to Customers
+        <a href="{% url 'orders:customer_list' %}" class="btn btn-secondary me-2">
+            <i data-feather="arrow-left" class="me-2"></i>Back to Customers
         </a>
-        <a href="{% url 'orders:customer_update' customer.pk %}" class="btn btn-outline-primary me-2">
-            <i class="fas fa-edit me-2"></i>Edit Details
+        <a href="{% url 'orders:customer_update' customer.pk %}" class="btn btn-primary me-2">
+            <i data-feather="edit" class="me-2"></i>Edit Details
         </a>
         <a href="{% url 'orders:order_create' %}?customer={{ customer.pk }}" class="btn btn-success">
-            <i class="fas fa-cart-plus me-2"></i>Create Order
+            <i data-feather="plus-circle" class="me-2"></i>Create Order
         </a>
     </div>
 </div>
@@ -20,7 +20,7 @@
 <div class="card mb-4">
     <div class="card-header bg-light">
         <h5 class="card-title mb-0">
-            <i class="fas fa-user me-2"></i>Customer Information
+            <i data-feather="user" class="me-2"></i>Customer Information
         </h5>
     </div>
     <div class="card-body">
@@ -78,33 +78,33 @@
 </div>
 
 <!-- Order History -->
-<div class="card">
+<div class="card action-card">
     <div class="card-header bg-light d-flex justify-content-between align-items-center">
         <h5 class="card-title mb-0">
-            <i class="fas fa-history me-2"></i>Order History
+            <i data-feather="archive" class="me-2"></i>Order History
         </h5>
         {% if orders %}
         <span class="badge bg-primary">{{ orders|length }} Orders</span>
         {% endif %}
     </div>
-    <div class="card-body">
+    <div class="card-body p-0">
         {% if orders %}
             <div class="table-responsive">
-                <table class="table table-hover">
+                <table class="table table-hover align-middle mb-0">
                     <thead class="table-light">
                         <tr>
-                            <th>Order #</th>
+                            <th class="ps-3">Order #</th>
                             <th>Date</th>
                             <th>Status</th>
                             <th>Items</th>
                             <th>Total</th>
-                            <th>Actions</th>
+                            <th class="text-end pe-3">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for order in orders %}
                         <tr>
-                            <td><strong>#{{ order.id }}</strong></td>
+                            <td class="ps-3"><strong>{{ order.order_number }}</strong></td>
                             <td>{{ order.created_at|date:"M d, Y H:i" }}</td>
                             <td>
                                 <span class="badge status-badge status-{{ order.status|lower }}">
@@ -112,17 +112,17 @@
                                 </span>
                             </td>
                             <td>{{ order.items.count }}</td>
-                            <td class="price-display">${{ order.total_price }}</td>
-                            <td>
+                            <td class="price-display">₵{{ order.total_price }}</td> {# Assuming currency is GHS based on other files #}
+                            <td class="text-end pe-3">
                                 <div class="btn-group btn-group-sm" role="group">
-                                    <a href="{% url 'orders:order_detail' order.pk %}" class="btn btn-outline-primary" title="View Order">
-                                        <i class="fas fa-eye"></i>
+                                    <a href="{% url 'orders:order_detail' order.order_number %}" class="btn btn-primary" title="View Order">
+                                        <i data-feather="eye"></i>
                                     </a>
-                                    <a href="{% url 'orders:order_update' order.pk %}" class="btn btn-outline-secondary" title="Edit Order">
-                                        <i class="fas fa-edit"></i>
+                                    <a href="{% url 'orders:order_update' order.order_number %}" class="btn btn-secondary" title="Edit Order">
+                                        <i data-feather="edit"></i>
                                     </a>
-                                    <a href="{% url 'orders:order_status_update' order.pk %}" class="btn btn-outline-info" title="Update Status">
-                                        <i class="fas fa-clipboard-check"></i>
+                                    <a href="{% url 'orders:order_status_update' order.order_number %}" class="btn btn-info" title="Update Status">
+                                        <i data-feather="check-square"></i>
                                     </a>
                                 </div>
                             </td>
@@ -175,7 +175,7 @@
             </div>
         {% else %}
             <div class="alert alert-info">
-                <i class="fas fa-info-circle me-2"></i>No order history found for this customer.
+                <i data-feather="info" class="me-2"></i>No order history found for this customer.
                 <a href="{% url 'orders:order_create' %}?customer={{ customer.pk }}" class="alert-link">Create an order</a> for this customer.
             </div>
         {% endif %}

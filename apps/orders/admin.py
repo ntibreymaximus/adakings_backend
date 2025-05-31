@@ -49,32 +49,26 @@ class OrderAdmin(admin.ModelAdmin):
         order_instance = form.instance
         
         if order_instance and order_instance.pk:
-            messages.info(request, f"DEBUG: Order {order_instance.order_number} (ID: {order_instance.pk}) - Initial total_price before calculate_total: {order_instance.total_price} (type: {type(order_instance.total_price)})")
-            
             new_total_price = order_instance.calculate_total()
-            messages.info(request, f"DEBUG: Order {order_instance.order_number} - Calculated new_total_price: {new_total_price} (type: {type(new_total_price)})")
             
             # Get the current total_price from the instance. This might have been affected by super().save_formset or signals.
-            current_total_price_in_instance = order_instance.total_price 
+            current_total_price_in_instance = order_instance.total_price
             
             if current_total_price_in_instance != new_total_price or new_total_price is not None: # Try to save if different, or if new_total_price is a valid number (even if 0)
-                messages.info(request, f"DEBUG: Order {order_instance.order_number} - Prices differ or new price is valid. Old instance value: {current_total_price_in_instance}, New calculated: {new_total_price}. Attempting update.")
                 order_instance.total_price = new_total_price
                 try:
                     order_instance.save(update_fields=['total_price'])
-                    messages.info(request, f"DEBUG: Order {order_instance.order_number} - total_price in instance after save: {order_instance.total_price} (type: {type(order_instance.total_price)})")
-                    
-                    # Re-fetch from DB to confirm persisted value
-                    refreshed_order = type(order_instance).objects.get(pk=order_instance.pk)
-                    messages.info(request, f"DEBUG: Order {order_instance.order_number} - total_price from DB after refresh: {refreshed_order.total_price} (type: {type(refreshed_order.total_price)})")
+                    # Re-fetch from DB to confirm persisted value if needed for further logic, otherwise optional
+                    # refreshed_order = type(order_instance).objects.get(pk=order_instance.pk)
                 except Exception as e:
-                    messages.error(request, f"DEBUG: Order {order_instance.order_number} - Error during save: {e}")
-            else:
-                messages.info(request, f"DEBUG: Order {order_instance.order_number} - Prices are the same ({new_total_price}) or new_total_price is None and current is also effectively None/0. No update to total_price triggered by this logic.")
-        elif not order_instance:
-            messages.warning(request, "DEBUG: save_formset - order_instance (form.instance) is None.")
-        elif not order_instance.pk:
-            messages.warning(request, f"DEBUG: save_formset - order_instance {order_instance} has no PK yet.")
+                    # Consider logging this error instead of a user-facing message if it's unexpected
+                    messages.error(request, f"An error occurred while updating order total: {e}")
+        # elif not order_instance:
+            # This case should ideally not happen if the main form is valid
+            # messages.warning(request, "DEBUG: save_formset - order_instance (form.instance) is None.")
+        # elif not order_instance.pk:
+            # This case implies the main order object wasn't saved before formset, which Django handles
+            # messages.warning(request, f"DEBUG: save_formset - order_instance {order_instance} has no PK yet.")
 
     def customer_name(self, obj):
         return obj.customer_name

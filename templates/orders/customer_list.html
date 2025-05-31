@@ -15,7 +15,7 @@
             <div class="col-md-6">
                 <div class="input-group">
                     <input type="text" name="search" class="form-control" placeholder="Search by name, phone or location" value="{{ search_query }}">
-                    <button class="btn btn-outline-secondary" type="submit">
+                    <button class="btn btn-secondary" type="submit">
                         <i class="fas fa-search"></i>
                     </button>
                 </div>
@@ -36,63 +36,74 @@
 
 <!-- Customer List -->
 {% if customers %}
-    <div class="table-responsive">
-        <table class="table table-hover">
-            <thead class="table-light">
-                <tr>
-                    <th>Name</th>
-                    <th>Phone Number</th>
-                    <th>Delivery Type</th>
-                    <th>Location</th>
-                    <th>Orders</th>
-                    <th>Created</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for customer in customers %}
-                <tr>
-                    <td>
-                        <a href="{% url 'orders:customer_detail' customer.pk %}">
-                            {{ customer.name }}
-                        </a>
-                    </td>
-                    <td>{{ customer.phone_number }}</td>
-                    <td>
-                        {% if customer.delivery_type == 'Pickup' %}
-                            <span class="badge bg-secondary">Pickup</span>
-                        {% else %}
-                            <span class="badge bg-info">Delivery</span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        {% if customer.delivery_type == 'Pickup' %}
-                            <span class="text-muted">-</span>
-                        {% else %}
-                            {{ customer.location|truncatechars:30 }}
-                        {% endif %}
-                    </td>
-                    <td>
-                        <span class="badge bg-primary">{{ customer.order_count }}</span>
-                    </td>
-                    <td>{{ customer.created_at|date:"M d, Y" }}</td>
-                    <td>
-                        <div class="btn-group btn-group-sm" role="group">
-                            <a href="{% url 'orders:customer_detail' customer.pk %}" class="btn btn-outline-primary" title="View Details">
-                                <i class="fas fa-eye"></i>
+<div class="card action-card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3">Name</th>
+                        <th>Phone Number</th>
+                        <th>Delivery Type</th>
+                        <th>Location</th>
+                        <th>Orders</th>
+                        <th>Created</th>
+                        <th class="text-end pe-3">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for customer in customers %}
+                    <tr>
+                        <td class="ps-3">
+                            <a href="{% url 'orders:customer_detail' customer.pk %}">
+                                {{ customer.name }}
                             </a>
-                            <a href="{% url 'orders:customer_update' customer.pk %}" class="btn btn-outline-secondary" title="Edit Customer">
-                                <i class="fas fa-edit"></i>
-                            </a>
-                            <a href="{% url 'orders:order_create' %}?customer={{ customer.pk }}" class="btn btn-outline-success" title="Create Order">
-                                <i class="fas fa-cart-plus"></i>
-                            </a>
-                        </div>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+                        </td>
+                        <td>{{ customer.phone_number }}</td>
+                        <td>
+                            {% if customer.delivery_type == 'Pickup' %}
+                                <span class="badge bg-secondary">Pickup</span>
+                            {% else %}
+                                <span class="badge bg-info">Delivery</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if customer.delivery_type == 'Pickup' %}
+                                <span class="text-muted">-</span>
+                            {% else %}
+                                {{ customer.location|truncatechars:30 }}
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-primary">{{ customer.order_count }}</span>
+                        </td>
+                        <td>{{ customer.created_at|date:"M d, Y" }}</td>
+                        <td class="text-end pe-3">
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="{% url 'orders:customer_detail' customer.pk %}" class="btn btn-primary" title="View Details">
+                                    <i data-feather="eye"></i>
+                                </a>
+                                <a href="{% url 'orders:customer_update' customer.pk %}" class="btn btn-secondary" title="Edit Customer">
+                                    <i data-feather="edit"></i>
+                                </a>
+                                <a href="{% url 'orders:order_create' %}?customer={{ customer.pk }}" class="btn btn-success" title="Create Order">
+                                    <i data-feather="plus-circle"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% else %}
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle me-2"></i>No customers found.
+        <a href="{% url 'orders:customer_create' %}" class="alert-link">Create a new customer</a>.
+    </div>
+{% endif %}
     </div>
     
     <!-- Pagination -->

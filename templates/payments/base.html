@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Payment Processing - Adakings Restaurant{% endblock %}
+{% block extra_css %} {{ block.super }}
+{# Optionally inherit from base.html extra_css if needed #} {# Styles specific to orders app pages can go here, #}
+{# but most should now be in theme.css #}
+
+{%endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-4">
+{% block payment_content %}{% endblock %}
+</div>
+{% endblock %}
+{% block extra_js %}{{ block.super }} {% endblock %}

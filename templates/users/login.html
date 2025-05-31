@@ -11,74 +11,23 @@
   .login-card {
     margin-top: 5rem;
     max-width: 450px; /* To control width on larger screens */
-    /* The following properties will be commented out to let the theme apply: */
-    /* border-radius: 1rem; */
-    /* box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15); */
-    /* background: #fff; */
   }
 
-  /* .login-card .card-body { */
-  /* padding: 3rem 2rem; */
-  /* } */
-  
   .login-icon {
     font-size: 3rem;
     color: var(--bs-primary); 
-    margin-bottom: 1.5rem;
   }
 
-  /* .form-control { */
-  /* border: 1px solid rgba(0, 0, 0, 0.1); */
-  /* padding: 0.75rem 1rem; */
-  /* } */
-
-  /* .form-control:focus { */
-  /* border-color: #1a1a1a; */
-  /* box-shadow: 0 0 0 0.2rem rgba(26, 26, 26, 0.1); */
-  /* } */
-
-  /* .input-group-text { */
-  /* border: 1px solid rgba(0, 0, 0, 0.1); */
-  /* background-color: #f8f9fa; */
-  /* } */
-
-  /* .btn-primary { */
-  /* background-color: #1a1a1a; */
-  /* border-color: #1a1a1a; */
-  /* padding: 0.75rem 1.5rem; */
-  /* font-weight: 500; */
-  /* letter-spacing: 0.5px; */
-  /* } */
-
-  /* .btn-primary:hover { */
-  /* background-color: #000; */
-  /* border-color: #000; */
-  /* } */
-  
-  .form-label {
-    font-weight: 500;
-    margin-bottom: 0.5rem;
-  }
-  
-  .forgot-password {
-    color: var(--bs-primary);
-    text-decoration: none;
-    font-size: 0.875rem;
-  }
-  
-  .forgot-password:hover {
-    text-decoration: underline;
-  }
 </style>
 {% endblock %}
 
 {% block auth_content %}
 <div class="row justify-content-center">
   <div class="col-md-6 col-lg-5">
-    <div class="card login-card shadow-sm mx-auto">
+    <div class="card login-card mx-auto">
       <div class="card-body">
         <div class="text-center mb-4">
-          <i data-feather="shield" class="login-icon"></i>
+          <i data-feather="shield" class="login-icon mb-4"></i>
           <h1 class="h3 mb-3">Welcome Back</h1>
           <p class="text-muted">Sign in to access your dashboard</p>
         </div>
@@ -127,7 +76,7 @@
               <label for="{{ form.password.id_for_label }}" class="form-label mb-0">
                 Password
               </label>
-              <a href="{% url "users:password_reset" %}" class="forgot-password">
+              <a href="{% url "users:password_reset" %}" class="text-primary text-decoration-none small">
                 Forgot password?
               </a>
             </div>
@@ -156,7 +105,7 @@
 
           <div class="d-grid">
             <button type="submit" class="btn btn-primary">
-              Sign In
+              <i data-feather="log-in" class="me-1"></i> Sign In
             </button>
           </div>
         </form>
