@@ -22,24 +22,29 @@
                     <div>
                         <h1 class="page-title h3 mb-0">Order {{ order.order_number }}</h1>
                         <p class="text-muted mb-0">
-                            <span class="badge status-{{ order.status|lower }} py-2 px-3">{{ order.status }}</span>
+                            <span id="orderStatusBadge" class="badge status-{{ order.status|lower }} py-2 px-3">{{ order.status }}</span>
                             <span class="ms-2">{{ order.created_at|date:"F j, Y, g:i a" }}</span>
                         </p>
                     </div>
                     <div class="page-actions">
                         <div class="btn-group">
-                            <a href="{% url 'orders:order_list' %}" class="btn btn-outline-secondary">
+                            <a href="{% url 'orders:order_list' %}" class="btn btn-secondary">
                                 <i data-feather="arrow-left" class="me-2"></i>Back to Orders
                             </a>
-                            <a href="{% url 'orders:order_update' order.pk %}" class="btn btn-outline-primary">
+                            <a href="{% url 'orders:order_update' order.order_number %}" class="btn btn-primary">
                                 <i data-feather="edit" class="me-2"></i>Edit Order
                             </a>
-                            <a href="{% url 'orders:order_status_update' order.pk %}" class="btn btn-outline-info">
+                            <button type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#updateStatusModal">
                                 <i data-feather="check-square" class="me-2"></i>Update Status
-                            </a>
-                            <button onclick="window.print()" class="btn btn-outline-secondary">
+                            </button>
+                            <button onclick="window.print()" class="btn btn-secondary">
                                 <i data-feather="printer" class="me-2"></i>Print
                             </button>
+                            {% if can_process_refund %}
+                            <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#processRefundModal">
+                                <i data-feather="corner-down-left" class="me-2"></i>Process Refund
+                            </button>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -66,8 +71,14 @@
             <div class="col-md-6 text-md-end">
                 <h4 class="price-display">₵{{ order.total_price }}</h4>
                 <p class="mb-1">
-                    <span class="badge {% if order.is_paid %}bg-success{% else %}bg-danger{% endif %} py-2 px-3">
-                        {% if order.is_paid %}PAID{% else %}UNPAID{% endif %}
+                    <span class="badge py-2 px-3
+                        {% if order.get_payment_status == 'PAID' %}bg-success
+                        {% elif order.get_payment_status == 'PARTIALLY PAID' %}bg-warning
+                        {% elif order.get_payment_status == 'OVERPAID' %}bg-info
+                        {% elif order.get_payment_status == 'UNPAID' %}bg-danger
+                        {% elif order.get_payment_status == 'PENDING PAYMENT' %}bg-secondary
+                        {% else %}bg-light text-dark{% endif %}">
+                        {{ order.get_payment_status }}
                     </span>
                 </p>
                 <p class="mb-1">
@@ -197,7 +208,28 @@
         </h5>
     </div>
     <div class="card-body">
-        <!-- Payment Status -->
+        <!-- Latest Payment Status -->
+->
+        <div class="mb-4">
+            <h6 class="fw-bold mb-3">Financial Summary</h6>
+            <div class="row">
+                <div class="col-md-6">
+                    <p class="mb-1"><strong>Total Order Value:</strong> <span class="price-display">₵{{ order.total_price|floatformat:2 }}</span></p>
+                    <p class="mb-1"><strong>Total Payments Received:</strong> <span class="price-display">₵{{ total_payments_received|floatformat:2 }}</span></p>
+                    <p class="mb-1"><strong>Total Refunds Issued:</strong> <span class="price-display">₵{{ total_refunds_issued|floatformat:2 }}</span></p>
+                </div>
+                <div class="col-md-6">
+                    <p class="mb-1"><strong>Net Amount Paid:</strong> <span class="price-display">₵{{ order.amount_paid|floatformat:2 }}</span></p>
+                    <p class="mb-1"><strong>Balance Due:</strong> <span class="price-display">₵{{ order.balance_due|floatformat:2 }}</span></p>
+                    {% if show_overpaid_amount %}
+                    <p class="mb-1"><strong>Amount Overpaid:</strong> <span class="price-display">₵{{ order.amount_overpaid|floatformat:2 }}</span></p>
+                    {% endif %}
+                </div>
+            </div>
+            <hr class="my-3">
+        </div>
+
+        <!-- Payment Status / Latest Payment -->
         <div class="mb-4">
             <div class="row">
                 <div class="col-md-12">
@@ -222,7 +254,8 @@
                                     <div class="col-md-9">
                                         <div class="row">
                                             <div class="col-md-6">
-                                                <p class="mb-1"><strong>Amount:</strong> <span class="price-display">₵{{ latest_payment.amount }}</span></p>
+                                                <p class="mb-1"><strong>Type:</strong> {{ latest_payment.get_payment_type_display }}</p>
+                                                <p class="mb-1"><strong>Amount:</strong> <span class="price-display">₵{{ latest_payment.amount|floatformat:2 }}</span></p>
                                                 <p class="mb-1"><strong>Method:</strong> {{ latest_payment.get_payment_method_display }}</p>
                                             </div>
                                             <div class="col-md-6">
@@ -258,9 +291,15 @@
                                     <i data-feather="credit-card" style="width:3rem; height:3rem;" class="text-primary mb-3"></i>
                                     <h5 class="card-title">Make a Payment</h5>
                                     <p class="card-text">Choose your preferred payment method to complete this order.</p>
-                                    <a href="{% url 'payments:process_payment' order.id %}" class="btn btn-primary">
-                                        <i data-feather="dollar-sign" class="me-2"></i>Pay Now
-                                    </a>
+                                    <button type="button" class="btn btn-primary"
+                                            data-bs-toggle="modal" data-bs-target="#paymentModal"
+                                            data-order-number="{{ order.order_number }}"
+                                            data-balance-due="{{ order.balance_due|floatformat:2 }}"
+                                            data-total-price="{{ order.total_price|floatformat:2 }}"
+                                            data-amount-paid="{{ order.amount_paid|floatformat:2 }}"
+                                            data-customer-phone="{{ order.customer_phone|default_if_none:'' }}">
+                                        <i data-feather="dollar-sign" class="me-2"></i>{% if order.amount_paid > 0 %}Pay Balance: ₵{{ order.balance_due|floatformat:2 }}{% else %}Pay Now{% endif %}
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -282,6 +321,7 @@
                                         <th class="ps-3">ID</th>
                                         <th>Date</th>
                                         <th>Method</th>
+                                        <th>Type</th>
                                         <th>Amount</th>
                                         <th>Status</th>
                                         <th class="text-end pe-3">Reference</th>
@@ -289,11 +329,12 @@
                                 </thead>
                                 <tbody>
                                     {% for payment in order.payments.all %}
-                                    <tr>
+                                    <tr {% if payment.payment_type == 'refund' %}class="table-warning"{% endif %}>
                                         <td class="ps-3">{{ payment.id }}</td>
                                         <td>{{ payment.created_at|date:"Y-m-d H:i" }}</td>
                                         <td>{{ payment.get_payment_method_display }}</td>
-                                        <td class="price-display">₵{{ payment.amount }}</td>
+                                        <td>{{ payment.get_payment_type_display }}</td>
+                                        <td class="price-display">₵{{ payment.amount|floatformat:2 }}</td>
                                         <td>
                                             {% if payment.status == 'completed' %}
                                                 <span class="badge bg-success py-2 px-3">PAID</span>
@@ -320,8 +361,697 @@
     </div>
 </div>
 
+<!-- Update Status Modal -->
+<div class="modal fade" id="updateStatusModal" tabindex="-1" aria-labelledby="updateStatusModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form id="updateStatusForm">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="updateStatusModalLabel">Update Order Status for #{{ order.order_number }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="statusUpdateErrorAlert" class="alert alert-danger d-none" role="alert"></div>
+                    <div class="mb-3">
+                        <label for="newStatusSelect" class="form-label">New Status</label>
+                        <select class="form-select" id="newStatusSelect" name="status" required>
+                            <!-- Options will be populated by JavaScript -->
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary" id="submitStatusUpdateBtn">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Process Refund Modal -->
+<div class="modal fade" id="processRefundModal" tabindex="-1" aria-labelledby="processRefundModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form id="processRefundForm">
+                {% csrf_token %}
+                <input type="hidden" name="order_number" value="{{ order.order_number }}">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="processRefundModalLabel">Process Refund for Order #{{ order.order_number }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="refundErrorAlert" class="alert alert-danger d-none" role="alert"></div>
+                    <p>Current Net Amount Paid: <strong id="currentAmountPaidDisplay">₵{{ order.amount_paid|floatformat:2 }}</strong></p>
+                    <p class="text-info small mt-2 mb-3"><i data-feather="info" class="me-1" style="width:1em; height:1em;"></i><strong>Note:</strong> This will be processed as a cash refund.</p>
+                    <div class="mb-3">
+                        <label for="refundAmountInput" class="form-label">Refund Amount (₵)</label>
+                        <input type="number" class="form-control" id="refundAmountInput" name="refund_amount" step="0.01" min="0.01" required>
+                        <div class="form-text">Enter the amount to refund. Cannot exceed the net amount paid.</div>
+                    </div>
+                    <!-- Optionally, add a notes field for the refund reason -->
+                    <!-- <div class="mb-3">
+                        <label for="refundNotesInput" class="form-label">Refund Notes (Optional)</label>
+                        <textarea class="form-control" id="refundNotesInput" name="notes" rows="2"></textarea>
+                    </div> -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="submitRefundBtn">Submit Refund</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Payment Modal -->
+<div class="modal fade" id="paymentModal" tabindex="-1" aria-labelledby="paymentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="paymentModalLabel">Make Payment for Order #<span id="paymentModalOrderNumber"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="paymentModalErrorAlert" class="alert alert-danger d-none" role="alert"></div>
+
+                <!-- Initial View: Choose Payment Method -->
+                <div id="paymentModalInitialView">
+                    <p>Amount to Pay: <strong class="price-display">₵<span id="paymentModalAmountToPayText">0.00</span></strong></p>
+                    <div class="d-grid gap-2">
+                        <button type="button" class="btn btn-primary btn-lg" id="paymentModalPayWithCashBtn">
+                            <i data-feather="dollar-sign" class="me-2"></i>Pay with Cash
+                        </button>
+                        <button type="button" class="btn btn-success btn-lg" id="paymentModalPayWithMobileMoneyBtn">
+                            <i data-feather="smartphone" class="me-2"></i>Pay with Mobile Money
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Cash Payment View -->
+                <div id="paymentModalCashView" class="d-none">
+                    <p>Confirm cash payment of <strong class="price-display">₵<span id="paymentModalCashAmountText">0.00</span></strong>.</p>
+                    <button type="button" class="btn btn-primary w-100" id="paymentModalConfirmCashPaymentBtn">
+                        <i data-feather="check-circle" class="me-2"></i>Confirm Cash Received
+                    </button>
+                    <button type="button" class="btn btn-secondary w-100 mt-2" id="paymentModalCashBackBtn">Back</button>
+                </div>
+
+                <!-- Mobile Money Payment View -->
+                <div id="paymentModalMobileMoneyView" class="d-none">
+                    <p>Pay <strong class="price-display">₵<span id="paymentModalMobileMoneyAmountText">0.00</span></strong> via Mobile Money.</p>
+                    <div class="mb-3">
+                        <label for="paymentModalMobileNumberInput" class="form-label">Mobile Number</label>
+                        <input type="tel" class="form-control" id="paymentModalMobileNumberInput" placeholder="Enter mobile number">
+                    </div>
+                    <button type="button" class="btn btn-success w-100" id="paymentModalProceedToPaystackBtn">
+                        <i data-feather="send" class="me-2"></i>Proceed to Paystack
+                    </button>
+                    <button type="button" class="btn btn-secondary w-100 mt-2" id="paymentModalMobileMoneyBackBtn">Back</button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block extra_css %}
 {{ block.super }}
 {% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const updateStatusModalElement = document.getElementById('updateStatusModal');
+        const updateStatusModal = new bootstrap.Modal(updateStatusModalElement);
+        const updateStatusForm = document.getElementById('updateStatusForm');
+        const newStatusSelect = document.getElementById('newStatusSelect');
+        const statusUpdateErrorAlert = document.getElementById('statusUpdateErrorAlert');
+        const orderStatusBadge = document.getElementById('orderStatusBadge');
+
+        // 1. Toast Notification Helper Function
+        function showToast(message, type = 'info') {
+            const toastContainer = document.querySelector('.toast-container');
+            if (!toastContainer) {
+                console.error('Toast container not found. Make sure `toasts.html` is included and has a .toast-container element.');
+                // Fallback to alert if toast container is missing
+                alert(`${type.toUpperCase()}: ${message}`);
+                return;
+            }
+
+            const toastId = 'toast-' + Date.now();
+            let bgColorClass = 'bg-info';
+            let iconName = 'info';
+
+            switch (type.toLowerCase()) {
+                case 'success':
+                    bgColorClass = 'bg-success';
+                    iconName = 'check-circle';
+                    break;
+                case 'error':
+                    bgColorClass = 'bg-danger';
+                    iconName = 'alert-triangle';
+                    break;
+                case 'warning':
+                    bgColorClass = 'bg-warning';
+                    iconName = 'alert-circle';
+                    break;
+            }
+
+            const toastHTML = `
+                <div id="${toastId}" class="toast align-items-center text-white ${bgColorClass} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+                    <div class="d-flex">
+                        <div class="toast-body">
+                            <i data-feather="${iconName}" class="me-2"></i>
+                            ${message}
+                        </div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                    </div>
+                </div>
+            `;
+            toastContainer.insertAdjacentHTML('beforeend', toastHTML);
+            
+            const toastElement = document.getElementById(toastId);
+            const bsToast = new bootstrap.Toast(toastElement, { delay: 5000 });
+            
+            // Important: Re-initialize Feather Icons for the newly added icon
+            if (typeof feather !== 'undefined') {
+                feather.replace();
+            }
+            
+            bsToast.show();
+            toastElement.addEventListener('hidden.bs.toast', function () {
+                toastElement.remove();
+            });
+        }
+
+        // 2. Event Listener for Modal Show (Populate Dropdown)
+        if (updateStatusModalElement) {
+            updateStatusModalElement.addEventListener('show.bs.modal', function () {
+                // Clear previous options and error messages
+                newStatusSelect.innerHTML = '';
+                statusUpdateErrorAlert.classList.add('d-none');
+                statusUpdateErrorAlert.textContent = '';
+
+                try {
+                    const statusChoices = JSON.parse('{{ status_choices_json|safe|escapejs }}');
+                    const currentStatus = '{{ order.status|safe|escapejs }}';
+
+                    if (Array.isArray(statusChoices)) {
+                        statusChoices.forEach(choice => {
+                            const option = document.createElement('option');
+                            option.value = choice.value;
+                            option.textContent = choice.display;
+                            if (choice.value === currentStatus) {
+                                option.selected = true;
+                            }
+                            // Prevent "Out for Delivery" if order is "Pickup"
+                            if ('{{ order.delivery_type|safe|escapejs }}' === 'Pickup' && choice.value === 'Out for Delivery') {
+                                option.disabled = true;
+                                option.textContent += ' (N/A for Pickup)';
+                            }
+                            newStatusSelect.appendChild(option);
+                        });
+                    } else {
+                        console.error('status_choices_json is not an array or is malformed:', statusChoices);
+                        statusUpdateErrorAlert.textContent = 'Error: Could not load status options.';
+                        statusUpdateErrorAlert.classList.remove('d-none');
+                    }
+                } catch (e) {
+                    console.error('Error parsing status_choices_json or currentStatus:', e);
+                    statusUpdateErrorAlert.textContent = 'Error: Could not parse status options.';
+                    statusUpdateErrorAlert.classList.remove('d-none');
+                }
+            });
+        }
+
+        // 3. Event Listener for Form Submission (AJAX)
+        if (updateStatusForm) {
+            updateStatusForm.addEventListener('submit', function (event) {
+                event.preventDefault();
+                statusUpdateErrorAlert.classList.add('d-none');
+                statusUpdateErrorAlert.textContent = '';
+
+                const selectedStatusValue = newStatusSelect.value;
+                const csrfToken = this.querySelector('input[name="csrfmiddlewaretoken"]').value;
+                const submitButton = document.getElementById('submitStatusUpdateBtn');
+                const originalButtonText = submitButton.innerHTML;
+                submitButton.disabled = true;
+                submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...';
+
+
+                $.ajax({
+                    url: "{% url 'orders:ajax_order_status_update' order_number=order.order_number %}",
+                    type: "POST",
+                    data: {
+                        status: selectedStatusValue,
+                        csrfmiddlewaretoken: csrfToken
+                    },
+                    dataType: "json",
+                    success: function (response) {
+                        if (response.success) {
+                            if (orderStatusBadge) {
+                                orderStatusBadge.textContent = response.new_status_display;
+                                // Remove old status class - assumes format 'status-*'
+                                const classes = orderStatusBadge.className.split(' ');
+                                for (let i = 0; i < classes.length; i++) {
+                                    if (classes[i].startsWith('status-')) {
+                                        orderStatusBadge.classList.remove(classes[i]);
+                                    }
+                                }
+                                orderStatusBadge.classList.add(response.new_status_badge_class);
+                            }
+                            updateStatusModal.hide();
+                            showToast(response.message || 'Order status updated successfully!', 'success');
+                        } else {
+                            statusUpdateErrorAlert.textContent = response.errors || 'An unknown error occurred.';
+                            statusUpdateErrorAlert.classList.remove('d-none');
+                            showToast(response.errors || 'Failed to update status.', 'error');
+                        }
+                    },
+                    error: function (xhr, status, error) {
+                        const errorMsg = xhr.responseJSON && xhr.responseJSON.errors ? xhr.responseJSON.errors : "An error occurred while updating the status. Please try again.";
+                        statusUpdateErrorAlert.textContent = errorMsg;
+                        statusUpdateErrorAlert.classList.remove('d-none');
+                        showToast(errorMsg, 'error');
+                    },
+                    complete: function () {
+                        submitButton.disabled = false;
+                        submitButton.innerHTML = originalButtonText;
+                    }
+                });
+            });
+        }
+
+        // --- Refund Modal Logic ---
+        const processRefundModalElement = document.getElementById('processRefundModal');
+        const processRefundModal = new bootstrap.Modal(processRefundModalElement);
+        const processRefundForm = document.getElementById('processRefundForm');
+        const refundAmountInput = document.getElementById('refundAmountInput');
+        const currentAmountPaidDisplay = document.getElementById('currentAmountPaidDisplay'); // In case you need to read from it
+        const refundErrorAlert = document.getElementById('refundErrorAlert');
+        const submitRefundBtn = document.getElementById('submitRefundBtn');
+
+        if (processRefundModalElement) {
+            processRefundModalElement.addEventListener('show.bs.modal', function () {
+                refundErrorAlert.classList.add('d-none');
+                refundErrorAlert.textContent = '';
+                // The max refundable amount is dynamic, based on the order's current state
+                const amountPaid = parseFloat("{{ order.amount_paid|stringformat:'.2f' }}".replace(',', '.'));
+                const amountOverpaid = parseFloat("{{ order.amount_overpaid|stringformat:'.2f' }}".replace(',', '.'));
+
+                let defaultPopulationAmount;
+                if (amountOverpaid > 0) {
+                    defaultPopulationAmount = amountOverpaid;
+                } else {
+                    defaultPopulationAmount = amountPaid; // Default to full amount paid if not overpaid
+                }
+                refundAmountInput.value = defaultPopulationAmount.toFixed(2);
+                refundAmountInput.max = amountPaid; // Max possible refund is always the total net amount paid
+                currentAmountPaidDisplay.textContent = `₵${amountPaid.toFixed(2)}`; // Display Net Amount Paid
+            });
+        }
+
+        if (processRefundForm) {
+            processRefundForm.addEventListener('submit', function(event) {
+                event.preventDefault();
+                refundErrorAlert.classList.add('d-none');
+                refundErrorAlert.textContent = '';
+
+                const orderNumber = this.querySelector('input[name="order_number"]').value;
+                const refundAmount = parseFloat(refundAmountInput.value);
+                const csrfToken = this.querySelector('input[name="csrfmiddlewaretoken"]').value;
+                const maxRefundable = parseFloat("{{ order.amount_paid|stringformat:'.2f' }}".replace(',', '.'));
+
+                if (isNaN(refundAmount) || refundAmount <= 0) {
+                    refundErrorAlert.textContent = 'Refund amount must be a positive number.';
+                    refundErrorAlert.classList.remove('d-none');
+                    return;
+                }
+                if (refundAmount > maxRefundable) {
+                    refundErrorAlert.textContent = `Refund amount cannot exceed ₵${maxRefundable.toFixed(2)}.`;
+                    refundErrorAlert.classList.remove('d-none');
+                    return;
+                }
+
+                const originalButtonText = submitRefundBtn.innerHTML;
+                submitRefundBtn.disabled = true;
+                submitRefundBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
+
+                $.ajax({
+                    url: "{% url 'payments:process_cash_refund_modal' %}", // Make sure this URL is correct
+                    type: "POST",
+                    data: {
+                        order_number: orderNumber,
+                        refund_amount: refundAmount.toFixed(2),
+                        csrfmiddlewaretoken: csrfToken
+                        // notes: document.getElementById('refundNotesInput') ? document.getElementById('refundNotesInput').value : '' // Optional notes
+                    },
+                    dataType: "json",
+                    success: function(response) {
+                        if (response.status === 'success') {
+                            processRefundModal.hide();
+                            showToast(response.message || 'Refund processed successfully!', 'success');
+                            // Reload to see changes. Could also update UI dynamically but reload is simpler here.
+                            window.location.reload(); 
+                        } else {
+                            refundErrorAlert.textContent = response.message || 'An unknown error occurred during refund.';
+                            refundErrorAlert.classList.remove('d-none');
+                            showToast(response.message || 'Failed to process refund.', 'error');
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        const errorMsg = xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : "An error occurred. Please try again.";
+                        refundErrorAlert.textContent = errorMsg;
+                        refundErrorAlert.classList.remove('d-none');
+                        showToast(errorMsg, 'error');
+                    },
+                    complete: function() {
+                        submitRefundBtn.disabled = false;
+                        submitRefundBtn.innerHTML = originalButtonText;
+                    }
+                });
+            });
+        }
+
+        // --- Payment Modal Logic ---
+        const paymentModalElement = document.getElementById('paymentModal');
+        const paymentModal = new bootstrap.Modal(paymentModalElement);
+
+        const paymentModalOrderNumberSpan = document.getElementById('paymentModalOrderNumber');
+        const paymentModalAmountToPayTextSpan = document.getElementById('paymentModalAmountToPayText');
+        const paymentModalErrorAlert = document.getElementById('paymentModalErrorAlert');
+
+        // Views
+        const paymentModalInitialView = document.getElementById('paymentModalInitialView');
+        const paymentModalCashView = document.getElementById('paymentModalCashView');
+        const paymentModalMobileMoneyView = document.getElementById('paymentModalMobileMoneyView');
+
+        // Buttons in Initial View
+        const paymentModalPayWithCashBtn = document.getElementById('paymentModalPayWithCashBtn');
+        const paymentModalPayWithMobileMoneyBtn = document.getElementById('paymentModalPayWithMobileMoneyBtn');
+
+        // Elements in Cash View
+        const paymentModalCashAmountTextSpan = document.getElementById('paymentModalCashAmountText');
+        const paymentModalConfirmCashPaymentBtn = document.getElementById('paymentModalConfirmCashPaymentBtn');
+        const paymentModalCashBackBtn = document.getElementById('paymentModalCashBackBtn');
+
+        // Elements in Mobile Money View
+        const paymentModalMobileMoneyAmountTextSpan = document.getElementById('paymentModalMobileMoneyAmountText');
+        const paymentModalMobileNumberInput = document.getElementById('paymentModalMobileNumberInput');
+        const paymentModalProceedToPaystackBtn = document.getElementById('paymentModalProceedToPaystackBtn');
+        const paymentModalMobileMoneyBackBtn = document.getElementById('paymentModalMobileMoneyBackBtn');
+
+        let currentOrderData = {}; // To store data from the trigger button
+
+        if (paymentModalElement) {
+            paymentModalElement.addEventListener('show.bs.modal', function (event) {
+                // Clear previous error messages
+                paymentModalErrorAlert.classList.add('d-none');
+                paymentModalErrorAlert.textContent = '';
+
+                // Get data from the button that triggered the modal
+                const button = event.relatedTarget;
+                currentOrderData.orderNumber = button.dataset.orderNumber;
+                currentOrderData.balanceDue = parseFloat(button.dataset.balanceDue);
+                currentOrderData.totalPrice = parseFloat(button.dataset.totalPrice);
+                currentOrderData.amountPaid = parseFloat(button.dataset.amountPaid);
+                currentOrderData.customerPhone = button.dataset.customerPhone;
+
+                // Determine amount to pay
+                let amountToPay = (currentOrderData.amountPaid > 0) ? currentOrderData.balanceDue : currentOrderData.totalPrice;
+                if (amountToPay < 0.01 && currentOrderData.totalPrice > 0) { // If balance is ~0 but there was a total, means it's likely fully paid or small remainder
+                    // if order is fully paid, technically this modal shouldn't be triggered by "Pay Now" button.
+                    // However, if balance_due is 0.00 due to full payment, we might show 0.
+                    // For safety, ensure it's at least 0.00, not negative.
+                     amountToPay = Math.max(0, amountToPay);
+                } else if (amountToPay < 0.01) { // If total price itself was 0 or amount to pay is ~0
+                    amountToPay = 0;
+                }
+
+
+                currentOrderData.amountToPay = amountToPay; // Store for later use
+
+                // Populate modal
+                if (paymentModalOrderNumberSpan) paymentModalOrderNumberSpan.textContent = currentOrderData.orderNumber;
+                if (paymentModalAmountToPayTextSpan) paymentModalAmountToPayTextSpan.textContent = amountToPay.toFixed(2);
+                
+                // Set amounts in other views too
+                if (paymentModalCashAmountTextSpan) paymentModalCashAmountTextSpan.textContent = amountToPay.toFixed(2);
+                if (paymentModalMobileMoneyAmountTextSpan) paymentModalMobileMoneyAmountTextSpan.textContent = amountToPay.toFixed(2);
+
+                // Pre-populate mobile number
+                if (paymentModalMobileNumberInput) paymentModalMobileNumberInput.value = currentOrderData.customerPhone || '';
+
+                // Reset to initial view
+                paymentModalInitialView.classList.remove('d-none');
+                paymentModalCashView.classList.add('d-none');
+                paymentModalMobileMoneyView.classList.add('d-none');
+
+                // Re-initialize Feather Icons for the modal
+                if (typeof feather !== 'undefined') {
+                    feather.replace();
+                }
+            });
+        }
+
+        function switchToView(viewToShow) {
+            paymentModalInitialView.classList.add('d-none');
+            paymentModalCashView.classList.add('d-none');
+            paymentModalMobileMoneyView.classList.add('d-none');
+            
+            if (viewToShow === 'initial') paymentModalInitialView.classList.remove('d-none');
+            else if (viewToShow === 'cash') paymentModalCashView.classList.remove('d-none');
+            else if (viewToShow === 'mobilemoney') paymentModalMobileMoneyView.classList.remove('d-none');
+        }
+
+        if (paymentModalPayWithCashBtn) {
+            paymentModalPayWithCashBtn.addEventListener('click', function() {
+                switchToView('cash');
+            });
+        }
+        if (paymentModalCashBackBtn) {
+            paymentModalCashBackBtn.addEventListener('click', function() {
+                switchToView('initial');
+            });
+        }
+
+        if (paymentModalPayWithMobileMoneyBtn) {
+            paymentModalPayWithMobileMoneyBtn.addEventListener('click', function() {
+                switchToView('mobilemoney');
+            });
+        }
+        if (paymentModalMobileMoneyBackBtn) {
+            paymentModalMobileMoneyBackBtn.addEventListener('click', function() {
+                switchToView('initial');
+            });
+        }
+
+        if (paymentModalConfirmCashPaymentBtn) {
+            paymentModalConfirmCashPaymentBtn.addEventListener('click', function() {
+                const orderNumber = currentOrderData.orderNumber;
+                const amountToPay = currentOrderData.amountToPay;
+
+                // Basic validation for amount and order number
+                if (!orderNumber || typeof amountToPay !== 'number' || amountToPay < 0.01) { // Ensure amount is at least 0.01 for a payment
+                    paymentModalErrorAlert.textContent = 'Invalid order data or amount (must be at least 0.01). Cannot process payment.';
+                    paymentModalErrorAlert.classList.remove('d-none');
+                    // Ensure feather icons are re-rendered if an icon is in the error alert
+                    if (typeof feather !== 'undefined') {
+                        const errorIcon = paymentModalErrorAlert.querySelector('[data-feather]');
+                        if (errorIcon) feather.replace({ 'width': 16, 'height': 16 }); // Example: smaller icon
+                        else feather.replace();
+                    }
+                    return;
+                }
+                
+                let csrfToken = '';
+                // Try to get CSRF token from one of the forms on the page, robustly
+                const csrfInputs = document.querySelectorAll('input[name="csrfmiddlewaretoken"]');
+                if (csrfInputs.length > 0) {
+                    csrfToken = csrfInputs[0].value; // Take the first one found
+                }
+
+                if (!csrfToken) {
+                    paymentModalErrorAlert.innerHTML = '<i data-feather="alert-triangle" class="me-1"></i> CSRF token not found. Please refresh the page.';
+                    paymentModalErrorAlert.classList.remove('d-none');
+                    if (typeof feather !== 'undefined') feather.replace();
+                    showToast('CSRF token missing. Action prevented.', 'error');
+                    return;
+                }
+
+                const originalButtonText = paymentModalConfirmCashPaymentBtn.innerHTML;
+                paymentModalConfirmCashPaymentBtn.disabled = true;
+                paymentModalConfirmCashPaymentBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
+                paymentModalErrorAlert.classList.add('d-none'); // Clear previous errors
+
+                // Construct the URL using Django's URL template tag
+                // This now points to the existing 'process_cash_payment_modal' URL
+                const ajaxProcessingUrl = `{% url 'payments:process_cash_payment_modal' %}`;
+
+                $.ajax({
+                    url: ajaxProcessingUrl,
+                    type: "POST",
+                    data: {
+                        order_number: orderNumber,
+                        amount: amountToPay.toFixed(2),
+                        csrfmiddlewaretoken: csrfToken
+                    },
+                    dataType: "json",
+                    success: function(response) {
+                        if (response.status === 'success') {
+                            showToast(response.message || 'Cash payment confirmed!', 'success');
+                            // Update modal content to show success
+                            paymentModalCashView.innerHTML = `<div class="text-center py-3"><i data-feather="check-circle" class="text-success mb-2" style="width:48px; height:48px;"></i><p class="h5 mt-2">${response.message || 'Payment Confirmed!'}</p></div>`;
+                            if (typeof feather !== 'undefined') feather.replace(); // Re-render new feather icon
+                            
+                            // Hide other modal controls if necessary, then close modal and reload page
+                            setTimeout(function() {
+                                paymentModal.hide();
+                                window.location.reload(); // Reload to see updated order status, balance, etc.
+                            }, 2500); // Delay to allow user to see success message
+                        } else {
+                            // Handle business logic errors from the server
+                            paymentModalErrorAlert.innerHTML = `<i data-feather="alert-triangle" class="me-1"></i> ${response.message || 'An error occurred while processing payment.'}`;
+                            paymentModalErrorAlert.classList.remove('d-none');
+                            if (typeof feather !== 'undefined') feather.replace();
+                            showToast(response.message || 'Failed to confirm cash payment.', 'error');
+                            paymentModalConfirmCashPaymentBtn.disabled = false;
+                            paymentModalConfirmCashPaymentBtn.innerHTML = originalButtonText;
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        // Handle AJAX-level errors (network, server-side 500, etc.)
+                        let errorMsg = "An unexpected network or server error occurred. Please try again.";
+                        if (xhr.responseJSON && xhr.responseJSON.message) {
+                            errorMsg = xhr.responseJSON.message;
+                        } else if (xhr.responseText) { // Try to get more info if not JSON
+                            try {
+                                const errResponse = JSON.parse(xhr.responseText);
+                                if (errResponse.message) errorMsg = errResponse.message;
+                            } catch(e) { /* not JSON */ }
+                        } else if (xhr.statusText && xhr.statusText !== 'error') { // jQuery might set statusText to 'error' for HTTP errors
+                            errorMsg = `Error: ${xhr.statusText}`;
+                        }
+                        
+                        paymentModalErrorAlert.innerHTML = `<i data-feather="alert-triangle" class="me-1"></i> ${errorMsg}`;
+                        paymentModalErrorAlert.classList.remove('d-none');
+                        if (typeof feather !== 'undefined') feather.replace();
+                        showToast(errorMsg, 'error');
+                        paymentModalConfirmCashPaymentBtn.disabled = false;
+                        paymentModalConfirmCashPaymentBtn.innerHTML = originalButtonText;
+                    }
+                });
+            });
+        }
+
+        if (paymentModalProceedToPaystackBtn) {
+            paymentModalProceedToPaystackBtn.addEventListener('click', function() {
+                const orderNumber = currentOrderData.orderNumber;
+                const amountToPay = currentOrderData.amountToPay;
+                const mobileNumber = paymentModalMobileNumberInput.value.trim();
+
+                // Basic client-side validation
+                if (!orderNumber || typeof amountToPay !== 'number' || amountToPay < 0.01) {
+                    paymentModalErrorAlert.innerHTML = '<i data-feather="alert-triangle" class="me-1"></i> Invalid order data or amount.';
+                    paymentModalErrorAlert.classList.remove('d-none');
+                    if (typeof feather !== 'undefined') feather.replace();
+                    return;
+                }
+                if (!mobileNumber) {
+                    paymentModalErrorAlert.innerHTML = '<i data-feather="alert-triangle" class="me-1"></i> Mobile number is required.';
+                    paymentModalErrorAlert.classList.remove('d-none');
+                    if (typeof feather !== 'undefined') feather.replace();
+                    return;
+                }
+                // Simple regex for common Ghanaian number formats (can be enhanced)
+                // Allows 0XXXXXXXXX, +233XXXXXXXXX, 233XXXXXXXXX (after stripping +)
+                const ghPhoneRegex = /^(0|\+?233)?\d{9}$/;
+                let tempMobileNumber = mobileNumber;
+                if (mobileNumber.startsWith('+')) {
+                    tempMobileNumber = mobileNumber.substring(1); // Remove + for regex if it's +233...
+                }
+                if (!ghPhoneRegex.test(tempMobileNumber) && !/^\d{10}$/.test(mobileNumber) && !/^\d{12}$/.test(tempMobileNumber)) { // Test original and variants
+                     paymentModalErrorAlert.innerHTML = '<i data-feather="alert-triangle" class="me-1"></i> Invalid mobile number format. Use 0XXXXXXXXX or +233XXXXXXXXX.';
+                     paymentModalErrorAlert.classList.remove('d-none');
+                     if (typeof feather !== 'undefined') feather.replace();
+                     return;
+                }
+
+
+                let csrfToken = '';
+                const csrfInputs = document.querySelectorAll('input[name="csrfmiddlewaretoken"]');
+                if (csrfInputs.length > 0) {
+                    csrfToken = csrfInputs[0].value;
+                }
+
+                if (!csrfToken) {
+                    paymentModalErrorAlert.innerHTML = '<i data-feather="alert-triangle" class="me-1"></i> CSRF token not found. Please refresh.';
+                    paymentModalErrorAlert.classList.remove('d-none');
+                    if (typeof feather !== 'undefined') feather.replace();
+                    showToast('CSRF token missing. Action prevented.', 'error');
+                    return;
+                }
+
+                const originalButtonText = paymentModalProceedToPaystackBtn.innerHTML;
+                paymentModalProceedToPaystackBtn.disabled = true;
+                paymentModalProceedToPaystackBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Initializing...';
+                paymentModalErrorAlert.classList.add('d-none');
+
+                const ajaxPaystackUrl = `{% url 'payments:initiate_paystack_modal' %}`;
+
+                $.ajax({
+                    url: ajaxPaystackUrl,
+                    type: "POST",
+                    data: {
+                        order_number: orderNumber,
+                        amount: amountToPay.toFixed(2),
+                        mobile_number: mobileNumber,
+                        csrfmiddlewaretoken: csrfToken
+                    },
+                    dataType: "json",
+                    success: function(response) {
+                        if (response.status === 'success' && response.authorization_url) {
+                            paymentModalMobileMoneyView.innerHTML = `<div class="text-center py-3"><i data-feather="loader" class="text-primary mb-2" style="width:48px; height:48px;"></i><p class="h5 mt-2">Redirecting to Paystack...</p></div>`;
+                            if (typeof feather !== 'undefined') feather.replace();
+                            showToast('Redirecting to Paystack for payment.', 'info');
+                            setTimeout(function() {
+                                window.location.href = response.authorization_url;
+                            }, 1500);
+                        } else {
+                            const message = response.message || 'Failed to initialize Paystack payment. Please check details and try again.';
+                            paymentModalErrorAlert.innerHTML = `<i data-feather="alert-triangle" class="me-1"></i> ${message}`;
+                            paymentModalErrorAlert.classList.remove('d-none');
+                            if (typeof feather !== 'undefined') feather.replace();
+                            showToast(message, 'error');
+                            paymentModalProceedToPaystackBtn.disabled = false;
+                            paymentModalProceedToPaystackBtn.innerHTML = originalButtonText;
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        let errorMsg = "An unexpected error occurred while contacting payment gateway.";
+                        if (xhr.responseJSON && xhr.responseJSON.message) {
+                            errorMsg = xhr.responseJSON.message;
+                        } else if (xhr.responseText) {
+                            try { const errResp = JSON.parse(xhr.responseText); if(errResp.message) errorMsg = errResp.message; } catch(e){}
+                        } else if (xhr.statusText && xhr.statusText !== 'error') {
+                            errorMsg = `Error: ${xhr.statusText}`;
+                        }
+                        paymentModalErrorAlert.innerHTML = `<i data-feather="alert-triangle" class="me-1"></i> ${errorMsg}`;
+                        paymentModalErrorAlert.classList.remove('d-none');
+                        if (typeof feather !== 'undefined') feather.replace();
+                        showToast(errorMsg, 'error');
+                        paymentModalProceedToPaystackBtn.disabled = false;
+                        paymentModalProceedToPaystackBtn.innerHTML = originalButtonText;
+                    }
+                });
+            });
+        }
+    });
+</script>
+{% endblock extra_js %}

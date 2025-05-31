@@ -39,11 +39,24 @@
 }
 
 .toast-body {
-  padding: 1rem;
-  background: rgba(255, 255, 255, 0.95);
-  border-bottom-left-radius: 0.25rem;
+  padding: 1rem; /* Keep default padding */
+  /* The explicit background will be removed from the general .toast-body rule */
+  /* border-radius is fine if it's for all toasts, but Bootstrap handles this too */
+}
+
+/* Style for toast bodies that are part of Django messages (those with a toast-header) */
+.toast > .toast-header + .toast-body {
+  background: rgba(255, 255, 255, 0.95); /* Apply the light background */
+  color: #212529; /* Ensure dark text for contrast */
+  border-bottom-left-radius: 0.25rem; /* Keep these if desired for Django messages */
   border-bottom-right-radius: 0.25rem;
 }
+
+/* For dynamic toasts created by the showToast function: */
+/* Their .toast-body will not match the selector above. */
+/* They will inherit background from their parent .toast element (e.g., .bg-success) */
+/* and text color (e.g., .text-white) also from the parent .toast element. */
+/* Padding is covered by the general .toast-body rule or Bootstrap defaults. */
 
 .bg-success, .bg-danger, .bg-warning, .bg-info {
   color: white;

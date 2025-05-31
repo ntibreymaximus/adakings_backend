@@ -15,10 +15,12 @@ from django.db import transaction
 import traceback
 import datetime # Added import
 from django.utils import timezone # Ensure timezone is imported
+from decimal import Decimal
 
 from .models import Order, OrderItem, DELIVERY_FEES # Add DELIVERY_FEES here
 from .forms import OrderForm, OrderItemForm, OrderWithItemsForm
 from apps.menu.models import MenuItem
+from apps.payments.models import Payment
 
 
 class StaffRequiredMixin(UserPassesTestMixin):
@@ -143,6 +145,34 @@ class OrderDetailView(LoginRequiredMixin, StaffRequiredMixin, DetailView):
         
         status_choices_for_js = [{'value': choice[0], 'display': choice[1]} for choice in Order.STATUS_CHOICES]
         context['status_choices_json'] = json.dumps(status_choices_for_js)
+
+        # Calculate total payments and refunds
+        order = self.object
+        total_payments_received = order.payments.filter(
+            status=Payment.STATUS_COMPLETED,
+            payment_type=Payment.PAYMENT_TYPE_PAYMENT
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+
+        total_refunds_issued = order.payments.filter(
+            status=Payment.STATUS_COMPLETED,
+            payment_type=Payment.PAYMENT_TYPE_REFUND
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+
+        context['total_payments_received'] = total_payments_received
+        context['total_refunds_issued'] = total_refunds_issued
+        context['has_completed_refunds'] = order.payments.filter(
+            status=Payment.STATUS_COMPLETED,
+            payment_type=Payment.PAYMENT_TYPE_REFUND
+        ).exists()
+
+        # Determine if the refund button should be shown
+        is_overpaid = order.amount_overpaid() > Decimal('0.00')
+        # is_partially_paid = order.amount_paid() > Decimal('0.00') and order.balance_due() > Decimal('0.00') # No longer used directly for can_process_refund
+        
+        # Refund button should appear only if the order is OVERPAID
+        # and no refunds have been completed yet.
+        context['can_process_refund'] = is_overpaid and not context['has_completed_refunds']
+        context['show_overpaid_amount'] = is_overpaid # This variable is used to display the "Amount Overpaid" section
         
         return context
 

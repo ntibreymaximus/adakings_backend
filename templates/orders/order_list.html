@@ -145,6 +145,7 @@
             <td class="price-display">₵{{ order.total_price }}</td>
             <td class="text-end pe-3">
               <div class="btn-group">
+                
                 <a
                   href="{% url 'orders:order_detail' order.order_number %}"
                   class="btn btn-sm btn-primary view-order-items-btn"
@@ -165,10 +166,11 @@
                 </a>
                 <button
                   type="button"
-                  class="btn btn-sm btn-info update-status-btn"
+                  class="btn btn-sm btn-warning update-status-btn-list"
                   title="Update Status"
                   data-bs-toggle="modal"
-                  data-bs-target="#updateStatusModal"
+                  data-bs-target="#updateStatusModalList"
+                  data-order-pk="{{ order.pk }}"
                   data-order-number="{{ order.order_number }}"
                   data-current-status="{{ order.status }}"
                   data-delivery-type="{{ order.delivery_type }}"
@@ -192,69 +194,33 @@
 </div>
 {% endif %}
 
-
-<!-- Update Status Modal -->
-<div
-  class="modal fade"
-  id="updateStatusModal"
-  tabindex="-1"
-  aria-labelledby="updateStatusModalLabel"
-  aria-hidden="true"
->
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="updateStatusModalLabel">
-          Update Order Status
-        </h5>
-        <button
-          type="button"
-          class="btn-close"
-          data-bs-dismiss="modal"
-          aria-label="Close"
-        ></button>
-      </div>
-      <div class="modal-body">
-        <form id="updateStatusForm">
-          <p class="text-muted mb-3">
-            Change the status of this order. Ensure you select the correct
-            status based on the current order state.
-            <input type="hidden" id="modalOrderNumberInput" name="order_number" />
-          </p>
-
-          <div class="mb-3">
-            <label for="modalOrderStatusSelect" class="form-label"
-              >New Status:</label
-            >
-            <select
-              class="form-select"
-              id="modalOrderStatusSelect"
-              name="status"
-            >
-              <!-- Options will be populated by JavaScript -->
-            </select>
-          </div>
-          <div
-            id="modalStatusError"
-            class="text-danger mt-2"
-            style="display: none"
-          ></div>
-        </form>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-          Cancel
-        </button>
-        <button
-          type="button"
-          class="btn btn-primary"
-          id="saveOrderStatusButton"
-        >
-          Save Status
-        </button>
-      </div>
+<!-- Update Status Modal (List Page) -->
+<div class="modal fade" id="updateStatusModalList" tabindex="-1" aria-labelledby="updateStatusModalListLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form id="updateStatusFormList">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="updateStatusModalListLabel">Update Order Status for #<span id="modalOrderNumberSpanList"></span></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="statusUpdateErrorAlertList" class="alert alert-danger d-none" role="alert"></div>
+                    <input type="hidden" id="modalOrderPkInputList" name="order_pk">
+                    <div class="mb-3">
+                        <label for="newStatusSelectList" class="form-label">New Status</label>
+                        <select class="form-select" id="newStatusSelectList" name="status" required>
+                            <!-- Options will be populated by JavaScript -->
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary" id="submitStatusUpdateBtnList">Save Changes</button>
+                </div>
+            </form>
+        </div>
     </div>
-  </div>
 </div>
 
 {% endblock orders_content %} {% block extra_js %} {{ block.super }}
@@ -441,150 +407,185 @@
       });
     });
 
-    // --- New JavaScript for Update Status Modal ---
-    const updateStatusModalElement =
-      document.getElementById("updateStatusModal");
-    if (updateStatusModalElement) {
-      const modalOrderPkInput = document.getElementById("modalOrderPkInput");
-      const modalOrderStatusSelect = document.getElementById(
-        "modalOrderStatusSelect"
-      );
-      const saveOrderStatusButton = document.getElementById(
-        "saveOrderStatusButton"
-      );
-      const modalStatusError = document.getElementById("modalStatusError");
-      const csrfToken =
-        document.querySelector('input[name="csrfmiddlewaretoken"]')?.value ||
-        "{{ csrf_token }}"; // Get CSRF token
+    // --- Start: Update Status Modal JavaScript (List Page) ---
 
-      let allStatusChoices = []; // Keep for fallback
-      try {
-        const statusChoicesData = {% if status_choices_json %}{{ status_choices_json|safe }}{% else %}[]{% endif %};
-        if (Array.isArray(statusChoicesData)) {
-          allStatusChoices = statusChoicesData;
-        } else {
-          // Log what was received if it's not an array, but only if it's not undefined/null from context
-          // as {{ undefined_var|safe }} would just be empty and cause a JS syntax error.
-          // If status_choices_json is not in context, {{ status_choices_json|safe }} might render as empty string.
-          // An empty string is not valid JS literal here. It should be '[]' or null from json.dumps.
-          // Assuming json.dumps always produces valid JSON string, which when |safe'd is valid JS.
-          console.error("status_choices_json from template did not result in a JavaScript array.", typeof statusChoicesData, statusChoicesData);
-        }
-      } catch (e) {
-        // This catch block would be for syntax errors if {{ status_choices_json|safe }} renders invalid JS.
-        console.error("Syntax error initializing allStatusChoices from {{ status_choices_json|safe }}. Ensure status_choices_json is in context and is a valid JSON string from json.dumps(). Error:", e);
-        // For robust debugging, might log the problematic string if possible, though harder in a catch for syntax error.
-        // console.log("Problematic template output for status_choices_json: " + "{{ status_choices_json|escapejs }}"); // Use escapejs for logging the string itself
-      }
-
-      updateStatusModalElement.addEventListener(
-        "show.bs.modal",
-        function (event) {
-          const button = event.relatedTarget;
-          const orderNumber = button.dataset.orderNumber;
-          const currentStatus = button.dataset.currentStatus;
-          const deliveryType = button.dataset.deliveryType;
-
-          if (document.getElementById('modalOrderNumberInput')) document.getElementById('modalOrderNumberInput').value = orderNumber;
-
-          if (modalOrderStatusSelect) {
-          if (modalOrderStatusSelect) {
-            modalOrderStatusSelect.innerHTML = "";
-            allStatusChoices.forEach((choice) => {
-              if (
-                deliveryType === "Pickup" &&
-                choice.value === "Out for Delivery"
-              ) {
-                return;
-              }
-              const option = document.createElement("option");
-              option.value = choice.value;
-              option.textContent = choice.display;
-              if (choice.value === currentStatus) {
-                option.selected = true;
-              }
-              modalOrderStatusSelect.appendChild(option);
-            });
-          }
-          if (modalStatusError) modalStatusError.style.display = "none";
-        }
-      );
-
-      if (saveOrderStatusButton) {
-        saveOrderStatusButton.addEventListener("click", async function () {
-          const orderNumber = document.getElementById('modalOrderNumberInput') ? document.getElementById('modalOrderNumberInput').value : null;
-          const newStatus = modalOrderStatusSelect
-            ? modalOrderStatusSelect.value
-            : null;
-
-          if (!orderNumber || !newStatus) {
-            if (modalStatusError) {
-              modalStatusError.textContent =
-                "Error: Order ID or status not found.";
-              modalStatusError.style.display = "block";
-            }
+    // Toast Notification Helper Function
+    function showToast(message, type = 'info') {
+        const toastContainer = document.querySelector('.toast-container');
+        if (!toastContainer) {
+            console.error('Toast container not found.');
+            alert(`${type.toUpperCase()}: ${message}`);
             return;
-          }
+        }
+        const toastId = 'toast-' + Date.now();
+        let bgColorClass = 'bg-info'; let iconName = 'info';
+        if (type.toLowerCase() === 'success') { bgColorClass = 'bg-success'; iconName = 'check-circle'; }
+        else if (type.toLowerCase() === 'error') { bgColorClass = 'bg-danger'; iconName = 'alert-triangle'; }
+        else if (type.toLowerCase() === 'warning') { bgColorClass = 'bg-warning'; iconName = 'alert-circle'; }
 
-          const updateUrl = `/orders/${orderNumber}/ajax_update_status/`;
-
-          try {
-            const response = await fetch(updateUrl, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/x-www-form-urlencoded",
-                "X-CSRFToken": csrfToken,
-              },
-              body: `status=${encodeURIComponent(newStatus)}`,
-            });
-
-            const data = await response.json();
-
-            if (data.success) {
-              const orderRow = document
-                .querySelector(
-                  `button.update-status-btn[data-order-number="${data.order_number}"]`
-                )
-                ?.closest("tr");
-              if (orderRow) {
-                const statusBadge = orderRow.querySelector(
-                  "td:nth-child(3) span.badge"
-                );
-                if (statusBadge) {
-                  statusBadge.textContent = data.new_status_display;
-                  statusBadge.className =
-                    "badge py-2 px-3 " + data.new_status_badge_class;
-                }
-                const updateButton = orderRow.querySelector(
-                  `.update-status-btn[data-order-number="${data.order_number}"]`
-                );
-                if (updateButton) {
-                  updateButton.dataset.currentStatus = data.new_status_value;
-                }
-              }
-
-              const modalInstance = bootstrap.Modal.getInstance(
-                updateStatusModalElement
-              );
-              if (modalInstance) modalInstance.hide();
-            } else {
-              if (modalStatusError) {
-                modalStatusError.textContent =
-                  data.errors || "Failed to update status.";
-                modalStatusError.style.display = "block";
-              }
-            }
-          } catch (error) {
-            console.error("Error updating status:", error);
-            if (modalStatusError) {
-              modalStatusError.textContent =
-                "An unexpected error occurred. Please try again.";
-              modalStatusError.style.display = "block";
-            }
-          }
-        });
-      }
+        const toastHTML = `
+            <div id="${toastId}" class="toast align-items-center text-white ${bgColorClass} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+                <div class="d-flex">
+                    <div class="toast-body"><i data-feather="${iconName}" class="me-2"></i> ${message}</div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+            </div>`;
+        toastContainer.insertAdjacentHTML('beforeend', toastHTML);
+        const toastElement = document.getElementById(toastId);
+        const bsToast = new bootstrap.Toast(toastElement, { delay: 5000 });
+        if (typeof feather !== 'undefined') { feather.replace(); } // Make sure new feather icons in toasts are rendered
+        bsToast.show();
+        toastElement.addEventListener('hidden.bs.toast', function () { toastElement.remove(); });
     }
+
+    const updateStatusModalElementList = document.getElementById('updateStatusModalList');
+    if (updateStatusModalElementList) {
+        const updateStatusModalList = new bootstrap.Modal(updateStatusModalElementList);
+        const updateStatusFormList = document.getElementById('updateStatusFormList');
+        const newStatusSelectList = document.getElementById('newStatusSelectList');
+        const statusUpdateErrorAlertList = document.getElementById('statusUpdateErrorAlertList');
+        const modalOrderPkInputList = document.getElementById('modalOrderPkInputList');
+        const modalOrderNumberSpanList = document.getElementById('modalOrderNumberSpanList');
+
+        updateStatusModalElementList.addEventListener('show.bs.modal', function (event) {
+            const button = event.relatedTarget;
+            const orderPk = button.getAttribute('data-order-pk');
+            const orderNumber = button.getAttribute('data-order-number');
+            const currentStatus = button.getAttribute('data-current-status');
+            const deliveryType = button.getAttribute('data-delivery-type');
+
+            if(modalOrderNumberSpanList) modalOrderNumberSpanList.textContent = orderNumber;
+            if(modalOrderPkInputList) modalOrderPkInputList.value = orderPk;
+            
+            newStatusSelectList.innerHTML = ''; // Clear previous options
+            statusUpdateErrorAlertList.classList.add('d-none');
+            statusUpdateErrorAlertList.textContent = '';
+
+            try {
+                // IMPORTANT: {{ status_choices_json|safe }} must be available in the context for order_list.html
+                const statusChoices = {% if status_choices_json %}{{ status_choices_json|safe }}{% else %}[]{% endif %};
+
+                if (Array.isArray(statusChoices)) {
+                    statusChoices.forEach(choice => {
+                        const option = document.createElement('option');
+                        option.value = choice.value;
+                        option.textContent = choice.display;
+                        if (choice.value === currentStatus) {
+                            option.selected = true;
+                        }
+                        // Skip "Out for Delivery" for "Pickup" orders
+                        if (deliveryType === 'Pickup' && choice.value === 'Out for Delivery') {
+                            return; 
+                        }
+                        newStatusSelectList.appendChild(option);
+                    });
+                } else {
+                    console.error('status_choices_json (list page) is not an array or is malformed:', statusChoices);
+                    statusUpdateErrorAlertList.textContent = 'Error: Could not load status options.';
+                    statusUpdateErrorAlertList.classList.remove('d-none');
+                }
+            } catch (e) {
+                console.error('Error parsing status_choices_json (list page):', e);
+                statusUpdateErrorAlertList.textContent = 'Error: Could not parse status options data.';
+                statusUpdateErrorAlertList.classList.remove('d-none');
+            }
+        });
+
+        updateStatusFormList.addEventListener('submit', function (event) {
+            event.preventDefault();
+            statusUpdateErrorAlertList.classList.add('d-none');
+            statusUpdateErrorAlertList.textContent = '';
+
+            const orderPk = modalOrderPkInputList.value;
+            const selectedStatusValue = newStatusSelectList.value;
+            const csrfTokenInput = this.querySelector('input[name="csrfmiddlewaretoken"]');
+            if (!csrfTokenInput) {
+                console.error('CSRF token input not found in modal form.');
+                statusUpdateErrorAlertList.textContent = 'Error: Missing security token.';
+                statusUpdateErrorAlertList.classList.remove('d-none');
+                return;
+            }
+            const csrfToken = csrfTokenInput.value;
+            const submitButton = document.getElementById('submitStatusUpdateBtnList');
+            const originalButtonText = submitButton.innerHTML;
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...';
+            
+            // Retrieve the order_number from the modal's title span (already populated from button's data-order-number)
+            const orderNumberForUrl = modalOrderNumberSpanList.textContent; 
+            
+            // Define a base URL template using the Django url tag with a placeholder
+            // Note: "000_ORDER_NUMBER_PLACEHOLDER_000" is a unique placeholder string.
+            const baseUrlForUpdate = "{% url 'orders:ajax_order_status_update' order_number="000_ORDER_NUMBER_PLACEHOLDER_000" %}"; 
+            
+            // Replace the placeholder with the actual order number
+            let updateUrl = baseUrlForUpdate.replace("000_ORDER_NUMBER_PLACEHOLDER_000", orderNumberForUrl);
+
+            $.ajax({
+                url: updateUrl,
+                type: 'POST',
+                data: {
+                    'status': selectedStatusValue,
+                    'csrfmiddlewaretoken': csrfToken
+                },
+                success: function (response) {
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = originalButtonText;
+                    if (response.success) {
+                        showToast(response.message || 'Order status updated successfully!', 'success');
+                        updateStatusModalList.hide();
+                        
+                        // Update the status badge in the table
+                        const row = document.querySelector(`button.update-status-btn-list[data-order-pk="${orderPk}"]`)?.closest('tr');
+                        if (row) {
+                            const statusBadgeContainer = row.querySelector('td:nth-child(3)'); // 3rd column for status
+                            if (statusBadgeContainer && response.new_status_badge_html) {
+                                statusBadgeContainer.innerHTML = response.new_status_badge_html;
+                            } else if (statusBadgeContainer && response.new_status_display) { // Fallback if new_status_badge_html is not sent
+                                 // Basic update if specific badge HTML isn't provided by server
+                                 let newBadgeHtml = `<span class="badge py-2 px-3 bg-secondary">${response.new_status_display}</span>`; // Default/fallback
+                                 // You might want to replicate the logic from the template for status-specific classes
+                                 // For simplicity, this example uses a generic badge or relies on server sending full HTML
+                                 if (response.new_status_value === "Pending") newBadgeHtml = `<span class="badge status-pending py-2 px-3">${response.new_status_display}</span>`;
+                                 else if (response.new_status_value === "Accepted") newBadgeHtml = `<span class="badge status-confirmed py-2 px-3">${response.new_status_display}</span>`;
+                                 else if (response.new_status_value === "Ready") newBadgeHtml = `<span class="badge status-ready py-2 px-3">${response.new_status_display}</span>`;
+                                 else if (response.new_status_value === "Out for Delivery") newBadgeHtml = `<span class="badge status-processing py-2 px-3">${response.new_status_display}</span>`;
+                                 else if (response.new_status_value === "Fulfilled") newBadgeHtml = `<span class="badge status-delivered py-2 px-3">${response.new_status_display}</span>`;
+                                 else if (response.new_status_value === "Cancelled") newBadgeHtml = `<span class="badge status-cancelled py-2 px-3">${response.new_status_display}</span>`;
+                                 statusBadgeContainer.innerHTML = newBadgeHtml;
+                            }
+                            // Update the button's data-current-status attribute
+                            const updateButton = row.querySelector(`button.update-status-btn-list[data-order-pk="${orderPk}"]`);
+                            if (updateButton && response.new_status_value) {
+                                updateButton.setAttribute('data-current-status', response.new_status_value);
+                            }
+                        }
+                    } else {
+                        statusUpdateErrorAlertList.textContent = response.error || 'Failed to update status. Please try again.';
+                        statusUpdateErrorAlertList.classList.remove('d-none');
+                        showToast(response.error || 'Failed to update status.', 'error');
+                    }
+                },
+                error: function (xhr) {
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = originalButtonText;
+                    let errorMsg = 'An error occurred. Please try again.';
+                    if (xhr.responseJSON && xhr.responseJSON.error) {
+                        errorMsg = xhr.responseJSON.error;
+                    } else if (xhr.responseText) {
+                        try {
+                            const parsedError = JSON.parse(xhr.responseText);
+                            if(parsedError && parsedError.error) errorMsg = parsedError.error;
+                        } catch(e) { /* ignore parsing error, use default */ }
+                    }
+                    statusUpdateErrorAlertList.textContent = errorMsg;
+                    statusUpdateErrorAlertList.classList.remove('d-none');
+                    showToast(errorMsg, 'error');
+                }
+            });
+        });
+    }
+    // --- End: Update Status Modal JavaScript (List Page) ---
 
     if (typeof feather !== "undefined") {
       feather.replace({ width: '1em', height: '1em', 'stroke-width': 2 });
