@@ -1,5 +1,5 @@
 """
-ASGI config for restaurant_frontdesk project.
+ASGI config for Restaurant Management System (adakings_backend project).
 
 It exposes the ASGI callable as a module-level variable named ``application``.
 
@@ -11,6 +11,6 @@ import os
 
 from django.core.asgi import get_asgi_application
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'restaurant_frontdesk.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'adakings_backend.settings')
 
 application = get_asgi_application()

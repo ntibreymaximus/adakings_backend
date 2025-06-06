@@ -1,4 +1,4 @@
-# Restaurant Front Desk System
+# Adakings Backend System
 
 A full-stack restaurant management system built with Django, focusing on streamlining front desk operations for restaurants including reservations, order management, menu handling, and customer service.
 
@@ -24,7 +24,7 @@ This system aims to provide restaurants with an all-in-one solution to manage:
 1. **Clone the repository**
    ```
    git clone <repository-url>
-   cd RestaurantApp
+   cd adakings_backend
    ```
 
 2. **Create and activate a virtual environment**
@@ -78,44 +78,86 @@ This system aims to provide restaurants with an all-in-one solution to manage:
 ## Project Structure
 
 ```
-RestaurantApp/
+adakings_backend/
 │
-├── restaurant_frontdesk/      # Main project directory
+├── adakings_backend/         # Main Django project directory
 │   ├── settings.py            # Project settings
 │   ├── urls.py                # Main URL routing
 │   ├── wsgi.py                # WSGI configuration
-│   └── asgi.py                # ASGI configuration
+│   ├── asgi.py                # ASGI configuration
+│   └── __init__.py            # Python package marker
 │
 ├── apps/                      # Applications directory
-│   ├── users/                 # User management
+│   ├── __init__.py            # Python package marker
 │   ├── menu/                  # Menu management
+│   │   ├── migrations/        # Database migrations
+│   │   ├── admin.py           # Admin interface configuration
+│   │   ├── apps.py            # App configuration
+│   │   ├── forms.py           # Forms for data input
+│   │   ├── models.py          # Database models
+│   │   ├── tests.py           # Unit tests
+│   │   ├── urls.py            # URL routing
+│   │   ├── views.py           # View functions/classes
+│   │   └── __init__.py        # Python package marker
 │   ├── orders/                # Order processing
+│   │   ├── management/        # Custom management commands
+│   │   │   └── commands/      # Management command files
+│   │   ├── migrations/        # Database migrations
+│   │   ├── templatetags/      # Custom template tags
+│   │   ├── admin.py           # Admin interface configuration
+│   │   ├── apps.py            # App configuration
+│   │   ├── forms.py           # Forms for data input
+│   │   ├── models.py          # Database models
+│   │   ├── signals.py         # Django signals
+│   │   ├── tests.py           # Unit tests
+│   │   ├── urls.py            # URL routing
+│   │   ├── views.py           # View functions/classes
+│   │   └── __init__.py        # Python package marker
 │   ├── payments/              # Payment handling
-│   ├── delivery/              # Delivery management
-│   └── desk/                  # Front desk operations
+│   │   ├── migrations/        # Database migrations
+│   │   ├── admin.py           # Admin interface configuration
+│   │   ├── apps.py            # App configuration
+│   │   ├── models.py          # Database models
+│   │   ├── tests.py           # Unit tests
+│   │   ├── urls.py            # URL routing
+│   │   ├── views.py           # View functions/classes
+│   │   └── __init__.py        # Python package marker
+│   └── users/                 # User management
+│       ├── migrations/        # Database migrations
+│       ├── admin.py           # Admin interface configuration
+│       ├── apps.py            # App configuration
+│       ├── models.py          # Database models
+│       ├── tests.py           # Unit tests
+│       ├── urls.py            # URL routing
+│       ├── views.py           # View functions/classes
+│       └── __init__.py        # Python package marker
 │
 ├── templates/                 # HTML templates
-│   ├── base.html             # Base template
-│   └── ...
+│   ├── menu/                  # Menu-related templates
+│   ├── orders/                # Order-related templates
+│   ├── payments/              # Payment-related templates
+│   └── users/                 # User-related templates
+│       └── dashboards/        # Dashboard templates
 │
 ├── static/                    # Static files (CSS, JS, images)
-│   ├── css/
-│   ├── js/
-│   └── images/
+│   └── css/                   # Stylesheets
 │
-├── media/                     # User-uploaded files
+├── venv/                      # Virtual environment (excluded from git)
 │
-├── manage.py                  # Django management script
-├── requirements.txt           # Project dependencies
+├── .env                       # Environment variables (excluded from git)
+├── .env.example               # Environment variables template
 ├── .gitignore                 # Git ignore file
+├── CHANGELOG.md               # Project changelog
+├── db.sqlite3                 # SQLite database (development)
+├── manage.py                  # Django management script
 └── README.md                  # This file
 ```
 
 ## Development State
 
-- **Current Version**: v0.5.0
-- **Current Branch**: feature/v0.4.0-payments-implementation
-- **Development Stage**: Comprehensive refactoring, UI theme unification, and feature enhancements.
+- **Current Version**: v0.6.0
+- **Current Branch**: feature/v0.6.0-codebase-restructuring
+- **Development Stage**: Advanced codebase restructuring, optimization, and architectural improvements for enhanced scalability and maintainability.
 
 ### Version History
 
