@@ -98,6 +98,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Version bump script encoding issues on Windows
 - Production README version badge updates
 
+## [1.0.3] - 2025-06-30
+
+### Removed
+- Development-specific files removed from production branch
+- .env.example (development version) replaced with production template
+- Django forms files (not needed for API-only architecture)
+- Template tags and development utilities
+- Development test files and debug scripts
+- Old monolithic settings.py replaced with modular settings
+
+### Changed
+- Production branch now contains only production-relevant files
+- Settings architecture simplified for production-only loading
+- requirements.txt now contains complete production dependencies
+- deploy.sh updated for streamlined file structure
+- bump_version.py updated for production branch structure
+
+### Improved
+- Clean separation between development and production environments
+- Reduced deployment footprint and security surface
+- Simplified production maintenance and updates
+
 ## Unreleased
 
 ### Planned for v1.1.0 (Minor)
