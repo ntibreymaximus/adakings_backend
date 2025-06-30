@@ -117,15 +117,15 @@ print("🚀 Production environment loaded (production branch)")''',
                         "description": "Development environment template"
                     },
                     "README.md": {
-                        "source": "README-DEVELOPMENT.md",
+                        "source": "README.md",  # Use existing README
                         "description": "Development documentation"
                     },
                     "CHANGELOG.md": {
-                        "source": "CHANGELOG-DEVELOPMENT.md", 
+                        "source": "CHANGELOG.md",  # Use existing CHANGELOG
                         "description": "Development changelog"
                     },
                     "requirements.txt": {
-                        "source": "requirements-development.txt",
+                        "source": "requirements.txt",  # Use existing requirements
                         "description": "Development dependencies"
                     },
                     "adakings_backend/settings/__init__.py": {
@@ -684,6 +684,7 @@ else:
         self.log_info(f"Setting up {env_type} environment files...")
         
         # Process file configurations
+        # Ensure all file operations are handled properly to avoid WinError 32
         for dest_path, file_config in config["files"].items():
             dest = self.base_dir / dest_path
             
@@ -692,11 +693,19 @@ else:
                 source = self.base_dir / file_config["source"]
                 if source.exists():
                     dest.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.copy2(source, dest)
-                    self.log_info(f"✓ {file_config['description']}: {dest_path}")
+                    try:
+                        shutil.copy2(source, dest)
+                        self.log_info(f"✓ {file_config['description']}: {dest_path}")
+                    except PermissionError as e:
+                        self.log_warning(f"Permission error copying {source} to {dest}: {e}")
+                        # Try alternative method
+                        with source.open('rb') as src_file:
+                            with dest.open('wb') as dest_file:
+                                shutil.copyfileobj(src_file, dest_file)
+                        self.log_info(f"✓ {file_config['description']}: {dest_path} (alternative method)")
                 else:
                     self.log_warning(f"Source file not found: {source}")
-            
+                
             elif "content" in file_config:
                 # Write content directly
                 dest.parent.mkdir(parents=True, exist_ok=True)
