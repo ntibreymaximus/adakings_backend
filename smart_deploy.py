@@ -718,11 +718,14 @@ else:
         else:
             env_type = "development"
         
-        # Determine target branch
+        # Version management first to get the new version
+        new_version = self.version_management(target_env, bump_type)
+        
+        # Determine target branch (with version for dev-test)
         if target_env == "production":
             target_branch = "production"
         elif target_env == "dev-test":
-            target_branch = "dev-test"
+            target_branch = f"dev-test/{new_version}"
         elif target_env in ["dev", "development"]:
             target_branch = "dev"
         else:
@@ -735,9 +738,6 @@ else:
             # Pre-deployment checks
             if not self.deployment_checks(target_env):
                 raise Exception("Pre-deployment checks failed")
-            
-            # Version management
-            new_version = self.version_management(target_env, bump_type)
             
             # Switch to target branch
             if not self.switch_branch(target_branch):
