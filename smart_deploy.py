@@ -1338,9 +1338,9 @@ ENABLE_DEBUG_TOOLBAR=True
                 current_version = remote_version
                 self.log_info(f"📡 Using highest remote version for dev-test: {current_version}")
             else:
-                # No remote version found, start from 1.0.0
-                current_version = "1.0.0"
-                self.log_info(f"📂 No remote dev-test branches found, starting from: {current_version}")
+                # No remote version found, start from 0.9.0 so increment becomes 1.0.0
+                current_version = "0.9.0"
+                self.log_info(f"📂 No remote dev-test branches found, will create dev-test/1.0.0")
         else:
             version_type = "features"
             if target_env.startswith("feature/"):
@@ -1350,9 +1350,9 @@ ENABLE_DEBUG_TOOLBAR=True
                     current_version = remote_version
                     self.log_info(f"📡 Using highest remote version for feature branches: {current_version}")
                 else:
-                    # No remote version found, start from 1.0.0
-                    current_version = "1.0.0"
-                    self.log_info(f"📂 No remote feature branches found, starting from: {current_version}")
+                    # No remote version found, start from 0.9.0 so increment becomes 1.0.0
+                    current_version = "0.9.0"
+                    self.log_info(f"📂 No remote feature branches found, will create {target_env}-1.0.0")
             else:
                 current_version = self.read_version(version_type)
         
