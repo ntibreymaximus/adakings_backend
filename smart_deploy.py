@@ -253,21 +253,74 @@ else:
         
         self.log_success("Backup restored")
     
-    def read_version(self):
-        """Read current version from VERSION file"""
-        version_file = self.base_dir / "VERSION"
-        if not version_file.exists():
-            self.log_warning("VERSION file not found, creating v1.0.0")
-            version_file.write_text("1.0.0\n")
-            return "1.0.0"
-        
-        version = version_file.read_text().strip()
+    def get_latest_version_for_branch_type(self, branch_type):
+        """Get latest version for specific branch type from git tags/branches"""
         import re
-        if not re.match(r'^\d+\.\d+\.\d+$', version):
-            self.log_error(f"Invalid version format: {version}")
-            return None
         
-        return version
+        try:
+            if branch_type == "production":
+                # For production, check git tags
+                result = self.run_command("git tag --list --sort=-version:refname", check=False)
+                if result and result.stdout.strip():
+                    tags = result.stdout.strip().split('\n')
+                    for tag in tags:
+                        if re.match(r'^v?\d+\.\d+\.\d+$', tag):
+                            return tag.lstrip('v')
+                return "1.0.0"  # Default for production
+            
+            elif branch_type == "dev-test":
+                # For dev-test, check dev-test/* branches
+                result = self.run_command("git branch -r --list 'origin/dev-test/*' --sort=-version:refname", check=False)
+                if result and result.stdout.strip():
+                    branches = result.stdout.strip().split('\n')
+                    for branch in branches:
+                        branch_name = branch.strip().replace('origin/', '')
+                        version_part = branch_name.split('/')[-1]
+                        if re.match(r'^\d+\.\d+\.\d+$', version_part):
+                            return version_part
+                return "1.0.0"  # Default for dev-test
+            
+            elif branch_type.startswith("feature/"):
+                # For feature branches, check feature/name/* branches
+                feature_name = branch_type.split('/', 1)[1]
+                pattern = f"origin/feature/{feature_name}/*"
+                result = self.run_command(f"git branch -r --list '{pattern}' --sort=-version:refname", check=False)
+                if result and result.stdout.strip():
+                    branches = result.stdout.strip().split('\n')
+                    for branch in branches:
+                        branch_name = branch.strip().replace('origin/', '')
+                        version_part = branch_name.split('/')[-1]
+                        if re.match(r'^\d+\.\d+\.\d+$', version_part):
+                            return version_part
+                return "0.1.0"  # Default for feature branches
+            
+            else:
+                # For dev/development, check dev/* branches or fall back to VERSION file
+                result = self.run_command("git branch -r --list 'origin/dev/*' --sort=-version:refname", check=False)
+                if result and result.stdout.strip():
+                    branches = result.stdout.strip().split('\n')
+                    for branch in branches:
+                        branch_name = branch.strip().replace('origin/', '')
+                        version_part = branch_name.split('/')[-1]
+                        if re.match(r'^\d+\.\d+\.\d+$', version_part):
+                            return version_part
+                
+                # Fall back to VERSION file for dev
+                version_file = self.base_dir / "VERSION"
+                if version_file.exists():
+                    version = version_file.read_text().strip()
+                    if re.match(r'^\d+\.\d+\.\d+$', version):
+                        return version
+                
+                return "0.1.0"  # Default for dev
+                
+        except Exception as e:
+            self.log_warning(f"Could not determine version from git: {e}")
+            return "1.0.0"
+    
+    def read_version(self, branch_type="production"):
+        """Read current version based on branch type"""
+        return self.get_latest_version_for_branch_type(branch_type)
     
     def bump_version(self, bump_type, current_version):
         """Bump version based on type"""
@@ -680,7 +733,17 @@ else:
     
     def version_management(self, target_env, bump_type):
         """Manage version bump for the deployment"""
-        current_version = self.read_version()
+        # Get branch type for version tracking
+        if target_env == "production":
+            branch_type = "production"
+        elif target_env == "dev-test":
+            branch_type = "dev-test"
+        elif target_env.startswith("feature/"):
+            branch_type = target_env  # feature/name
+        else:
+            branch_type = "development"
+        
+        current_version = self.read_version(branch_type)
         if not current_version:
             raise Exception("Failed to read current version")
         
@@ -720,15 +783,17 @@ else:
         # Version management first to get the new version
         new_version = self.version_management(target_env, bump_type)
         
-        # Determine target branch (with version for dev-test)
+        # Determine target branch (with version for dev-test and feature branches)
         if target_env == "production":
             target_branch = "production"
         elif target_env == "dev-test":
             target_branch = f"dev-test/{new_version}"
         elif target_env in ["dev", "development"]:
-            target_branch = "dev"
+            target_branch = f"dev/{new_version}"  # Versioned dev branches
+        elif target_env.startswith("feature/"):
+            target_branch = f"{target_env}/{new_version}"  # Versioned feature branches
         else:
-            target_branch = target_env  # feature branches
+            target_branch = target_env
         
         try:
             # Backup current state
