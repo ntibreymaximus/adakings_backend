@@ -692,6 +692,11 @@ else:
                 # Copy from source file
                 source = self.base_dir / file_config["source"]
                 if source.exists():
+                    # Check if source and destination are the same file
+                    if source.resolve() == dest.resolve():
+                        self.log_info(f"✓ {file_config['description']}: {dest_path} (already in place)")
+                        continue
+                    
                     dest.parent.mkdir(parents=True, exist_ok=True)
                     try:
                         shutil.copy2(source, dest)
@@ -699,10 +704,13 @@ else:
                     except PermissionError as e:
                         self.log_warning(f"Permission error copying {source} to {dest}: {e}")
                         # Try alternative method
-                        with source.open('rb') as src_file:
-                            with dest.open('wb') as dest_file:
-                                shutil.copyfileobj(src_file, dest_file)
-                        self.log_info(f"✓ {file_config['description']}: {dest_path} (alternative method)")
+                        try:
+                            with source.open('rb') as src_file:
+                                with dest.open('wb') as dest_file:
+                                    shutil.copyfileobj(src_file, dest_file)
+                            self.log_info(f"✓ {file_config['description']}: {dest_path} (alternative method)")
+                        except Exception as alt_e:
+                            self.log_error(f"Failed to copy {source} to {dest}: {alt_e}")
                 else:
                     self.log_warning(f"Source file not found: {source}")
                 
