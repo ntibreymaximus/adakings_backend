@@ -54,10 +54,10 @@ def bump_version(bump_type):
     return new_version
 
 def update_readme_production(new_version):
-    """Update version in README-PRODUCTION.md."""
-    readme_file = Path("README-PRODUCTION.md")
+    """Update version in README.md (production)."""
+    readme_file = Path("README.md")
     if not readme_file.exists():
-        print("WARNING: README-PRODUCTION.md not found, skipping update")
+        print("WARNING: README.md not found, skipping update")
         return
     
     content = readme_file.read_text(encoding='utf-8')
@@ -77,7 +77,7 @@ def update_readme_production(new_version):
     )
     
     readme_file.write_text(content, encoding='utf-8')
-    print(f"✅ Updated README-PRODUCTION.md with version {new_version}")
+    print(f"✅ Updated README.md with version {new_version}")
 
 def main():
     if len(sys.argv) != 2:
@@ -112,7 +112,7 @@ def main():
     update_readme_production(new_version)
     
     print("\n📋 Next steps:")
-    print("1. Update CHANGELOG-PRODUCTION.md with changes")
+    print("1. Update CHANGELOG.md with changes")
     print("2. Commit changes: git add . && git commit -m 'bump: version to v{}'".format(new_version))
     print("3. Create git tag: git tag v{}".format(new_version))
     print("4. Push changes: git push origin production --tags")

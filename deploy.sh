@@ -53,17 +53,14 @@ log_success "Directory structure created"
 # Navigate to project directory
 cd $PROJECT_DIR
 
-# Check if .env.production exists
-if [ ! -f ".env.production" ]; then
-    log_error ".env.production file not found!"
-    log_info "Please create .env.production with your production configuration"
+# Check if .env file exists
+if [ ! -f ".env" ]; then
+    log_error ".env file not found!"
+    log_info "Please copy .env.example to .env and configure with your production values"
     exit 1
 fi
 
-# Copy production environment
-log_info "Setting up production environment..."
-cp .env.production .env
-log_success "Production environment configured"
+log_info "Production environment file found"
 
 # Activate virtual environment
 log_info "Activating virtual environment..."
@@ -73,7 +70,7 @@ log_success "Virtual environment activated"
 # Install/update dependencies
 log_info "Installing production dependencies..."
 pip install --upgrade pip
-pip install -r requirements-production.txt
+pip install -r requirements.txt
 log_success "Dependencies installed"
 
 # Set Django settings for production

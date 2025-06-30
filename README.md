@@ -1,285 +1,214 @@
-# Adakings Backend API
+# Adakings Backend API - Production
 
-A RESTful API backend for the Adakings restaurant management system, built with Django and Django REST Framework.
-This backend serves a separate React frontend.
+[![Version](https://img.shields.io/badge/version-v1.0.2-blue.svg)](https://github.com/ntibreymaximus/adakings_backend)
+[![Status](https://img.shields.io/badge/status-production-green.svg)](https://github.com/ntibreymaximus/adakings_backend)
+[![API](https://img.shields.io/badge/API-REST-orange.svg)](https://github.com/ntibreymaximus/adakings_backend)
 
-## Project Overview
+A production-ready RESTful API backend for the Adakings restaurant management system, built with Django and Django REST Framework.
 
-This system aims to provide restaurants with an all-in-one solution to manage:
-The backend provides API endpoints for:
-- User authentication and management (registration, login, profile, password reset)
-- Menu management
-- Order processing and tracking
-- Payment handling (Cash and Mobile Money via Paystack integration)
-- Staff management and role-based access control
+## 🚀 Production Information
 
-## Setup & Installation
+- **Current Version**: v1.0.2
+- **Release Date**: June 30, 2025
+- **Environment**: Production
+- **API Base URL**: `https://api.adakings.com/api/` (Replace with your actual domain)
+- **Status**: ✅ Stable
 
-### Prerequisites
-- Python 3.8 or higher
-- Git
-- Windows, macOS, or Linux operating system
+## 📋 Version History
 
-### Installation Steps
+### v1.0.0 (2025-06-30) - **PRODUCTION RELEASE**
+- **MAJOR RELEASE**: Complete API-only architecture
+- **Breaking Changes**: Removed all web interface components
+- **Features**:
+  - Pure REST API backend using Django REST Framework
+  - Comprehensive API documentation with Swagger/OpenAPI
+  - Session-based authentication with API permissions
+  - Complete serializers for all models (menu, orders, payments, users)
+  - Optimized database models and migrations
+  - Paystack payment integration for mobile money
+  - Role-based access control (Admin, Kitchen, Front Desk, Delivery)
+  - Order management with status tracking
+  - Menu management with categories and extras
+  - User management and authentication
 
-1. **Clone the repository**
-   ```
-   git clone <repository-url>
-   cd adakings_backend
-   ```
+## 🛡️ Production Features
 
-2. **Create and activate a virtual environment**
-   
-   For Windows:
-   ```
-   python -m venv venv
-   venv\Scripts\activate
-   ```
-   
-   For macOS/Linux:
-   ```
-   python3 -m venv venv
-   source venv/bin/activate
-   ```
+### Core Modules
+- **Authentication & Authorization**: JWT-ready session-based auth
+- **Menu Management**: Categories, items, extras, pricing
+- **Order Processing**: Real-time order tracking and management
+- **Payment Integration**: Cash and Mobile Money (Paystack)
+- **User Management**: Role-based access control
+- **API Documentation**: Swagger UI and ReDoc
 
-3. **Install dependencies**
-   ```
-   pip install -r requirements.txt
-   ```
+### Security Features
+- CORS configuration for frontend integration
+- Environment-based configuration
+- Secure payment processing
+- Role-based permissions
+- Input validation and sanitization
 
-4. **Apply migrations**
-   ```
-   python manage.py migrate
-   ```
+## 📚 API Documentation
 
-5. **Create a superuser (admin)**
-   ```
-   python manage.py createsuperuser
-   ```
-
-6. **Run the development server**
-   ```
-   python manage.py runserver
-   ```
-   The API will be available at `http://127.0.0.1:8000/api/`
-
-7. **Configure Environment Variables**
-   
-   Create a `.env` file in the project root with the following variables:
-   ```
-   PAYSTACK_PUBLIC_KEY=your_paystack_public_key
-   PAYSTACK_SECRET_KEY=your_paystack_secret_key
-   ```
-   
-   You can obtain Paystack API keys from your [Paystack Dashboard](https://dashboard.paystack.com/#/settings/developer)
-   
-   For development, you can use test keys to simulate payments without actual charges.
-
-## API Documentation
-
-The API documentation is automatically generated using `drf-spectacular` and can be accessed at the following endpoints:
-
+### Available Endpoints
 - **OpenAPI Schema**: `/api/schema/`
 - **Swagger UI**: `/api/docs/swagger/`
 - **ReDoc**: `/api/docs/`
 
-## Authentication Flow
-
-The API uses session-based authentication by default for web browsers and basic authentication for other clients. 
-Future enhancements may include token-based authentication (e.g., JWT).
-
-- **Registration**: `POST /api/users/register/`
-- **Login**: `POST /api/users/login/` (establishes a session)
-- **Logout**: `POST /api/users/logout/` (invalidates the session)
-- **Profile**: `GET /api/users/me/` (requires authentication)
-- **Profile Update**: `PUT/PATCH /api/users/profile/` (requires authentication)
-
-Permissions are handled using Django REST Framework's permission classes, including `IsAuthenticated` and `IsAdminUser` for protected endpoints.
-
-## Project Structure
-
+### Core API Endpoints
 ```
-adakings_backend/
-│
-├── adakings_backend/         # Main Django project directory
-│   ├── settings.py            # Project settings
-│   ├── urls.py                # Main URL routing
-│   ├── wsgi.py                # WSGI configuration
-│   ├── asgi.py                # ASGI configuration
-│   └── __init__.py            # Python package marker
-│
-├── apps/                      # Applications directory
-│   ├── __init__.py            # Python package marker
-│   ├── menu/                  # Menu management
-│   │   ├── migrations/        # Database migrations
-│   │   ├── admin.py           # Admin interface configuration
-│   │   ├── apps.py            # App configuration
-│   │   ├── forms.py           # Forms for data input
-│   │   ├── models.py          # Database models
-│   │   ├── tests.py           # Unit tests
-│   │   ├── urls.py            # URL routing
-│   │   ├── views.py           # View functions/classes
-│   │   └── __init__.py        # Python package marker
-│   ├── orders/                # Order processing
-│   │   ├── management/        # Custom management commands
-│   │   │   └── commands/      # Management command files
-│   │   ├── migrations/        # Database migrations
-│   │   ├── templatetags/      # Custom template tags
-│   │   ├── admin.py           # Admin interface configuration
-│   │   ├── apps.py            # App configuration
-│   │   ├── forms.py           # Forms for data input
-│   │   ├── models.py          # Database models
-│   │   ├── signals.py         # Django signals
-│   │   ├── tests.py           # Unit tests
-│   │   ├── urls.py            # URL routing
-│   │   ├── views.py           # View functions/classes
-│   │   └── __init__.py        # Python package marker
-│   ├── payments/              # Payment handling
-│   │   ├── migrations/        # Database migrations
-│   │   ├── admin.py           # Admin interface configuration
-│   │   ├── apps.py            # App configuration
-│   │   ├── models.py          # Database models
-│   │   ├── tests.py           # Unit tests
-│   │   ├── urls.py            # URL routing
-│   │   ├── views.py           # View functions/classes
-│   │   └── __init__.py        # Python package marker
-│   └── users/                 # User management
-│       ├── migrations/        # Database migrations
-│       ├── admin.py           # Admin interface configuration
-│       ├── apps.py            # App configuration
-│       ├── models.py          # Database models
-│       ├── tests.py           # Unit tests
-│       ├── urls.py            # URL routing
-│       ├── views_api.py       # API view functions/classes for users
-│       └── __init__.py        # Python package marker
-│
-├── static/                    # Static files (CSS, JS, images)
-│   └── css/                   # Stylesheets
-│
-├── venv/                      # Virtual environment (excluded from git)
-│
-├── .env                       # Environment variables (excluded from git)
-├── .env.example               # Environment variables template
-├── .gitignore                 # Git ignore file
-├── CHANGELOG.md               # Project changelog
-├── db.sqlite3                 # SQLite database (development)
-├── manage.py                  # Django management script
-└── README.md                  # This file
+Authentication:
+POST   /api/users/register/     - User registration
+POST   /api/users/login/        - User login
+POST   /api/users/logout/       - User logout
+GET    /api/users/me/           - Current user profile
+
+Menu Management:
+GET    /api/menu/categories/    - List categories
+GET    /api/menu/items/         - List menu items
+GET    /api/menu/extras/        - List extras
+
+Order Management:
+GET    /api/orders/             - List orders
+POST   /api/orders/             - Create new order
+GET    /api/orders/{id}/        - Order details
+PUT    /api/orders/{id}/        - Update order
+
+Payment Processing:
+POST   /api/payments/process/   - Process payment
+GET    /api/payments/verify/    - Verify payment status
 ```
 
-## Development State
+## 🔧 Production Setup
 
-- **Current Version**: v0.6.0
-- **Current Branch**: feature/v0.6.0-codebase-restructuring
-- **Development Stage**: **MAJOR RESTRUCTURING COMPLETE** - Converted from full-stack Django application to pure REST API backend. Removed all Django templates, forms, and web interface components. Now serves exclusively as an API backend for separate frontend applications.
+### Prerequisites
+- Python 3.8+
+- PostgreSQL (recommended for production)
+- Redis (for caching - optional)
+- NGINX (for reverse proxy)
 
-### Version History
+### Environment Variables
+```bash
+# Database
+DATABASE_URL=postgresql://user:password@localhost:5432/adakings_prod
 
-- **v0.6.0**: **MAJOR RESTRUCTURING** - Pure API Backend Conversion
-  - **BREAKING CHANGE**: Removed all Django templates, forms, and web interface components
-  - Converted all views to API-only using Django REST Framework
-  - Added comprehensive serializers for all models (menu, orders, payments, users)
-  - Implemented proper API permissions and authentication
-  - Removed static CSS files and template directories
-  - Updated URL routing to serve API endpoints exclusively
-  - Added API documentation with Swagger/OpenAPI schema
-  - Streamlined models for API consumption
-  - Added new database migrations for model optimizations
-  - **Result**: Now serves as a pure REST API backend ready for separate frontend applications
+# Django Settings
+DJANGO_SECRET_KEY=your-production-secret-key
+DJANGO_DEBUG=False
+DJANGO_ALLOWED_HOSTS=yourdomain.com,api.yourdomain.com
 
-- **v0.5.0**: Comprehensive application updates and refactoring
-  - Refactored Admin Dashboard UI to align with the new unified theme (using `theme.css` and Bootstrap).
-  - Updated models, forms, views, and admin configurations across `menu`, `orders`, `payments`, and `users` applications.
-  - Managed and updated database migrations to reflect schema changes.
-  - Introduced new application features/modules including Django signals and custom template tags.
-  - Enhanced static file management and overall theme consistency.
-  - General improvements to application templates, settings, and overall code structure.
-- **v0.4.0**: Payment system implementation and order management updates
-  - Implemented Paystack payment integration for mobile money transactions
-  - Restructured Order model to incorporate customer information directly
-  - Added payment processing, verification, and webhook support
-  - Created order management interface with status tracking
-  - Implemented comprehensive order creation and update workflow
-  - Added support for environment variables configuration
-- **v0.1.2**: Project restructuring and template fixes
-  - Reorganized project structure with dedicated apps/ and templates/ directories
-  - Implemented template inheritance system with base.html
-  - Fixed template syntax errors in profile and staff management pages
-  - Improved code organization and maintainability
-- **v0.1.1**: Initial Django project setup and basic configuration
-- **v0.1.0**: Project initialization
+# Payment Integration
+PAYSTACK_PUBLIC_KEY=pk_live_your_live_public_key
+PAYSTACK_SECRET_KEY=sk_live_your_live_secret_key
 
-## Usage Instructions
+# CORS (for frontend)
+CORS_ALLOWED_ORIGINS=https://yourdomain.com,https://app.yourdomain.com
+```
 
-1. Ensure your virtual environment is activated.
+### Production Deployment
+1. Clone the production branch
+2. Set up virtual environment
+3. Install dependencies: `pip install -r requirements.txt`
+4. Configure environment variables
+5. Run migrations: `python manage.py migrate`
+6. Collect static files: `python manage.py collectstatic`
+7. Start with WSGI server (Gunicorn recommended)
 
-2. Start the development server:
-   ```
-   python manage.py runserver
-   ```
+### Health Check
+```bash
+curl -f http://localhost:8000/api/schema/ || exit 1
+```
 
-3. Access the API at `http://127.0.0.1:8000/api/` and the documentation as listed above.
+## 🔄 Semantic Versioning
 
-### Admin Interface
+This project follows [Semantic Versioning](https://semver.org/):
 
-Access the Django admin interface at `http://127.0.0.1:8000/admin/` using the superuser credentials created during setup.
+- **MAJOR** (X.0.0): Breaking changes, incompatible API changes
+- **MINOR** (X.Y.0): New features, backward compatible
+- **PATCH** (X.Y.Z): Bug fixes, backward compatible
 
-### Payment Processing
+### Version Bump Guidelines
+- **MAJOR**: API breaking changes, architecture changes
+- **MINOR**: New endpoints, new features, database schema additions
+- **PATCH**: Bug fixes, security patches, documentation updates
 
-The system supports two payment methods:
+## 🚀 Deployment
 
-1. **Cash Payments**: For in-person transactions
-2. **Mobile Money**: Integrated with Paystack for secure mobile payments
+### Quick Start
+```bash
+# Clone production branch
+git clone -b production https://github.com/ntibreymaximus/adakings_backend.git
+cd adakings_backend
 
-To process mobile payments:
-1. Select "Mobile Money" as the payment method when finalizing an order
-2. Enter the customer's phone number in the specified format
-3. The system will redirect to Paystack's payment interface
-4. Payment status will be automatically updated upon completion
+# Setup environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
 
-For testing, use Paystack's test cards and credentials from their [documentation](https://paystack.com/docs/payments/test-payments/).
+# Configure environment
+cp .env.example .env
+# Edit .env with production values
 
-### Development Workflow
+# Database setup
+python manage.py migrate
+python manage.py createsuperuser
 
-1. Create a feature branch for new development:
-   ```
-   git checkout -b feature/v[version]-[feature-name]
-   ```
+# Start server
+python manage.py runserver 0.0.0.0:8000
+```
 
-2. Make changes and commit with descriptive messages:
-   ```
-   git add .
-   git commit -m "Descriptive message about the changes"
-   ```
+### Production Server (Gunicorn)
+```bash
+gunicorn --bind 0.0.0.0:8000 adakings_backend.wsgi:application
+```
 
-3. Push changes to the feature branch:
-   ```
-   git push origin feature/v[version]-[feature-name]
-   ```
+## 📊 Performance & Monitoring
 
-4. When ready, merge to the dev branch:
-   ```
-   git checkout dev
-   git merge feature/v[version]-[feature-name]
-   git push origin dev
-   ```
+### Recommended Monitoring
+- API response times
+- Database query performance
+- Payment transaction success rates
+- User authentication metrics
+- Error rates and logging
 
-## Management Commands
+### Scaling Considerations
+- Database connection pooling
+- Redis caching implementation
+- Load balancer configuration
+- CDN for static assets
 
-### Update Order Numbers (`update_order_numbers`)
+## 🛠️ Maintenance
 
-- **Purpose**: This command is used to populate or correct the `order_number` field for any existing orders. It targets orders where this field is currently blank/empty OR orders where the `order_number` exists but is not in the standard `DDMMYY-XXX` format (e.g., `300525-001`). It ensures all targeted orders receive a unique, correctly formatted order number, where `XXX` is a sequential counter that resets daily.
-- **Usage**: To run the command, execute the following from the project root directory (where `manage.py` is located):
-  ```bash
-  python manage.py update_order_numbers
-  ```
-- **Details**: The command iterates through all orders in the database. It identifies orders that either have a blank/null `order_number` or have an `order_number` that does not conform to the `DDMMYY-XXX` regex pattern. For each such identified order, it first sets its `order_number` to null (to ensure regeneration) and then calls the order's `save()` method. The `Order` model's `save()` method contains logic to automatically generate and assign a correctly formatted `order_number` if it's missing or has been cleared. The command will output the total number of orders that were successfully updated, or a message if no orders required an update. It also includes error handling for individual order updates and overall execution.
+### Regular Tasks
+- Monitor server logs
+- Update dependencies
+- Database backups
+- Security patches
+- Performance optimization
 
-## License
+### Support Information
+- **Documentation**: Available in `/api/docs/`
+- **Health Check**: `GET /api/health/` (if implemented)
+- **Version Info**: `GET /api/version/` (if implemented)
 
-[Specify your license here]
+## 📞 Production Support
 
-## Contact
+For production issues:
+1. Check server logs
+2. Verify environment variables
+3. Test database connectivity
+4. Validate payment service status
 
-[Your contact information]
+## 🔒 Security
 
+- Keep Django and dependencies updated
+- Use HTTPS in production
+- Implement rate limiting
+- Monitor for suspicious activity
+- Regular security audits
+
+---
+
+**Production Branch**: `production`  
+**Last Updated**: June 30, 2025  
+**Maintainer**: Adakings Development Team
