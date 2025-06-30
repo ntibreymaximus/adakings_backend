@@ -636,10 +636,9 @@ else:
         
         return result is not None
     
-    def commit_and_push(self, env_type, message_prefix=""):
+    def commit_and_push(self, env_type, target_branch, message_prefix=""):
         """Commit changes and push to appropriate branch"""
-        config = self.env_configs.get(env_type, {})
-        target_branch = config.get("branch", env_type)
+        # Use the provided target_branch instead of config
         
         # Add all changes
         self.run_command("git add .")
@@ -751,8 +750,8 @@ else:
             self.clean_environment_files(env_type)
             
             # Commit and push
-            commit_message = f"{commit_message}\n\nVersion: {new_version}\n"
-            if not self.commit_and_push(env_type, commit_message):
+            commit_prefix = f"\n\nVersion: {new_version}\n"
+            if not self.commit_and_push(env_type, target_branch, commit_prefix):
                 raise Exception("Failed to commit and push changes")
             
             self.log_success(f"🎉 Successfully deployed to {target_env} environment!")
