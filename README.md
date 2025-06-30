@@ -1,6 +1,6 @@
 # Adakings Backend API - Production
 
-[![Version](https://img.shields.io/badge/version-v1.0.0-blue.svg)](https://github.com/ntibreymaximus/adakings_backend)
+[![Version](https://img.shields.io/badge/version-v2.0.0-blue.svg)](https://github.com/ntibreymaximus/adakings_backend)
 [![Status](https://img.shields.io/badge/status-production-green.svg)](https://github.com/ntibreymaximus/adakings_backend)
 [![API](https://img.shields.io/badge/API-REST-orange.svg)](https://github.com/ntibreymaximus/adakings_backend)
 
@@ -8,7 +8,7 @@ A production-ready RESTful API backend for the Adakings restaurant management sy
 
 ## 🚀 Production Information
 
-- **Current Version**: v1.0.0
+- **Current Version**: v2.0.0
 - **Release Date**: June 30, 2025
 - **Environment**: Production
 - **API Base URL**: `https://api.adakings.com/api/` (Replace with your actual domain)
