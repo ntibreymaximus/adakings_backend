@@ -279,15 +279,22 @@ else:
                 return "1.0.0"  # Default for production
             
             elif branch_type == "dev-test":
-                # For dev-test, check dev-test/* branches on remote
-                result = self.run_command("git branch -r --list 'origin/dev-test/*' --sort=-version:refname", check=False)
+                # For dev-test, check dev-test/* branches on remote (Windows compatible)
+                result = self.run_command("git branch -r", check=False)
                 if result and result.stdout.strip():
-                    branches = result.stdout.strip().split('\n')
-                    for branch in branches:
+                    all_branches = result.stdout.strip().split('\n')
+                    versions = []
+                    for branch in all_branches:
                         branch_name = branch.strip().replace('origin/', '')
-                        version_part = branch_name.split('/')[-1]
-                        if re.match(r'^\d+\.\d+\.\d+$', version_part):
-                            return version_part
+                        if branch_name.startswith('dev-test/'):
+                            version_part = branch_name.split('/')[-1]
+                            if re.match(r'^\d+\.\d+\.\d+$', version_part):
+                                versions.append(version_part)
+                    
+                    if versions:
+                        # Sort versions properly (semantic versioning)
+                        versions.sort(key=lambda x: [int(i) for i in x.split('.')], reverse=True)
+                        return versions[0]  # Return highest version
                 return "1.0.0"  # Default for dev-test
             
             elif branch_type.startswith("feature/"):
@@ -345,6 +352,66 @@ else:
             return None
         
         return new_version
+    
+    def calculate_new_version(self, bump_type, current_version):
+        """Calculate new version without logging or updating files"""
+        major, minor, patch = map(int, current_version.split('.'))
+        
+        if bump_type == 'major':
+            return f"{major + 1}.0.0"
+        elif bump_type == 'minor':
+            return f"{major}.{minor + 1}.0"
+        elif bump_type == 'patch':
+            return f"{major}.{minor}.{patch + 1}"
+        else:
+            return None
+    
+    def ensure_unique_version(self, target_env, proposed_version, bump_type):
+        """Ensure the proposed version doesn't conflict with existing branches"""
+        import re
+        
+        # Build the target branch name to check
+        if target_env == "production":
+            # Production doesn't use versioned branches
+            return proposed_version
+        elif target_env == "dev-test":
+            branch_pattern = f"dev-test/{proposed_version}"
+        elif target_env in ["dev", "development"]:
+            branch_pattern = f"dev/{proposed_version}"
+        elif target_env.startswith("feature/"):
+            feature_name = target_env.split('/', 1)[1]
+            branch_pattern = f"feature/{feature_name}-{proposed_version}"
+        else:
+            return proposed_version
+        
+        # Check if branch already exists
+        result = self.run_command(f"git branch -r --list 'origin/{branch_pattern}'", check=False)
+        if result and result.stdout.strip():
+            # Branch exists, increment version
+            self.log_warning(f"Branch {branch_pattern} already exists, incrementing version...")
+            
+            # Parse version and increment patch
+            major, minor, patch = map(int, proposed_version.split('.'))
+            
+            # Keep incrementing patch until we find a unique version
+            while True:
+                patch += 1
+                new_version = f"{major}.{minor}.{patch}"
+                
+                if target_env == "dev-test":
+                    test_branch = f"dev-test/{new_version}"
+                elif target_env in ["dev", "development"]:
+                    test_branch = f"dev/{new_version}"
+                elif target_env.startswith("feature/"):
+                    feature_name = target_env.split('/', 1)[1]
+                    test_branch = f"feature/{feature_name}-{new_version}"
+                
+                result = self.run_command(f"git branch -r --list 'origin/{test_branch}'", check=False)
+                if not result or not result.stdout.strip():
+                    self.log_info(f"✨ Using unique version: {new_version}")
+                    return new_version
+        
+        return proposed_version
     
     def update_version_files(self, new_version):
         """Update version in all relevant files"""
@@ -859,8 +926,22 @@ else:
         else:
             env_type = "development"
         
-        # Version management first to get the new version
-        new_version = self.version_management(target_env, bump_type)
+        # Get the LATEST version for target branch determination (without updating files yet)
+        # This should get the highest version number from existing branches of this type
+        if target_env == "production":
+            branch_type = "production"
+        elif target_env == "dev-test":
+            branch_type = "dev-test"
+        elif target_env.startswith("feature/"):
+            branch_type = target_env  # feature/name
+        else:
+            branch_type = "development"
+        
+        current_version = self.get_latest_version_for_branch_type(branch_type)
+        new_version = self.calculate_new_version(bump_type, current_version)
+        
+        # Ensure the new version doesn't conflict with existing branches
+        new_version = self.ensure_unique_version(target_env, new_version, bump_type)
         
         # Determine target branch (with version for dev-test and feature branches)
         if target_env == "production":
@@ -880,13 +961,16 @@ else:
             # Backup current state
             self.backup_current_state()
             
+            # Switch to target branch FIRST (before any file changes)
+            if not self.switch_branch(target_branch):
+                raise Exception(f"Failed to switch to branch: {target_branch}")
+            
+            # Now update version files on the target branch
+            self.update_version_files(new_version)
+            
             # Pre-deployment checks
             if not self.deployment_checks(target_env):
                 raise Exception("Pre-deployment checks failed")
-            
-            # Switch to target branch
-            if not self.switch_branch(target_branch):
-                raise Exception(f"Failed to switch to branch: {target_branch}")
             
             # Set up environment files
             if not self.setup_environment_files(env_type):
@@ -953,9 +1037,19 @@ def main():
     
     deployer = SmartDeployer()
     
-    # Show deployment information
-    current_version = deployer.read_version()
-    new_version = deployer.bump_version(bump_type, current_version) if current_version else "unknown"
+    # Show deployment information using same logic as deploy function
+    if target_env == "production":
+        branch_type = "production"
+    elif target_env == "dev-test":
+        branch_type = "dev-test"
+    elif target_env.startswith("feature/"):
+        branch_type = target_env  # feature/name
+    else:
+        branch_type = "development"
+    
+    current_version = deployer.get_latest_version_for_branch_type(branch_type)
+    new_version = deployer.calculate_new_version(bump_type, current_version) if current_version else "unknown"
+    new_version = deployer.ensure_unique_version(target_env, new_version, bump_type)
     
     print(f"🎯 Target Environment: {target_env}")
     print(f"🔢 Version Bump: {bump_type} ({current_version} -> {new_version})")
