@@ -254,12 +254,22 @@ else:
         self.log_success("Backup restored")
     
     def get_latest_version_for_branch_type(self, branch_type):
-        """Get latest version for specific branch type from git tags/branches"""
+        """Get latest version for specific branch type from git remote branches"""
         import re
-        
+
         try:
+            # Fetch latest from remote to ensure we have up-to-date branch info
+            self.run_command("git fetch origin", check=False)
+            
             if branch_type == "production":
-                # For production, check git tags
+                # For production, check VERSION file from production branch on remote
+                result = self.run_command("git show origin/production:VERSION", check=False)
+                if result and result.stdout.strip():
+                    version = result.stdout.strip()
+                    if re.match(r'^\d+\.\d+\.\d+$', version):
+                        return version
+                
+                # If no production branch, check git tags as fallback
                 result = self.run_command("git tag --list --sort=-version:refname", check=False)
                 if result and result.stdout.strip():
                     tags = result.stdout.strip().split('\n')
@@ -269,7 +279,7 @@ else:
                 return "1.0.0"  # Default for production
             
             elif branch_type == "dev-test":
-                # For dev-test, check dev-test/* branches
+                # For dev-test, check dev-test/* branches on remote
                 result = self.run_command("git branch -r --list 'origin/dev-test/*' --sort=-version:refname", check=False)
                 if result and result.stdout.strip():
                     branches = result.stdout.strip().split('\n')
@@ -281,21 +291,23 @@ else:
                 return "1.0.0"  # Default for dev-test
             
             elif branch_type.startswith("feature/"):
-                # For feature branches, check feature/name/* branches
+                # For feature branches, check feature/name-version branches on remote
                 feature_name = branch_type.split('/', 1)[1]
-                pattern = f"origin/feature/{feature_name}/*"
+                pattern = f"origin/feature/{feature_name}-*"
                 result = self.run_command(f"git branch -r --list '{pattern}' --sort=-version:refname", check=False)
                 if result and result.stdout.strip():
                     branches = result.stdout.strip().split('\n')
                     for branch in branches:
                         branch_name = branch.strip().replace('origin/', '')
-                        version_part = branch_name.split('/')[-1]
-                        if re.match(r'^\d+\.\d+\.\d+$', version_part):
-                            return version_part
+                        # Extract version from feature/name-version format
+                        if f"feature/{feature_name}-" in branch_name:
+                            version_part = branch_name.split(f"feature/{feature_name}-")[-1]
+                            if re.match(r'^\d+\.\d+\.\d+$', version_part):
+                                return version_part
                 return "0.1.0"  # Default for feature branches
             
             else:
-                # For dev/development, check dev/* branches or fall back to VERSION file
+                # For dev/development, check dev/* branches on remote
                 result = self.run_command("git branch -r --list 'origin/dev/*' --sort=-version:refname", check=False)
                 if result and result.stdout.strip():
                     branches = result.stdout.strip().split('\n')
@@ -304,13 +316,6 @@ else:
                         version_part = branch_name.split('/')[-1]
                         if re.match(r'^\d+\.\d+\.\d+$', version_part):
                             return version_part
-                
-                # Fall back to VERSION file for dev
-                version_file = self.base_dir / "VERSION"
-                if version_file.exists():
-                    version = version_file.read_text().strip()
-                    if re.match(r'^\d+\.\d+\.\d+$', version):
-                        return version
                 
                 return "0.1.0"  # Default for dev
                 
@@ -387,7 +392,13 @@ else:
             try:
                 env_content = env_file.read_text(encoding='utf-8')
             except UnicodeDecodeError:
-                env_content = env_file.read_text(encoding='utf-8-sig')
+                try:
+                    env_content = env_file.read_text(encoding='utf-8-sig')
+                except UnicodeDecodeError:
+                    try:
+                        env_content = env_file.read_text(encoding='latin-1')
+                    except UnicodeDecodeError:
+                        env_content = env_file.read_text(encoding='cp1252')
             
             # Critical production settings
             required_settings = {
@@ -424,7 +435,16 @@ else:
         # Check requirements.txt
         req_file = self.base_dir / "requirements.txt"
         if req_file.exists():
-            req_content = req_file.read_text()
+            try:
+                req_content = req_file.read_text(encoding='utf-8')
+            except UnicodeDecodeError:
+                try:
+                    req_content = req_file.read_text(encoding='utf-8-sig')
+                except UnicodeDecodeError:
+                    try:
+                        req_content = req_file.read_text(encoding='latin-1')
+                    except UnicodeDecodeError:
+                        req_content = req_file.read_text(encoding='cp1252')
             
             # Check for production essentials
             prod_packages = ['gunicorn', 'psycopg2-binary', 'whitenoise']
@@ -441,7 +461,16 @@ else:
         # Check settings configuration
         settings_init = self.base_dir / "adakings_backend" / "settings" / "__init__.py"
         if settings_init.exists():
-            settings_content = settings_init.read_text()
+            try:
+                settings_content = settings_init.read_text(encoding='utf-8')
+            except UnicodeDecodeError:
+                try:
+                    settings_content = settings_init.read_text(encoding='utf-8-sig')
+                except UnicodeDecodeError:
+                    try:
+                        settings_content = settings_init.read_text(encoding='latin-1')
+                    except UnicodeDecodeError:
+                        settings_content = settings_init.read_text(encoding='cp1252')
             if 'development' in settings_content and 'production' not in settings_content.split('\n')[10:]:
                 warnings.append("Settings file may load development configuration in production")
         
@@ -453,9 +482,12 @@ else:
             return False
         
         if warnings:
-            self.log_warning("⚠️  Production configuration warnings:")
+            self.log_error("❌ Production deployment blocked due to warnings:")
             for warning in warnings:
-                self.log_warning(f"  • {warning}")
+                self.log_error(f"  • {warning}")
+            self.log_error("\n🚫 Production deployments are blocked on ALL warnings.")
+            self.log_error("Please resolve all warnings before deploying to production.")
+            return False
         
         self.log_success("✅ Production configuration validation passed")
         return True
@@ -470,7 +502,16 @@ else:
         # Check .env.example file
         env_file = self.base_dir / ".env.example"
         if env_file.exists():
-            env_content = env_file.read_text()
+            try:
+                env_content = env_file.read_text(encoding='utf-8')
+            except UnicodeDecodeError:
+                try:
+                    env_content = env_file.read_text(encoding='utf-8-sig')
+                except UnicodeDecodeError:
+                    try:
+                        env_content = env_file.read_text(encoding='latin-1')
+                    except UnicodeDecodeError:
+                        env_content = env_file.read_text(encoding='cp1252')
             
             # Check for development settings
             if 'DJANGO_DEBUG=False' in env_content:
@@ -489,7 +530,16 @@ else:
         # Check for development tools in requirements
         req_file = self.base_dir / "requirements.txt"
         if req_file.exists():
-            req_content = req_file.read_text()
+            try:
+                req_content = req_file.read_text(encoding='utf-8')
+            except UnicodeDecodeError:
+                try:
+                    req_content = req_file.read_text(encoding='utf-8-sig')
+                except UnicodeDecodeError:
+                    try:
+                        req_content = req_file.read_text(encoding='latin-1')
+                    except UnicodeDecodeError:
+                        req_content = req_file.read_text(encoding='cp1252')
             
             # Check for development essentials
             dev_packages = ['django-debug-toolbar', 'pytest']
@@ -525,7 +575,13 @@ else:
             try:
                 env_content = env_file.read_text(encoding='utf-8')
             except UnicodeDecodeError:
-                env_content = env_file.read_text(encoding='utf-8-sig')
+                try:
+                    env_content = env_file.read_text(encoding='utf-8-sig')
+                except UnicodeDecodeError:
+                    try:
+                        env_content = env_file.read_text(encoding='latin-1')
+                    except UnicodeDecodeError:
+                        env_content = env_file.read_text(encoding='cp1252')
             
             # Critical production-like settings with placeholder warnings
             required_settings = {
@@ -576,7 +632,13 @@ else:
             try:
                 req_content = req_file.read_text(encoding='utf-8')
             except UnicodeDecodeError:
-                req_content = req_file.read_text(encoding='utf-8-sig')
+                try:
+                    req_content = req_file.read_text(encoding='utf-8-sig')
+                except UnicodeDecodeError:
+                    try:
+                        req_content = req_file.read_text(encoding='latin-1')
+                    except UnicodeDecodeError:
+                        req_content = req_file.read_text(encoding='cp1252')
             
             # Check for production essentials (warn if missing)
             prod_packages = ['gunicorn', 'psycopg2-binary', 'whitenoise']
@@ -791,7 +853,9 @@ else:
         elif target_env in ["dev", "development"]:
             target_branch = f"dev/{new_version}"  # Versioned dev branches
         elif target_env.startswith("feature/"):
-            target_branch = f"{target_env}/{new_version}"  # Versioned feature branches
+            # Use feature-name-version format to avoid git naming conflicts
+            feature_name = target_env.split('/', 1)[1]
+            target_branch = f"feature/{feature_name}-{new_version}"  # Use dash instead of slash
         else:
             target_branch = target_env
         
