@@ -784,8 +784,8 @@ else:
         self.log_success("✅ Development configuration validation passed")
         return True
     
-    def get_highest_remote_version_for_feature(self, feature_name):
-        """Get the highest version number from ALL feature branches on remote"""
+    def get_highest_remote_version_for_branch_type(self, branch_type):
+        """Get the highest version number from ALL branches of a specific type on remote"""
         import re
         
         # Get all remote branches
@@ -794,35 +794,53 @@ else:
             return None
         
         remote_branches = result.stdout.strip().split('\n')
-        all_feature_versions = []
+        all_versions = []
         
-        # Extract version numbers from ALL feature branches (pattern: feature/anything-x.x.x)
-        for branch in remote_branches:
-            branch = branch.strip()
-            if branch.startswith("origin/feature/") and "-" in branch:
-                # Extract version from any feature branch like "origin/feature/anything-1.2.3"
-                # Split on last dash to get version part
-                parts = branch.split("-")
-                if len(parts) >= 2:
-                    version_part = parts[-1]  # Get the last part after the last dash
+        if branch_type.startswith("feature/"):
+            # Extract version numbers from ALL feature branches (pattern: feature/anything-x.x.x)
+            for branch in remote_branches:
+                branch = branch.strip()
+                if branch.startswith("origin/feature/") and "-" in branch:
+                    # Extract version from any feature branch like "origin/feature/anything-1.2.3"
+                    # Split on last dash to get version part
+                    parts = branch.split("-")
+                    if len(parts) >= 2:
+                        version_part = parts[-1]  # Get the last part after the last dash
+                        try:
+                            # Validate it's a proper semantic version (x.x.x)
+                            version_components = version_part.split('.')
+                            if len(version_components) == 3:
+                                major, minor, patch = map(int, version_components)
+                                all_versions.append((major, minor, patch, version_part))
+                                self.log_info(f"🔍 Found feature version: {branch} -> {version_part}")
+                        except (ValueError, IndexError):
+                            continue
+        
+        elif branch_type == "dev-test":
+            # Extract version numbers from ALL dev-test branches (pattern: dev-test/x.x.x)
+            for branch in remote_branches:
+                branch = branch.strip()
+                if branch.startswith("origin/dev-test/"):
+                    # Extract version from dev-test branch like "origin/dev-test/1.2.3"
+                    version_part = branch.replace("origin/dev-test/", "")
                     try:
                         # Validate it's a proper semantic version (x.x.x)
                         version_components = version_part.split('.')
                         if len(version_components) == 3:
                             major, minor, patch = map(int, version_components)
-                            all_feature_versions.append((major, minor, patch, version_part))
-                            self.log_info(f"🔍 Found feature version: {branch} -> {version_part}")
+                            all_versions.append((major, minor, patch, version_part))
+                            self.log_info(f"🔍 Found dev-test version: {branch} -> {version_part}")
                     except (ValueError, IndexError):
                         continue
         
-        if not all_feature_versions:
-            self.log_info("🔍 No feature branches with versions found on remote")
+        if not all_versions:
+            self.log_info(f"🔍 No {branch_type} branches with versions found on remote")
             return None
         
         # Sort versions and return the highest one
-        all_feature_versions.sort(key=lambda x: (x[0], x[1], x[2]), reverse=True)
-        highest_version = all_feature_versions[0][3]
-        self.log_info(f"🏆 Highest version found across ALL feature branches: {highest_version}")
+        all_versions.sort(key=lambda x: (x[0], x[1], x[2]), reverse=True)
+        highest_version = all_versions[0][3]
+        self.log_info(f"🏆 Highest version found across ALL {branch_type} branches: {highest_version}")
         return highest_version
     
     def sync_local_branches_with_remote(self):
@@ -1309,14 +1327,25 @@ ENABLE_DEBUG_TOOLBAR=True
             env_type = "development"
         
         # Determine version type and get current version
-        if target_env == "production" or target_env == "dev-test":
+        if target_env == "production":
             version_type = "production"
             current_version = self.read_version(version_type)
+        elif target_env == "dev-test":
+            version_type = "production"
+            # For dev-test branches, use highest remote version from ALL dev-test branches
+            remote_version = self.get_highest_remote_version_for_branch_type("dev-test")
+            if remote_version:
+                current_version = remote_version
+                self.log_info(f"📡 Using highest remote version for dev-test: {current_version}")
+            else:
+                # No remote version found, use local VERSION_PRODUCTION as fallback
+                current_version = self.read_version(version_type)
+                self.log_info(f"📂 No remote dev-test version found, using local: {current_version}")
         else:
             version_type = "features"
             if target_env.startswith("feature/"):
-                # For feature branches, use highest remote version for this specific feature
-                remote_version = self.get_highest_remote_version_for_feature(target_env)
+                # For feature branches, use highest remote version from ALL feature branches
+                remote_version = self.get_highest_remote_version_for_branch_type(target_env)
                 if remote_version:
                     current_version = remote_version
                     self.log_info(f"📡 Using highest remote version for {target_env}: {current_version}")
@@ -1333,7 +1362,8 @@ ENABLE_DEBUG_TOOLBAR=True
         if target_env == "production":
             target_branch = "production"
         elif target_env == "dev-test":
-            target_branch = "dev-test"
+            # For dev-test branches, format: dev-test/x.x.x
+            target_branch = f"dev-test/{new_version}"
         elif target_env in ["dev", "development"]:
             target_branch = "dev"
         elif target_env.startswith("feature/"):
