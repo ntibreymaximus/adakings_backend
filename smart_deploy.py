@@ -784,6 +784,88 @@ else:
         self.log_success("✅ Development configuration validation passed")
         return True
     
+    def get_highest_remote_version_for_feature(self, feature_name):
+        """Get the highest version number for a specific feature branch from remote"""
+        import re
+        
+        # Get all remote branches for this feature
+        result = self.run_command("git branch -r", check=False)
+        if not result or not result.stdout:
+            return None
+        
+        remote_branches = result.stdout.strip().split('\n')
+        feature_versions = []
+        
+        # Extract version numbers from remote branches matching the feature name
+        for branch in remote_branches:
+            branch = branch.strip()
+            if f"origin/{feature_name}-" in branch:
+                # Extract version from branch name like "origin/feature/name-1.2.3"
+                version_part = branch.split(f"origin/{feature_name}-")[-1]
+                try:
+                    # Validate it's a proper semantic version
+                    major, minor, patch = map(int, version_part.split('.'))
+                    feature_versions.append((major, minor, patch, version_part))
+                except (ValueError, IndexError):
+                    continue
+        
+        if not feature_versions:
+            return None
+        
+        # Sort versions and return the highest one
+        feature_versions.sort(key=lambda x: (x[0], x[1], x[2]), reverse=True)
+        return feature_versions[0][3]  # Return version string
+    
+    def sync_local_branches_with_remote(self):
+        """Sync local branches with remote - delete local branches that don't exist on remote"""
+        self.log_info("🔄 Syncing local branches with remote...")
+        
+        # Get remote branches
+        result = self.run_command("git branch -r", check=False)
+        if not result or not result.stdout:
+            self.log_warning("Could not fetch remote branches")
+            return
+        
+        remote_branches = set()
+        for branch in result.stdout.strip().split('\n'):
+            branch = branch.strip()
+            if branch.startswith('origin/') and branch != 'origin/HEAD':
+                # Remove 'origin/' prefix to get branch name
+                branch_name = branch.replace('origin/', '')
+                remote_branches.add(branch_name)
+        
+        # Get local branches
+        result = self.run_command("git branch", check=False)
+        if not result or not result.stdout:
+            return
+        
+        local_branches = []
+        current_branch = None
+        for branch in result.stdout.strip().split('\n'):
+            branch = branch.strip()
+            if branch.startswith('* '):
+                current_branch = branch[2:]
+                local_branches.append(current_branch)
+            elif branch:
+                local_branches.append(branch)
+        
+        # Delete local branches that don't exist on remote
+        deleted_count = 0
+        for local_branch in local_branches:
+            if local_branch not in remote_branches and local_branch != current_branch:
+                self.log_info(f"🗑️  Deleting local branch '{local_branch}' (not on remote)")
+                result = self.run_command(f"git branch -D {local_branch}", check=False)
+                if result and result.returncode == 0:
+                    self.log_info(f"✓ Deleted '{local_branch}'")
+                    deleted_count += 1
+                else:
+                    self.log_warning(f"Failed to delete '{local_branch}'")
+        
+        if deleted_count > 0:
+            self.log_success(f"✅ Cleaned up {deleted_count} local branches not on remote")
+        else:
+            self.log_info("✓ All local branches are synced with remote")
+    
     def ensure_env_example_exists(self):
         """Ensure .env.example file exists for feature branches"""
         env_example_path = self.base_dir / ".env.example"
@@ -1220,10 +1302,22 @@ ENABLE_DEBUG_TOOLBAR=True
         # Determine version type and get current version
         if target_env == "production" or target_env == "dev-test":
             version_type = "production"
+            current_version = self.read_version(version_type)
         else:
             version_type = "features"
+            if target_env.startswith("feature/"):
+                # For feature branches, use highest remote version for this specific feature
+                remote_version = self.get_highest_remote_version_for_feature(target_env)
+                if remote_version:
+                    current_version = remote_version
+                    self.log_info(f"📡 Using highest remote version for {target_env}: {current_version}")
+                else:
+                    # No remote version found, use local VERSION_FEATURES as fallback
+                    current_version = self.read_version(version_type)
+                    self.log_info(f"📂 No remote version found for {target_env}, using local: {current_version}")
+            else:
+                current_version = self.read_version(version_type)
         
-        current_version = self.read_version(version_type)
         new_version = self.calculate_new_version(bump_type, current_version)
         
         # Determine target branch
@@ -1241,6 +1335,9 @@ ENABLE_DEBUG_TOOLBAR=True
             target_branch = target_env
         
         try:
+            # Sync local branches with remote before starting deployment
+            self.sync_local_branches_with_remote()
+            
             # Clean up deleted local branches before starting deployment
             self.clean_deleted_local_branches()
             
