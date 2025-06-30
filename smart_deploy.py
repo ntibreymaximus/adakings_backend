@@ -75,6 +75,41 @@ print("🚀 Production environment loaded (production branch)")''',
                 "branch": "production"
             },
             
+            "dev-test": {
+                "files": {
+                    ".env": {
+                        "source": ".env.dev-test.template",
+                        "description": "Dev-test environment variables (production-like with test values)"
+                    },
+                    "README.md": {
+                        "source": "README-PRODUCTION.md", 
+                        "description": "Production-like documentation"
+                    },
+                    "CHANGELOG.md": {
+                        "source": "CHANGELOG-PRODUCTION.md",
+                        "description": "Production-like changelog"
+                    },
+                    "requirements.txt": {
+                        "source": "requirements-production.txt",
+                        "description": "Production dependencies"
+                    },
+                    "adakings_backend/settings/__init__.py": {
+                        "content": '''"""\nDev-Test Settings for Adakings Backend API\n\nThis dev-test branch uses production-like configuration with test/placeholder values.\nSafe for testing production scenarios without real data/keys.\n"""\n\nimport os\n\n# Default to dev-test for this branch\nENVIRONMENT = os.environ.get('DJANGO_ENVIRONMENT', 'dev-test')\n\nif ENVIRONMENT == 'production':\n    from .production import *\n    print("🚀 Production environment loaded")\nelif ENVIRONMENT == 'dev-test':\n    from .dev_test import *\n    print("🧪 Dev-Test environment loaded (dev-test branch)")\nelif ENVIRONMENT == 'development':\n    from .development import *  \n    print("🔧 Development environment loaded")\nelse:\n    # Fallback to dev-test for this branch\n    from .dev_test import *\n    print("⚠️  Unknown environment '{}', falling back to dev-test".format(ENVIRONMENT))''',
+                        "description": "Dev-test settings loader"
+                    }
+                },
+                "exclude_patterns": [
+                    "*.dev.*",
+                    "*development*",
+                    "debug_*",
+                    "test_*",
+                    "apps/*/forms.py",
+                    "apps/*/templatetags/",
+                    ".env.example"
+                ],
+                "branch": "dev-test"
+            },
+            
             "development": {
                 "files": {
                     ".env.example": {
@@ -417,6 +452,97 @@ else:
         self.log_success("✅ Development configuration validation passed")
         return True
     
+    def validate_dev_test_config(self):
+        """Validate dev-test configuration files - production-like with test values"""
+        self.log_info("🔍 Validating dev-test configuration...")
+        
+        validation_errors = []
+        warnings = []
+        
+        # Check .env file
+        env_file = self.base_dir / ".env"
+        if env_file.exists():
+            env_content = env_file.read_text()
+            
+            # Critical production-like settings with placeholder warnings
+            required_settings = {
+                'DJANGO_SECRET_KEY': 'Secret key (currently using test value)',
+                'DJANGO_DEBUG': 'Debug mode (should be False)',
+                'DJANGO_ALLOWED_HOSTS': 'Allowed hosts (update for actual testing)',
+                'DB_NAME': 'Database name (using test database)',
+                'DB_USER': 'Database user (using test user)',
+                'DB_PASSWORD': 'Database password (using test password)',
+                'PAYSTACK_PUBLIC_KEY_LIVE': 'Paystack public key (using test placeholder)',
+                'PAYSTACK_SECRET_KEY_LIVE': 'Paystack secret key (using test placeholder)'
+            }
+            
+            for setting, description in required_settings.items():
+                if setting not in env_content:
+                    validation_errors.append(f"Missing {setting} ({description})")
+                else:
+                    # Check for placeholder/test values and warn (but don't fail)
+                    if (setting == 'DJANGO_SECRET_KEY' and 'django-dev-test-secret-key' in env_content) or \
+                       (setting == 'DB_PASSWORD' and 'test_password' in env_content) or \
+                       (setting == 'DB_USER' and 'test_user' in env_content) or \
+                       (setting == 'PAYSTACK_PUBLIC_KEY_LIVE' and 'placeholder' in env_content) or \
+                       (setting == 'PAYSTACK_SECRET_KEY_LIVE' and 'placeholder' in env_content):
+                        warnings.append(f"⚠️  {setting} is using placeholder/test value - {description}")
+            
+            # Check environment is set correctly
+            if 'DJANGO_ENVIRONMENT=dev-test' not in env_content:
+                warnings.append("DJANGO_ENVIRONMENT should be set to 'dev-test'")
+            
+            # Check for debug mode (should be False for prod-like testing)
+            if 'DJANGO_DEBUG=True' in env_content:
+                warnings.append("DJANGO_DEBUG is set to True (consider False for production-like testing)")
+            
+            # Check for test domains vs production domains
+            if 'test.adakings.local' in env_content or 'localhost' in env_content:
+                warnings.append("Using test/localhost domains - update if testing with real domains")
+            
+            # Check email configuration
+            if 'mailtrap.io' in env_content or 'test_user' in env_content:
+                warnings.append("Email configuration using test/placeholder values")
+                
+        else:
+            validation_errors.append(".env file not found")
+        
+        # Check requirements.txt (should be production-like)
+        req_file = self.base_dir / "requirements.txt"
+        if req_file.exists():
+            req_content = req_file.read_text()
+            
+            # Check for production essentials (warn if missing)
+            prod_packages = ['gunicorn', 'psycopg2-binary', 'whitenoise']
+            for package in prod_packages:
+                if package not in req_content:
+                    warnings.append(f"Missing production package for testing: {package}")
+        
+        # Check settings configuration
+        settings_init = self.base_dir / "adakings_backend" / "settings" / "__init__.py"
+        if settings_init.exists():
+            settings_content = settings_init.read_text()
+            if 'dev-test' not in settings_content:
+                warnings.append("Settings file should support dev-test environment")
+        
+        # Report validation results
+        if validation_errors:
+            self.log_error("❌ Dev-test configuration validation failed:")
+            for error in validation_errors:
+                self.log_error(f"  • {error}")
+            return False
+        
+        if warnings:
+            self.log_warning("⚠️  Dev-test configuration warnings (deployment will continue):")
+            for warning in warnings:
+                self.log_warning(f"  • {warning}")
+            self.log_warning("")
+            self.log_warning("🧪 These are test/placeholder values - safe for dev-test environment")
+            self.log_warning("📝 Update these values when moving to actual production")
+        
+        self.log_success("✅ Dev-test configuration validation passed with warnings")
+        return True
+    
     def setup_environment_files(self, env_type):
         """Set up environment-specific files"""
         config = self.env_configs.get(env_type)
@@ -547,6 +673,8 @@ else:
         """Run necessary checks before deployment"""
         if target_env == "production":
             return self.validate_production_config()
+        elif target_env == "dev-test":
+            return self.validate_dev_test_config()
         else:
             return self.validate_development_config()
 
@@ -555,16 +683,23 @@ else:
         self.log_info(f"🚀 Starting deployment to {target_env} environment")
         
         # Validate environment
-        if target_env not in ["production", "dev", "development"] and not target_env.startswith("feature/"):
+        if target_env not in ["production", "dev-test", "dev", "development"] and not target_env.startswith("feature/"):
             self.log_error(f"Invalid environment: {target_env}")
             return False
         
         # Normalize environment type
-        env_type = "production" if target_env == "production" else "development"
+        if target_env == "production":
+            env_type = "production"
+        elif target_env == "dev-test":
+            env_type = "dev-test"
+        else:
+            env_type = "development"
         
         # Determine target branch
         if target_env == "production":
             target_branch = "production"
+        elif target_env == "dev-test":
+            target_branch = "dev-test"
         elif target_env in ["dev", "development"]:
             target_branch = "dev"
         else:
@@ -616,6 +751,7 @@ def main():
         print(__doc__)
         print("\nAvailable environments:")
         print("  production [major|minor|patch]     - Deploy to production branch with version bump")
+        print("  dev-test [minor|patch]             - Deploy to dev-test branch (production-like with test values)")
         print("  dev [minor|patch]                  - Deploy to dev branch with version bump")
         print("  feature/name [patch]               - Deploy to feature branch with version bump")
         print("\nVersion bump types:")
