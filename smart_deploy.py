@@ -187,12 +187,16 @@ else:
         timestamp = datetime.now().strftime("%H:%M:%S")
         print(f"❌ [{timestamp}] {message}")
     
-    def run_command(self, command, check=True):
+    def run_command(self, command, check=True, shell=None):
         """Run shell command and return result"""
         try:
+            # Determine shell usage
+            if shell is None:
+                shell = isinstance(command, str)
+            
             result = subprocess.run(
                 command, 
-                shell=True, 
+                shell=shell, 
                 capture_output=True, 
                 text=True, 
                 check=check
@@ -327,7 +331,10 @@ else:
         # Check .env file
         env_file = self.base_dir / ".env"
         if env_file.exists():
-            env_content = env_file.read_text()
+            try:
+                env_content = env_file.read_text(encoding='utf-8')
+            except UnicodeDecodeError:
+                env_content = env_file.read_text(encoding='utf-8-sig')
             
             # Critical production settings
             required_settings = {
@@ -462,7 +469,10 @@ else:
         # Check .env file
         env_file = self.base_dir / ".env"
         if env_file.exists():
-            env_content = env_file.read_text()
+            try:
+                env_content = env_file.read_text(encoding='utf-8')
+            except UnicodeDecodeError:
+                env_content = env_file.read_text(encoding='utf-8-sig')
             
             # Critical production-like settings with placeholder warnings
             required_settings = {
@@ -510,7 +520,10 @@ else:
         # Check requirements.txt (should be production-like)
         req_file = self.base_dir / "requirements.txt"
         if req_file.exists():
-            req_content = req_file.read_text()
+            try:
+                req_content = req_file.read_text(encoding='utf-8')
+            except UnicodeDecodeError:
+                req_content = req_file.read_text(encoding='utf-8-sig')
             
             # Check for production essentials (warn if missing)
             prod_packages = ['gunicorn', 'psycopg2-binary', 'whitenoise']
@@ -521,7 +534,10 @@ else:
         # Check settings configuration
         settings_init = self.base_dir / "adakings_backend" / "settings" / "__init__.py"
         if settings_init.exists():
-            settings_content = settings_init.read_text()
+            try:
+                settings_content = settings_init.read_text(encoding='utf-8')
+            except UnicodeDecodeError:
+                settings_content = settings_init.read_text(encoding='utf-8-sig')
             if 'dev-test' not in settings_content:
                 warnings.append("Settings file should support dev-test environment")
         
@@ -590,8 +606,14 @@ else:
                     # Check if it's tracked by git
                     result = self.run_command(f"git ls-files {file_path}", check=False)
                     if result and result.stdout.strip():
-                        self.run_command(f"git rm {file_path}")
-                        self.log_info(f"✓ Removed: {file_path}")
+                        # Use --force to handle local modifications
+                        result = self.run_command(f"git rm --force {file_path}", check=False)
+                        if result:
+                            self.log_info(f"✓ Removed: {file_path}")
+                        else:
+                            # If git rm fails, just remove the file locally
+                            file_path.unlink()
+                            self.log_info(f"✓ Removed: {file_path}")
     
     def switch_branch(self, target_branch):
         """Switch to target branch, create if doesn't exist"""
@@ -645,8 +667,9 @@ else:
             commit_message += "- Included development tools and utilities\n"
             commit_message += "- Development environment configuration\n"
         
-        # Commit changes
-        result = self.run_command(f'git commit -m "{commit_message}"')
+        # Commit changes (escape quotes and handle multiline messages)
+        safe_message = commit_message.replace('"', '\"').replace('\n', '\n')
+        result = self.run_command(['git', 'commit', '-m', commit_message], shell=False)
         if not result:
             return False
         

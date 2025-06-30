@@ -1,16 +1,13 @@
 """
-Settings package for Adakings Backend API
+Dev-Test Settings for Adakings Backend API
 
-Environment-specific settings loading:
-- production.py: Production environment
-- dev_test.py: Dev-Test environment (production-like with test values)
-- development.py: Development environment  
-- base.py: Shared base settings
+This dev-test branch uses production-like configuration with test/placeholder values.
+Safe for testing production scenarios without real data/keys.
 """
 
 import os
 
-# Default to dev-test if no environment is specified
+# Default to dev-test for this branch
 ENVIRONMENT = os.environ.get('DJANGO_ENVIRONMENT', 'dev-test')
 
 if ENVIRONMENT == 'production':
@@ -18,11 +15,11 @@ if ENVIRONMENT == 'production':
     print("🚀 Production environment loaded")
 elif ENVIRONMENT == 'dev-test':
     from .dev_test import *
-    print("🧪 Dev-Test environment loaded")
+    print("🧪 Dev-Test environment loaded (dev-test branch)")
 elif ENVIRONMENT == 'development':
     from .development import *  
     print("🔧 Development environment loaded")
 else:
-    # Fallback to dev-test for any other value
+    # Fallback to dev-test for this branch
     from .dev_test import *
     print("⚠️  Unknown environment '{}', falling back to dev-test".format(ENVIRONMENT))
