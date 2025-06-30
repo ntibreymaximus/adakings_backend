@@ -145,9 +145,8 @@ python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
-# Configure environment
-cp .env.example .env
-# Edit .env with production values
+# Configure environment  
+# Edit .env file with your production values
 
 # Database setup
 python manage.py migrate

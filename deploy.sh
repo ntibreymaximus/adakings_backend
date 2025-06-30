@@ -56,7 +56,7 @@ cd $PROJECT_DIR
 # Check if .env file exists
 if [ ! -f ".env" ]; then
     log_error ".env file not found!"
-    log_info "Please copy .env.example to .env and configure with your production values"
+    log_info "Please configure the .env file with your production values"
     exit 1
 fi
 
