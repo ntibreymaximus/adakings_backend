@@ -71,6 +71,20 @@ def delivery_required(function=None, redirect_field_name=REDIRECT_FIELD_NAME, lo
         return actual_decorator(function)
     return actual_decorator
 
+def superadmin_required(function=None, redirect_field_name=REDIRECT_FIELD_NAME, login_url=None):
+    """
+    Decorator for views that checks that the user is logged in and is a superadmin,
+    redirecting to the login page if necessary.
+    """
+    actual_decorator = role_required(
+        role='superadmin',
+        login_url=login_url,
+        redirect_field_name=redirect_field_name
+    )
+    if function:
+        return actual_decorator(function)
+    return actual_decorator
+
 def role_required_class(allowed_roles=None):
     """
     Class-based decorator for checking role permissions that can be used with class-based views.

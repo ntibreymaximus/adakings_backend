@@ -59,24 +59,45 @@ class CustomUserAdmin(UserAdmin):
     
     def get_fieldsets(self, request, obj=None):
         """
-        Dynamically adjust fieldsets based on the user's role.
+        Dynamically adjust fieldsets based on the user's role and permissions.
         Add role-specific fields for delivery staff.
+        Restrict superuser field access to superusers only.
         """
         fieldsets = super().get_fieldsets(request, obj)
         
+        # Convert to list for manipulation
+        fieldsets = list(fieldsets)
+        
         # For existing users with delivery role, add delivery-specific fields
         if obj and obj.role == CustomUser.DELIVERY:
-            # Convert fieldsets to list for manipulation
-            fieldsets = list(fieldsets)
             # Add delivery fields section
             fieldsets.insert(3, (_('Delivery Information'), {'fields': ('delivery_zone', 'vehicle_type')}))
+        
+        # Only superusers can modify superuser and staff status
+        if not request.user.is_superuser:
+            for i, (name, opts) in enumerate(fieldsets):
+                if name == 'Permissions':
+                    fields = list(opts.get('fields', []))
+                    # Remove superuser field from non-superusers
+                    if 'is_superuser' in fields:
+                        fields.remove('is_superuser')
+                    # Remove staff field from non-superusers (auto-managed by role)
+                    if 'is_staff' in fields:
+                        fields.remove('is_staff')
+                    # Also restrict user_permissions and groups for admin users
+                    # Only superusers can assign specific permissions
+                    if 'user_permissions' in fields:
+                        fields.remove('user_permissions')
+                    if 'groups' in fields:
+                        fields.remove('groups')
+                    fieldsets[i] = (name, {**opts, 'fields': tuple(fields)})
             
         return fieldsets
     
     def get_form(self, request, obj=None, **kwargs):
         """
         Dynamically adjust the form to include delivery-specific fields 
-        when editing a delivery staff member.
+        and restrict superuser field access.
         """
         form = super().get_form(request, obj, **kwargs)
         
@@ -86,8 +107,28 @@ class CustomUserAdmin(UserAdmin):
                 form.base_fields['delivery_zone'] = CustomUserChangeForm.base_fields['delivery_zone']
             if 'vehicle_type' not in form.base_fields:
                 form.base_fields['vehicle_type'] = CustomUserChangeForm.base_fields['vehicle_type']
-                
+        
+        # Only superusers can modify superuser and staff status
+        if not request.user.is_superuser:
+            if 'is_superuser' in form.base_fields:
+                del form.base_fields['is_superuser']
+            if 'is_staff' in form.base_fields:
+                del form.base_fields['is_staff']
+            
         return form
+    
+    def changelist_view(self, request, extra_context=None):
+        """Add informational message about staff status management."""
+        extra_context = extra_context or {}
+        
+        from django.contrib import messages
+        messages.info(
+            request, 
+            "Staff status (Django admin access) is automatically managed based on user role. "
+            "Only superadmins can access Django admin. All other roles (including admin) use the API interface."
+        )
+        
+        return super().changelist_view(request, extra_context)
 
 # Register the model with the custom admin
 admin.site.register(CustomUser, CustomUserAdmin)

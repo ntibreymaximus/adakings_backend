@@ -7,6 +7,7 @@ from django.core.exceptions import ValidationError
 from apps.orders.models import Order
 from decimal import Decimal
 from uuid import uuid4
+from django.utils.timesince import timesince
 
 
 class Payment(models.Model):
@@ -19,11 +20,17 @@ class Payment(models.Model):
     ]
 
     # Payment Methods
-    PAYMENT_METHOD_CASH = 'cash'
-    PAYMENT_METHOD_MOBILE = 'mobile_money'
+    PAYMENT_METHOD_CASH = 'CASH'
+    PAYMENT_METHOD_TELECEL_CASH = 'TELECEL CASH'
+    PAYMENT_METHOD_MTN_MOMO = 'MTN MOMO'
+    PAYMENT_METHOD_PAYSTACK_USSD = 'PAYSTACK(USSD)'
+    PAYMENT_METHOD_PAYSTACK_API = 'PAYSTACK(API)'
     PAYMENT_METHOD_CHOICES = [
         (PAYMENT_METHOD_CASH, 'Cash'),
-        (PAYMENT_METHOD_MOBILE, 'Mobile Money'),
+        (PAYMENT_METHOD_TELECEL_CASH, 'Telecel Cash'),
+        (PAYMENT_METHOD_MTN_MOMO, 'MTN MoMo'),
+        (PAYMENT_METHOD_PAYSTACK_USSD, 'Paystack (USSD)'),
+        (PAYMENT_METHOD_PAYSTACK_API, 'Paystack (API)'),
     ]
     
     # Payment Statuses
@@ -123,12 +130,12 @@ class Payment(models.Model):
             # as it requires knowing the order's current payment state.
 
         # Mobile payment specific validations (existing logic)
-        if self.payment_method == self.PAYMENT_METHOD_MOBILE:
+        if self.payment_method == self.PAYMENT_METHOD_PAYSTACK_API:
             if not getattr(self, '_skip_mobile_validation', False) and not self.mobile_number:
-                raise ValidationError({"mobile_number": "Mobile number is required for mobile payments."})
-        elif self.payment_type == self.PAYMENT_TYPE_PAYMENT: # For non-mobile 'payment' types
-             # Ensure mobile number and Paystack ref are clear if not mobile money
-            if self.payment_method != self.PAYMENT_METHOD_MOBILE:
+                raise ValidationError({"mobile_number": "Mobile number is required for Paystack API payments."})
+        elif self.payment_type == self.PAYMENT_TYPE_PAYMENT: # For non-Paystack-API 'payment' types
+             # Ensure mobile number and Paystack ref are clear if not Paystack API
+            if self.payment_method != self.PAYMENT_METHOD_PAYSTACK_API:
                 self.mobile_number = None
                 self.paystack_reference = None
     
@@ -154,6 +161,20 @@ class Payment(models.Model):
     
     def is_completed(self):
         return self.status == self.STATUS_COMPLETED
+    
+    def time_ago(self):
+        """Return the time since the payment was last updated in a human-readable format."""
+        from django.utils import timezone
+        
+        now = timezone.now()
+        time_diff = now - self.updated_at
+        
+        # If updated less than 30 seconds ago, show "Just now"
+        if time_diff.total_seconds() < 30:
+            return "Just now"
+        
+        # Use Django's timesince for everything else
+        return timesince(self.updated_at, now) + " ago"
     
     def get_absolute_url(self):
         return reverse('payments:payment_detail', kwargs={'pk': self.pk})
@@ -214,6 +235,20 @@ class PaymentTransaction(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
+    def time_ago(self):
+        """Return the time since the transaction was last updated in a human-readable format."""
+        from django.utils import timezone
+        
+        now = timezone.now()
+        time_diff = now - self.updated_at
+        
+        # If updated less than 30 seconds ago, show "Just now"
+        if time_diff.total_seconds() < 30:
+            return "Just now"
+        
+        # Use Django's timesince for everything else
+        return timesince(self.updated_at, now) + " ago"
     
     def __str__(self):
         return f"Transaction {self.transaction_id} - {self.get_status_display()} ({self.payment.reference})"

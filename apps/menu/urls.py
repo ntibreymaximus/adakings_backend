@@ -1,11 +1,15 @@
 from django.urls import path
-from . import views
+from .views import (
+    MenuItemListCreateAPIView,
+    MenuItemRetrieveUpdateDestroyAPIView,
+    toggle_menu_item_availability_api
+)
 
-app_name = 'menu'
+app_name = 'menu_api'
 
 urlpatterns = [
-    path('items/', views.MenuItemListView.as_view(), {'item_type': 'regular'}, name='item_list'),
-    path('extras/', views.MenuItemListView.as_view(), {'item_type': 'extra'}, name='extra_list'),
-    path('item/<int:item_id>/toggle-availability/', views.toggle_menu_item_availability, name='toggle_availability'),
-    path('', views.MenuItemListView.as_view(), {'item_type': 'regular'}, name='menu_home'), # Keep this last as a general fallback for /menu/
+    path('items/', MenuItemListCreateAPIView.as_view(), name='menuitem-list-create'),
+    path('items/<int:pk>/', MenuItemRetrieveUpdateDestroyAPIView.as_view(), name='menuitem-detail'),
+    path('items/<int:pk>/toggle-availability/', toggle_menu_item_availability_api, name='menuitem-toggle-availability'),
 ]
+

@@ -6,14 +6,42 @@ from django.core.exceptions import ValidationError
 from decimal import Decimal
 from django.utils import timezone
 from apps.menu.models import MenuItem
+from django.utils.timesince import timesince
 
-DELIVERY_FEES = {
-    "Adenta": Decimal("5.00"),
-    "Accra": Decimal("7.00"),
-    "Madina": Decimal("4.00"),
-    "Legon": Decimal("3.00"),
-    # Ensure all LOCATION_CHOICES used for 'Delivery' are mapped here
-}
+# Delivery fees are now managed through the DeliveryLocation model
+
+class DeliveryLocation(models.Model):
+    """Model for managing delivery locations and their fees"""
+    name = models.CharField(
+        max_length=100,
+        unique=True,
+        help_text="Name of the delivery location"
+    )
+    fee = models.DecimalField(
+        max_digits=6,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal("0.00"))],
+        help_text="Delivery fee for this location"
+    )
+    is_active = models.BooleanField(
+        default=True,
+        help_text="Whether this location is currently available for delivery"
+    )
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Delivery Location"
+        verbose_name_plural = "Delivery Locations"
+        ordering = ["name"]
+    
+    def __str__(self):
+        return f"{self.name} (₵{self.fee:.2f})"
+    
+    @classmethod
+    def get_active_locations_dict(cls):
+        """Return a dictionary of active locations with their fees"""
+        return {loc.name: loc.fee for loc in cls.objects.filter(is_active=True)}
 
 # Validator for Ghanaian phone numbers
 phone_regex = RegexValidator(
@@ -31,25 +59,15 @@ class Order(models.Model):
         help_text="Unique order number in format DDMMYY-XXX"
     )
     
-    # Customer information fields
-    customer_name = models.CharField(
-        max_length=255,
-        default="Unknown Customer"
-    )
+    # Customer information field
     customer_phone = models.CharField(
         max_length=15,
         validators=[phone_regex],
-        help_text="Ghanaian phone number in format +233XXXXXXXXX or 0XXXXXXXXX",
-        default="0000000000"
+        help_text="Ghanaian phone number in format +233XXXXXXXXX or 0XXXXXXXXX (required for delivery orders)",
+        blank=True,
+        null=True
     )
     
-    # Dynamically create LOCATION_CHOICES from DELIVERY_FEES dictionary
-    # This ensures that the dropdown options for delivery_location show the fee.
-    LOCATION_CHOICES = [
-        (location, f"{location} (Fee: ₵{fee:.2f})")
-        for location, fee in DELIVERY_FEES.items()
-    ]
-
     DELIVERY_CHOICES = [
         ("Pickup", "Pickup"),
         ("Delivery", "Delivery"),
@@ -59,21 +77,29 @@ class Order(models.Model):
         choices=DELIVERY_CHOICES,
         default="Pickup"
     )
-    delivery_location = models.CharField(
-        max_length=50,  # Max length for location names
-        choices=LOCATION_CHOICES,
-        blank=True,     # Still allow blank if delivery_type is not 'Delivery'
-        default="Accra", # Or choose another default, or remove if no default preferred
+    delivery_location = models.ForeignKey(
+        DeliveryLocation,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         help_text="Select delivery location (Required for delivery orders)."
     )
     
+    # Status constants
+    STATUS_PENDING = "Pending"
+    STATUS_ACCEPTED = "Accepted"
+    STATUS_READY = "Ready"
+    STATUS_OUT_FOR_DELIVERY = "Out for Delivery"
+    STATUS_FULFILLED = "Fulfilled"
+    STATUS_CANCELLED = "Cancelled"
+    
     STATUS_CHOICES = [
-        ("Pending", "Pending"),
-        ("Accepted", "Accepted"),
-        ("Ready", "Ready"),
-        ("Out for Delivery", "Out for Delivery"),
-        ("Fulfilled", "Fulfilled"),
-        ("Cancelled", "Cancelled"),
+        (STATUS_PENDING, "Pending"),
+        (STATUS_ACCEPTED, "Accepted"),
+        (STATUS_READY, "Ready"),
+        (STATUS_OUT_FOR_DELIVERY, "Out for Delivery"),
+        (STATUS_FULFILLED, "Fulfilled"),
+        (STATUS_CANCELLED, "Cancelled"),
     ]
     status = models.CharField(
         max_length=20,
@@ -123,7 +149,26 @@ class Order(models.Model):
         return self.balance_due() == Decimal('0.00')
 
     def get_payment_status(self):
-        """Get the payment status: UNPAID, PARTIALLY PAID, PAID, OVERPAID, PENDING PAYMENT."""
+        """Get the payment status: UNPAID, PARTIALLY PAID, PAID, OVERPAID, PENDING PAYMENT, REFUNDED."""
+        # Check if order is cancelled and has been refunded
+        if self.status == self.STATUS_CANCELLED:
+            # Check if there are completed refunds that cover the amount paid
+            completed_refunds = self.payments.filter(
+                status=self.payments.model.STATUS_COMPLETED, 
+                payment_type=self.payments.model.PAYMENT_TYPE_REFUND
+            )
+            if completed_refunds.exists():
+                total_refunded = completed_refunds.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+                # If total refunded covers the amount originally paid, status is REFUNDED
+                original_payments = self.payments.filter(
+                    status=self.payments.model.STATUS_COMPLETED, 
+                    payment_type=self.payments.model.PAYMENT_TYPE_PAYMENT
+                )
+                total_originally_paid = original_payments.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+                
+                if total_refunded >= total_originally_paid and total_originally_paid > Decimal('0.00'):
+                    return "REFUNDED"
+        
         paid_amount_net = self.amount_paid()
 
         if paid_amount_net < self.total_price:
@@ -143,21 +188,32 @@ class Order(models.Model):
             return "OVERPAID"
     
     def clean(self):
-        # Location is required for delivery orders
+        errors = {}
+        
+        # Validation for delivery orders
         if self.delivery_type == "Delivery":
+            # Location is required for delivery orders
             if not self.delivery_location:
-                raise ValidationError({"delivery_location": "Location is required for delivery orders."})
-            # New check for fee existence
-            if self.delivery_location not in DELIVERY_FEES:
-                raise ValidationError({"delivery_location": f"Delivery to '{self.delivery_location}' is not currently supported or has no defined fee."})
+                errors["delivery_location"] = "Location is required for delivery orders."
+            # Check if the delivery location is active
+            elif not self.delivery_location.is_active:
+                errors["delivery_location"] = f"Delivery to '{self.delivery_location.name}' is not currently available."
+            
+            # Customer phone is required for delivery orders
+            if not self.customer_phone or self.customer_phone.strip() == '':
+                errors["customer_phone"] = "Customer phone number is required for delivery orders."
+        
+        if errors:
+            raise ValidationError(errors)
+        
         super().clean()
     
     def _calculate_delivery_fee(self):
         if self.delivery_type == "Pickup":
             return Decimal("0.00")
         elif self.delivery_type == "Delivery":
-            if self.delivery_location and self.delivery_location in DELIVERY_FEES:
-                return DELIVERY_FEES.get(self.delivery_location, Decimal("0.00"))
+            if self.delivery_location:
+                return self.delivery_location.fee
             else:
                 # This case should ideally be caught by clean() method if location is invalid
                 return Decimal("0.00") 
@@ -201,13 +257,25 @@ class Order(models.Model):
         return f"{date_part}-{seq_number:03d}"
     
     def save(self, *args, **kwargs):
-        self.full_clean() # Validate fields
+        # Skip validation if we're only updating specific fields (like from signals)
+        # This prevents validation errors during partial updates
+        update_fields = kwargs.get('update_fields')
+        skip_validation = update_fields and all(field in ['total_price', 'updated_at', 'delivery_fee'] for field in update_fields)
+        
+        if not skip_validation:
+            self.full_clean() # Validate fields
         
         # Calculate and set delivery fee
         self.delivery_fee = self._calculate_delivery_fee()
 
         if not self.order_number:
             self.order_number = self.generate_order_number()
+        
+        # Set appropriate default status based on delivery type for new orders
+        if not self.pk and self.status == self.STATUS_PENDING:
+            if self.delivery_type == 'Delivery':
+                self.status = self.STATUS_ACCEPTED  # Delivery orders start as Accepted
+            # Pickup orders keep the default STATUS_PENDING
         
         # Calculate total price (this will use the self.delivery_fee set above)
         # This needs to happen for both new and existing orders if items might be involved or delivery fee changed.
@@ -223,8 +291,24 @@ class Order(models.Model):
 
         super().save(*args, **kwargs)
     
+    def time_ago(self):
+        """Return the time since the order was last updated in a human-readable format."""
+        from django.utils import timezone
+        from django.utils.timesince import timesince
+        
+        now = timezone.now()
+        time_diff = now - self.updated_at
+        
+        # If updated less than 30 seconds ago, show "Just now"
+        if time_diff.total_seconds() < 30:
+            return "Just now"
+        
+        # Use Django's timesince for everything else
+        return timesince(self.updated_at, now) + " ago"
+
     def __str__(self):
-        return f"{self.order_number} - {self.customer_name} ({self.status})"
+        phone_display = self.customer_phone if self.customer_phone else "No Phone"
+        return f"{self.order_number} - {phone_display} ({self.status})"
     
     class Meta:
         verbose_name = "Order"
@@ -242,14 +326,6 @@ class OrderItem(models.Model):
         MenuItem,
         on_delete=models.PROTECT,
         related_name="order_items"
-    )
-    parent_item = models.ForeignKey(
-        'self', 
-        on_delete=models.CASCADE, # If parent is deleted, extra is deleted.
-        null=True, 
-        blank=True, 
-        related_name='child_items',
-        help_text="Link to the main item if this is an extra."
     )
     quantity = models.PositiveIntegerField(
         default=1,

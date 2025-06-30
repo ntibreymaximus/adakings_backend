@@ -1,16 +1,17 @@
-# Adakings Backend System
+# Adakings Backend API
 
-A full-stack restaurant management system built with Django, focusing on streamlining front desk operations for restaurants including reservations, order management, menu handling, and customer service.
+A RESTful API backend for the Adakings restaurant management system, built with Django and Django REST Framework.
+This backend serves a separate React frontend.
 
 ## Project Overview
 
 This system aims to provide restaurants with an all-in-one solution to manage:
-- Customer reservations and seating
-- Menu management and real-time updates
+The backend provides API endpoints for:
+- User authentication and management (registration, login, profile, password reset)
+- Menu management
 - Order processing and tracking
-- Payment handling (Cash and Mobile Money via Paystack)
-- Staff scheduling and management
-- Customer data and preferences
+- Payment handling (Cash and Mobile Money via Paystack integration)
+- Staff management and role-based access control
 
 ## Setup & Installation
 
@@ -60,8 +61,7 @@ This system aims to provide restaurants with an all-in-one solution to manage:
    ```
    python manage.py runserver
    ```
-   
-   The application will be available at `http://127.0.0.1:8000/`
+   The API will be available at `http://127.0.0.1:8000/api/`
 
 7. **Configure Environment Variables**
    
@@ -74,6 +74,27 @@ This system aims to provide restaurants with an all-in-one solution to manage:
    You can obtain Paystack API keys from your [Paystack Dashboard](https://dashboard.paystack.com/#/settings/developer)
    
    For development, you can use test keys to simulate payments without actual charges.
+
+## API Documentation
+
+The API documentation is automatically generated using `drf-spectacular` and can be accessed at the following endpoints:
+
+- **OpenAPI Schema**: `/api/schema/`
+- **Swagger UI**: `/api/docs/swagger/`
+- **ReDoc**: `/api/docs/`
+
+## Authentication Flow
+
+The API uses session-based authentication by default for web browsers and basic authentication for other clients. 
+Future enhancements may include token-based authentication (e.g., JWT).
+
+- **Registration**: `POST /api/users/register/`
+- **Login**: `POST /api/users/login/` (establishes a session)
+- **Logout**: `POST /api/users/logout/` (invalidates the session)
+- **Profile**: `GET /api/users/me/` (requires authentication)
+- **Profile Update**: `PUT/PATCH /api/users/profile/` (requires authentication)
+
+Permissions are handled using Django REST Framework's permission classes, including `IsAuthenticated` and `IsAdminUser` for protected endpoints.
 
 ## Project Structure
 
@@ -129,15 +150,8 @@ adakings_backend/
 │       ├── models.py          # Database models
 │       ├── tests.py           # Unit tests
 │       ├── urls.py            # URL routing
-│       ├── views.py           # View functions/classes
+│       ├── views_api.py       # API view functions/classes for users
 │       └── __init__.py        # Python package marker
-│
-├── templates/                 # HTML templates
-│   ├── menu/                  # Menu-related templates
-│   ├── orders/                # Order-related templates
-│   ├── payments/              # Payment-related templates
-│   └── users/                 # User-related templates
-│       └── dashboards/        # Dashboard templates
 │
 ├── static/                    # Static files (CSS, JS, images)
 │   └── css/                   # Stylesheets
@@ -157,9 +171,21 @@ adakings_backend/
 
 - **Current Version**: v0.6.0
 - **Current Branch**: feature/v0.6.0-codebase-restructuring
-- **Development Stage**: Advanced codebase restructuring, optimization, and architectural improvements for enhanced scalability and maintainability.
+- **Development Stage**: **MAJOR RESTRUCTURING COMPLETE** - Converted from full-stack Django application to pure REST API backend. Removed all Django templates, forms, and web interface components. Now serves exclusively as an API backend for separate frontend applications.
 
 ### Version History
+
+- **v0.6.0**: **MAJOR RESTRUCTURING** - Pure API Backend Conversion
+  - **BREAKING CHANGE**: Removed all Django templates, forms, and web interface components
+  - Converted all views to API-only using Django REST Framework
+  - Added comprehensive serializers for all models (menu, orders, payments, users)
+  - Implemented proper API permissions and authentication
+  - Removed static CSS files and template directories
+  - Updated URL routing to serve API endpoints exclusively
+  - Added API documentation with Swagger/OpenAPI schema
+  - Streamlined models for API consumption
+  - Added new database migrations for model optimizations
+  - **Result**: Now serves as a pure REST API backend ready for separate frontend applications
 
 - **v0.5.0**: Comprehensive application updates and refactoring
   - Refactored Admin Dashboard UI to align with the new unified theme (using `theme.css` and Bootstrap).
@@ -185,20 +211,14 @@ adakings_backend/
 
 ## Usage Instructions
 
-### Running the Application
-
-1. Ensure your virtual environment is activated:
-   ```
-   venv\Scripts\activate  # Windows
-   source venv/bin/activate  # macOS/Linux
-   ```
+1. Ensure your virtual environment is activated.
 
 2. Start the development server:
    ```
    python manage.py runserver
    ```
 
-3. Access the application at `http://127.0.0.1:8000/`
+3. Access the API at `http://127.0.0.1:8000/api/` and the documentation as listed above.
 
 ### Admin Interface
 

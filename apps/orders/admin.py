@@ -1,31 +1,38 @@
 ﻿from django.contrib import admin
 from django.contrib import messages
+from django.db.models import Sum, F, Value, DecimalField
+from django.db.models.functions import Coalesce
 from django.utils.html import format_html
 from django.urls import reverse
 from django.utils.http import urlencode
 from django.http import HttpResponseRedirect
-from .models import Order, OrderItem
+from .models import Order, OrderItem, DeliveryLocation
 
 class OrderItemInline(admin.TabularInline):
     model = OrderItem
     extra = 0
     fields = ('menu_item', 'quantity', 'unit_price', 'subtotal', 'notes')
     readonly_fields = ('subtotal', 'unit_price')
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        # Sorts items to show 'regular' items before 'extra' items.
+        return qs.select_related('menu_item').order_by('-menu_item__item_type', 'menu_item__name')
     
     def has_delete_permission(self, request, obj=None):
         return True
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
-    list_display = ('order_number', 'customer_name', 'customer_phone', 'delivery_info', 
-                   'formatted_total_price', 'status', 'created_at')
+    list_display = ('order_number', 'customer_phone', 'delivery_info', 
+                   'total_price_display', 'status', 'created_at')
     list_filter = ('status', 'created_at', 'delivery_type')
-    search_fields = ('customer_name', 'customer_phone', 'delivery_location')
+    search_fields = ('customer_phone', 'delivery_location__name')
     readonly_fields = ('total_price', 'created_at', 'updated_at')
     inlines = [OrderItemInline]
     fieldsets = (
         ('Customer Information', {
-            'fields': ('customer_name', 'customer_phone')
+            'fields': ('customer_phone',)
         }),
         ('Delivery Details', {
             'fields': ('delivery_type', 'delivery_location')
@@ -40,6 +47,13 @@ class OrderAdmin(admin.ModelAdmin):
     )
     
     actions = ['mark_as_confirmed', 'mark_as_processing', 'mark_as_ready', 'mark_as_delivered', 'mark_as_cancelled']
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        queryset = queryset.annotate(
+            calculated_total=Coalesce(Sum('items__subtotal'), Value(0), output_field=DecimalField()) + F('delivery_fee')
+        )
+        return queryset
 
     def save_formset(self, request, form, formset, change):
         # First, let the default behavior save the inline formset (OrderItems)
@@ -70,32 +84,22 @@ class OrderAdmin(admin.ModelAdmin):
             # This case implies the main order object wasn't saved before formset, which Django handles
             # messages.warning(request, f"DEBUG: save_formset - order_instance {order_instance} has no PK yet.")
 
-    def customer_name(self, obj):
-        return obj.customer_name
-    customer_name.short_description = 'Customer'
-    
     def customer_phone(self, obj):
         return obj.customer_phone
     customer_phone.short_description = 'Phone'
     
     def delivery_info(self, obj):
         if obj.delivery_type == 'Pickup':
-            return format_html('<span style="background-color: #e8e8e8; color: #000; padding: 2px 6px; border-radius: 3px;">Pickup</span>')
+            return 'Pickup'
         elif obj.delivery_type == 'Delivery':
-            location = obj.delivery_location if obj.delivery_location else "N/A"
-            return format_html('<span style="background-color: #e8f4f8; color: #000; padding: 2px 6px; border-radius: 3px;">Delivery to: {}</span>', location)
-        else:
-            # Fallback for other delivery types or if delivery_type is None
-            return obj.delivery_type if obj.delivery_type else "N/A"
+            return f'Delivery to: {obj.delivery_location}'
+        return 'N/A'
     delivery_info.short_description = 'Delivery Info'
     
-    def formatted_total_price(self, obj):
-        try:
-            price = float(obj.total_price)
-            return format_html('₵{:.2f}', price)
-        except (TypeError, ValueError):
-            return format_html('₵0.00')
-    formatted_total_price.short_description = 'Total Price'
+    def total_price_display(self, obj):
+        return f"₵{obj.calculated_total:.2f}"
+    total_price_display.admin_order_field = 'calculated_total'
+    total_price_display.short_description = 'Total Price'
     
     def mark_as_confirmed(self, request, queryset):
         queryset.update(status='Confirmed')
@@ -124,14 +128,29 @@ class OrderAdmin(admin.ModelAdmin):
         return False
 
     def has_delete_permission(self, request, obj=None):
-        """Prevent deletion of orders with related payments."""
+        """Superadmins can delete anything, others cannot delete orders with payments."""
+        # Superadmins have unrestricted access
+        if (request.user.is_superuser and 
+            hasattr(request.user, 'role') and 
+            request.user.role == 'superadmin'):
+            return True
+            
+        # For other users, prevent deletion of orders with related payments
         if obj and self.has_related_payments(obj):
             return False
         return super().has_delete_permission(request, obj)
 
     def delete_view(self, request, object_id, extra_context=None):
-        """Show warning message if deletion is attempted on orders with payments."""
+        """Show warning message if deletion is attempted on orders with payments (except for superadmins)."""
         obj = self.get_object(request, object_id)
+        
+        # Superadmins can delete anything without restrictions
+        if (request.user.is_superuser and 
+            hasattr(request.user, 'role') and 
+            request.user.role == 'superadmin'):
+            return super().delete_view(request, object_id, extra_context)
+        
+        # For other users, check payment restrictions
         if obj and self.has_related_payments(obj):
             self.message_user(
                 request, 
@@ -155,11 +174,46 @@ class OrderAdmin(admin.ModelAdmin):
         
         return deleted_objects, model_count, perms_needed, protected
 
+@admin.register(DeliveryLocation)
+class DeliveryLocationAdmin(admin.ModelAdmin):
+    list_display = ('name', 'fee_display', 'is_active', 'created_at', 'updated_at')
+    list_filter = ('is_active', 'created_at')
+    search_fields = ('name',)
+    readonly_fields = ('created_at', 'updated_at')
+    ordering = ('name',)
+    
+    fieldsets = (
+        ('Location Details', {
+            'fields': ('name', 'fee', 'is_active')
+        }),
+        ('Metadata', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def fee_display(self, obj):
+        return f"₵{obj.fee:.2f}"
+    fee_display.short_description = 'Delivery Fee'
+    fee_display.admin_order_field = 'fee'
+    
+    actions = ['activate_locations', 'deactivate_locations']
+    
+    def activate_locations(self, request, queryset):
+        updated = queryset.update(is_active=True)
+        self.message_user(request, f"{updated} location(s) activated.")
+    activate_locations.short_description = "Activate selected locations"
+    
+    def deactivate_locations(self, request, queryset):
+        updated = queryset.update(is_active=False)
+        self.message_user(request, f"{updated} location(s) deactivated.")
+    deactivate_locations.short_description = "Deactivate selected locations"
+
 @admin.register(OrderItem)
 class OrderItemAdmin(admin.ModelAdmin):
     list_display = ('id', 'order_id', 'menu_item_name', 'quantity', 'unit_price', 'subtotal')
     list_filter = ('order__status',)
-    search_fields = ('order__customer_name', 'menu_item__name')
+    search_fields = ('order__customer_phone', 'menu_item__name')
     readonly_fields = ('subtotal',)
     
     def order_id(self, obj):

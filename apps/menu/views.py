@@ -1,135 +1,89 @@
-from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from django.views.generic import ListView
-from django.core.exceptions import PermissionDenied
-from django.db.models import Q
-from .models import MenuItem
-from django.shortcuts import redirect, get_object_or_404
-from django.contrib import messages
-from django.contrib.auth.decorators import login_required
-from django.views.decorators.http import require_POST
-from apps.users.decorators import role_required_class
+from rest_framework import generics, status
+from rest_framework.exceptions import PermissionDenied
+from rest_framework.decorators import api_view, permission_classes as drf_permission_classes # Renamed to avoid clash
+from rest_framework.permissions import IsAdminUser, AllowAny
+from apps.users.permissions import IsAdminOrFrontdesk
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes # Added import
+from django.shortcuts import get_object_or_404 # Added import
+from django.db.models import Q # Added import
+from rest_framework.response import Response # Added import
 
-def is_admin_staff(user):
-    return user.is_authenticated and user.is_staff and getattr(user, "role", None) == "admin"
+from .models import MenuItem # Added import
+from .serializers import MenuItemSerializer # Added import
 
-class StaffViewMixin(LoginRequiredMixin, UserPassesTestMixin):
-    def test_func(self):
-        return self.request.user.is_staff
-
-class MenuItemListView(StaffViewMixin, ListView):
-    model = MenuItem
-    template_name = "menu/item_list.html"
-    context_object_name = "items"
-    paginate_by = 20
-
-    def get_template_names(self):
-        """Return different template based on item type"""
-        if self.kwargs.get('item_type') == 'extra' or self.extra_context and self.extra_context.get('item_type') == 'extra':
-            return ["menu/extra_list.html"]
-        return ["menu/item_list.html"]
+@extend_schema(
+    summary="List and Create Menu Items",
+    description="Allows authenticated users to list menu items. Allows admin users to create new ones. Supports filtering by item_type, availability, and search term.",
+    parameters=[
+        OpenApiParameter(name='item_type', description='Filter by item type (regular or extra)', required=False, type=OpenApiTypes.STR),
+        OpenApiParameter(name='availability', description='Filter by availability (available or unavailable)', required=False, type=OpenApiTypes.STR),
+        OpenApiParameter(name='search', description='Search by item name', required=False, type=OpenApiTypes.STR),
+        OpenApiParameter(name='ordering', description='Order by fields (e.g., name, price, -price)', required=False, type=OpenApiTypes.STR),
+    ],
+    tags=['Menu']
+)
+class MenuItemListCreateAPIView(generics.ListCreateAPIView):
+    queryset = MenuItem.objects.all()
+    serializer_class = MenuItemSerializer
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        
-        # Filter by item type
-        item_type_filter_value = self.kwargs.get('item_type') or \
-                                 (self.extra_context and self.extra_context.get('item_type'))
+        item_type = self.request.query_params.get('item_type')
+        availability = self.request.query_params.get('availability')
+        search_query = self.request.query_params.get('search')
+        ordering = self.request.query_params.get('ordering')
 
-        # If the view is specifically for 'extra' items, filter by item_type='extra'.
-        # Otherwise (e.g. for the main item_list page, where item_type_filter_value might be 'regular' or None),
-        # do not filter by item_type, thus including all items (regular and extras).
-        if item_type_filter_value == 'extra':
-            queryset = queryset.filter(item_type=item_type_filter_value)
-        # If item_type_filter_value is 'regular' or None, no item_type filter is applied here.
-        # Availability filter
-        availability = self.request.GET.get("availability")
+        if item_type:
+            queryset = queryset.filter(item_type=item_type)
         if availability:
-            queryset = queryset.filter(is_available=(availability == "available"))
-        
-        # Search functionality
-        search_query = self.request.GET.get("search")
+            queryset = queryset.filter(is_available=(availability.lower() == "available"))
         if search_query:
-            queryset = queryset.filter(
-                Q(name__icontains=search_query)
-            )
-        
-        # Sorting
-        sort_by = self.request.GET.get("sort", "name")
-        if sort_by == "price":
-            queryset = queryset.order_by("price")
-        elif sort_by == "price-desc":
-            queryset = queryset.order_by("-price")
+            queryset = queryset.filter(Q(name__icontains=search_query))
+        if ordering:
+            queryset = queryset.order_by(*ordering.split(','))
         else:
-            queryset = queryset.order_by("name")
-
+            queryset = queryset.order_by('item_type', 'name') # Default ordering
+        
         return queryset.select_related("created_by")
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
 
-        # Determine if this view is specifically for 'extra' items
-        is_extra_specific_view = self.kwargs.get('item_type') == 'extra' or \
-                                 (self.extra_context and self.extra_context.get('item_type') == 'extra')
+@extend_schema(
+    summary="Retrieve, Update, or Delete a Menu Item",
+    description="Allows admin users to retrieve, update, or delete a specific menu item.",
+    tags=['Menu']
+)
+class MenuItemRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = MenuItem.objects.all()
+    serializer_class = MenuItemSerializer
+    permission_classes = [IsAdminOrFrontdesk]
 
-        if not is_extra_specific_view:
-            # For the main item_list.html, which shows all items (regular and extras).
-            # context[self.context_object_name] (i.e., context['items']) holds the paginated list.
-            # Split these items into regular and extras for grouped display in the template.
-            items_on_page = context.get(self.context_object_name, []) 
-            
-            regular_items_on_page = []
-            extra_items_on_page = []
-            for item in items_on_page:
-                if item.item_type == 'regular':
-                    regular_items_on_page.append(item)
-                elif item.item_type == 'extra':
-                    extra_items_on_page.append(item)
-            
-            context['regular_menu_items'] = regular_items_on_page
-            context['extra_menu_items'] = extra_items_on_page
-        # If is_extra_specific_view is True, context[self.context_object_name] already contains only 'extra' items,
-        # and the extra_list.html template will iterate over it. No special grouping is needed here for that view.
+    def perform_destroy(self, instance):
+        # Superadmins can delete anything, admins can delete menu items, frontdesk cannot delete
+        if self.request.user.is_superuser:
+            # Superadmins have unrestricted access
+            instance.delete()
+        elif hasattr(self.request.user, 'role') and self.request.user.role == 'admin':
+            # Admins can delete menu items
+            instance.delete()
+        else:
+            raise PermissionDenied("Only admin users and superadmins can delete menu items.")
 
-        # --- Standard context variables ---
-        is_current_user_frontdesk = False
-        if self.request.user.is_authenticated:
-            if hasattr(self.request.user, 'is_frontdesk'):
-                is_current_user_frontdesk = self.request.user.is_frontdesk()
-            elif hasattr(self.request.user, 'role'):
-                is_current_user_frontdesk = (self.request.user.role == 'frontdesk')
-
-        context_updates = {
-            "is_admin": is_admin_staff(self.request.user),
-            "is_frontdesk": is_current_user_frontdesk,
-            "selected_availability": self.request.GET.get("availability"),
-            "search_query": self.request.GET.get("search"),
-            "sort_by": self.request.GET.get("sort", "name"),
-            # total_items should reflect the total count of items matching the query, before pagination
-            "total_items": context['paginator'].count if context.get('paginator') else 0,
-            # item_type primarily for template display logic (e.g. page title, or identifying the view's purpose)
-            "item_type": self.kwargs.get('item_type') or \
-                         (self.extra_context and self.extra_context.get('item_type', 'regular'))
-        }
-        context.update(context_updates)
-        return context
-
-
-@login_required
-@role_required_class(allowed_roles=['admin', 'frontdesk'])
-@require_POST
-def toggle_menu_item_availability(request, item_id):
-    item = get_object_or_404(MenuItem, pk=item_id)
+@extend_schema(
+    summary="Toggle Menu Item Availability",
+    description="Allows admin or frontdesk users to toggle the availability of a menu item.",
+    request=None, # No request body for this PUT action
+    responses={200: MenuItemSerializer}, # Returns the updated menu item
+    tags=['Menu']
+)
+@api_view(['PUT'])
+@drf_permission_classes([IsAdminOrFrontdesk])
+def toggle_menu_item_availability_api(request, pk):
+    item = get_object_or_404(MenuItem, pk=pk)
     item.is_available = not item.is_available
     item.save()
-    messages.success(
-        request,
-        f"Availability of '{item.name}' has been updated to {'Available' if item.is_available else 'Unavailable'}."
-    )
+    serializer = MenuItemSerializer(item)
+    return Response(serializer.data, status=status.HTTP_200_OK)
 
-    # Determine fallback redirect based on item type
-    if item.item_type == 'extra':
-        default_redirect_url = 'menu:extra_list'
-    else:
-        default_redirect_url = 'menu:item_list'
-    
-    return redirect(request.META.get('HTTP_REFERER', default_redirect_url))
+# Remove the old MenuItemListView and toggle_menu_item_availability functions

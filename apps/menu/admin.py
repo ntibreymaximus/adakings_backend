@@ -20,16 +20,20 @@ class MenuItemAdmin(admin.ModelAdmin):
     )
 
     def has_view_permission(self, request, obj=None):
+        """All staff can view menu items"""
         return request.user.is_staff
 
     def has_change_permission(self, request, obj=None):
-        return request.user.is_staff
+        """Only superusers and admin role users can modify menu items"""
+        return request.user.is_superuser or (request.user.is_staff and request.user.role == 'admin')
 
     def has_add_permission(self, request):
-        return request.user.is_staff
+        """Only superusers and admin role users can add menu items"""
+        return request.user.is_superuser or (request.user.is_staff and request.user.role == 'admin')
 
     def has_delete_permission(self, request, obj=None):
-        return request.user.is_staff
+        """Only superusers can delete menu items"""
+        return request.user.is_superuser
 
     def save_model(self, request, obj, form, change):
         if not change:  # If this is a new object

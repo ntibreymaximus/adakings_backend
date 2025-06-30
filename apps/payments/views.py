@@ -1,1033 +1,812 @@
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib import messages
-from django.http import JsonResponse, HttpResponse, HttpResponseBadRequest
-from django.urls import reverse, reverse_lazy
-from django.views.decorators.csrf import csrf_exempt
-from django.views.generic import FormView, DetailView, TemplateView, View, ListView
-from django.views.generic.edit import FormMixin
 from django.conf import settings
-from django.utils.decorators import method_decorator
 from django.db import transaction
-from django.views.decorators.http import require_POST
-from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from django.db.models import Q
-from datetime import datetime, timedelta
-from django.views.decorators.csrf import ensure_csrf_cookie # For AJAX CSRF
-from .models import Payment, PaymentTransaction
-from apps.orders.models import Order
-from .forms import PaymentForm # PaystackPaymentForm removed as MobilePaymentView is removed
+from django.shortcuts import get_object_or_404, redirect # redirect might be for verify_payment if it leads to frontend
+from django.urls import reverse
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
+from rest_framework import generics, status, views
+from rest_framework.permissions import IsAdminUser, IsAuthenticated, AllowAny
+from apps.users.permissions import IsAdminOrFrontdesk, IsAdminOrSuperuser
+from rest_framework.response import Response
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
 import requests
-import json
-import uuid
 import hmac
 import hashlib
-from decimal import Decimal, InvalidOperation # Added InvalidOperation
+import json # For webhook processing
+import uuid # For generating references
+from decimal import Decimal
+
+from apps.orders.models import Order
+from .models import Payment, PaymentTransaction
+from .serializers import (
+    PaymentSerializer,
+    PaymentInitiateSerializer,
+    PaystackWebhookSerializer,
+    PaymentTransactionSerializer
+)
+
+@extend_schema(
+    tags=['Payments']
+)
+class PaymentListAPIView(generics.ListAPIView):
+    queryset = Payment.objects.all().select_related(
+        'order', 
+        'order__delivery_location'
+    ).prefetch_related('transactions').order_by('-created_at')
+    serializer_class = PaymentSerializer
+    permission_classes = [IsAdminOrFrontdesk] # Admins and frontdesk staff can see all payments
+    filterset_fields = ['status', 'payment_method', 'payment_type', 'order__order_number']
+    search_fields = ['order__customer_phone', 'reference', 'paystack_reference']
+
+    @extend_schema(
+        summary="List Payments with Detailed Transaction Data",
+        description="Retrieves a comprehensive list of all payments with associated PaymentTransactions, "
+                    "including transaction_id, order_number, payment_method, payment_type, status, amount, "
+                    "created date, and relevant customer/order information. Results are filterable by status, "
+                    "method, type, and order number."
+        # Tags inherited from class
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+
+@extend_schema(
+    tags=['Payments']
+)
+class PaymentDetailAPIView(generics.RetrieveAPIView):
+    queryset = Payment.objects.all().select_related(
+        'order', 
+        'order__delivery_location'
+    ).prefetch_related('transactions')
+    serializer_class = PaymentSerializer
+    permission_classes = [IsAdminOrFrontdesk]
+    lookup_field = 'reference' # Use UUID reference for detail view
+
+    @extend_schema(
+        summary="Retrieve Payment Details with Transaction Data",
+        description="Retrieves comprehensive details for a specific payment by its UUID reference, "
+                    "including all associated PaymentTransactions and customer/order information."
+        # Tags inherited from class
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
 
 
-class PaymentMethodSelectionView(LoginRequiredMixin, FormView):
-    """View for selecting payment method"""
-    template_name = 'payments/process_payment.html'
-    form_class = PaymentForm
-    
-    def setup(self, request, *args, **kwargs):
-        super().setup(request, *args, **kwargs)
-        order_identifier = kwargs.get('order_number') # Changed from order_id
-        self.order = get_object_or_404(Order, order_number=order_identifier) # Changed to lookup by order_number
-    
-    def get_form_kwargs(self):
-        """Pass the order to the form."""
-        kwargs = super().get_form_kwargs()
-        kwargs['order'] = self.order
-        kwargs['step'] = 'select_method'  # First step - selecting payment method
-        return kwargs
-        
-    def get_initial(self):
-        """Set initial form values."""
-        initial = {
-            'amount': self.order.total_price,
-            'payment_method': Payment.PAYMENT_METHOD_CASH,  # Default to cash
-        }
-        return initial
-    
-    def get_context_data(self, **kwargs):
-        """Add order to the template context."""
-        context = super().get_context_data(**kwargs)
-        context['order'] = self.order
-        context['order_customer_phone'] = self.order.customer_phone # For pre-filling mobile number
-        
-        # Add form errors to context for debugging
-        form = context.get('form')
-        if form and not form.is_valid() and self.request.method == 'POST':
-            context['form_errors'] = form.errors
-            
-            # Add non-field errors
-            if form.non_field_errors():
-                for error in form.non_field_errors():
-                    messages.error(self.request, f"Error: {error}")
-            
-            # Add field-specific errors
-            for field, errors in form.errors.items():
-                for error in errors:
-                    messages.error(self.request, f"Error in {field}: {error}")
-        
-        return context
-    
-    def get_success_url(self):
-        """Determine success URL based on payment method."""
-        payment = getattr(self, 'payment', None)
-        if not payment:
-            return reverse('orders:order_detail', kwargs={'order_number': self.order.order_number}) # Changed pk to order_number
-            
-        if payment.payment_method == Payment.PAYMENT_METHOD_CASH:
-            url = reverse('payments:cash_payment', kwargs={'payment_id': payment.id})
-            return url
-        elif payment.payment_method == Payment.PAYMENT_METHOD_MOBILE:
-            url = reverse('payments:mobile_payment', kwargs={'payment_id': payment.id})
-            return url
-            
-        url = reverse('orders:order_detail', kwargs={'order_number': self.order.order_number}) # Changed pk to order_number
-        return url
-    
-    def form_invalid(self, form):
-        """Handle invalid form submission."""
-        if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
-            return JsonResponse({'status': 'error', 'errors': form.errors}, status=400)
-        
-        for field, errors in form.errors.items():
-            for error in errors:
-                messages.error(self.request, f"Error in {field}: {error}")
-        
-        return super().form_invalid(form)
-    
-    def form_valid(self, form):
-        """Process the valid form."""
-        is_ajax = self.request.headers.get('x-requested-with') == 'XMLHttpRequest'
+class PaymentInitiateAPIView(views.APIView):
+    permission_classes = [IsAdminOrFrontdesk] # Only admin and frontdesk can initiate payments
 
-        payment = form.save(commit=False)
-        payment.order = self.order # Ensure order is linked
-        if not payment.reference:
-            payment.reference = str(uuid.uuid4())
-
-        if is_ajax:
-            try:
-                if payment.payment_method == Payment.PAYMENT_METHOD_CASH:
-                    payment.status = Payment.STATUS_COMPLETED
-                    payment.save()
-                    
-                    order = payment.order
-                    if order.status == 'Pending':
-                        order.status = 'Accepted'  # Mark as Accepted after payment
-                        order.save()
-                    
-                    return JsonResponse({
-                        'status': 'success',
-                        'message': 'Cash payment recorded successfully.',
-                        'payment_id': payment.id,
-                        'order_number': order.order_number,
-                        'payment_method': 'cash',
-                        'amount': payment.amount,
-                        'payment_status': payment.status
-                    })
-
-                elif payment.payment_method == Payment.PAYMENT_METHOD_MOBILE:
-                    mobile_number = self.request.POST.get('mobile_number')
-                    
-                    # Basic validation for mobile_number
-                    if not mobile_number or not mobile_number.strip(): # TODO: Adapt more robust validation from PaystackPaymentForm
-                        return JsonResponse({
-                            'status': 'error',
-                            'message': 'Valid mobile number is required for mobile payment.'
-                        }, status=400)
-                    
-                    # Clean phone number (simple version, can be expanded)
-                    cleaned_mobile_number = mobile_number.strip()
-                    if cleaned_mobile_number.startswith('+'):
-                        cleaned_mobile_number = cleaned_mobile_number[1:]
-                    if cleaned_mobile_number.startswith('0'):
-                         cleaned_mobile_number = '233' + cleaned_mobile_number[1:]
-                    
-                    if not (cleaned_mobile_number.startswith('233') and len(cleaned_mobile_number) == 12 and cleaned_mobile_number[3:].isdigit()):
-                        return JsonResponse({
-                            'status': 'error',
-                            'message': 'Invalid Ghanaian mobile number format. Expected 0XXXXXXXXX or +233XXXXXXXXX.'
-                        }, status=400)
-
-                    payment.mobile_number = cleaned_mobile_number
-                    payment.status = Payment.STATUS_PROCESSING
-                    payment.save() # Save once to get ID if new, and to store mobile number
-
-                    paystack_secret = settings.PAYSTACK_SECRET_KEY
-                    paystack_url = "https://api.paystack.co/transaction/initialize"
-                    headers = {
-                        "Authorization": f"Bearer {paystack_secret}",
-                        "Content-Type": "application/json"
-                    }
-                    callback_url = self.request.build_absolute_uri(
-                        reverse('payments:verify_payment', kwargs={'reference': str(payment.reference)})
-                    )
-                    payload_data = {
-                        "email": f"customer_{self.order.customer_phone.replace('+', '').replace(' ', '')}@example.com",
-                        "amount": int(payment.amount * 100), # Paystack expects amount in kobo/pesewas
-                        "currency": "GHS",
-                        "reference": str(payment.reference),
-                        "callback_url": callback_url,
-                        "metadata": {
-                            "order_id": self.order.id,
-                            "payment_id": payment.id,
-                            "custom_fields": [{
-                                "display_name": "Phone Number",
-                                "variable_name": "phone_number",
-                                "value": payment.mobile_number 
-                            }]
-                        }
-                    }
-
-                    try:
-                        response = requests.post(paystack_url, headers=headers, json=payload_data, timeout=10)
-                        response_data = response.json()
-
-                        if response.status_code == 200 and response_data.get('status'):
-                            authorization_url = response_data.get('data', {}).get('authorization_url')
-                            if authorization_url:
-                                PaymentTransaction.objects.create(
-                                    payment=payment,
-                                    transaction_id=response_data.get('data', {}).get('reference', str(uuid.uuid4())), # Ensure a fallback for transaction_id
-                                    status='initialized',
-                                    amount=payment.amount,
-                                    response_data=response_data
-                                )
-                                payment.paystack_reference = response_data.get('data', {}).get('reference', '')
-                                payment.response_data = response_data
-                                payment.save()
-                                return JsonResponse({
-                                    'status': 'success',
-                                    'payment_method': 'mobile_money',
-                                    'authorization_url': authorization_url,
-                                    'payment_id': payment.id,
-                                    'reference': str(payment.reference)
-                                })
-                            else:
-                                payment.status = Payment.STATUS_FAILED
-                                payment.save()
-                                return JsonResponse({
-                                    'status': 'error',
-                                    'message': response_data.get('message', 'Paystack initialization failed: No authorization URL.')
-                                }, status=400)
-                        else:
-                            payment.status = Payment.STATUS_FAILED
-                            payment.save()
-                            return JsonResponse({
-                                'status': 'error',
-                                'message': f"Paystack API error: {response_data.get('message', 'Unknown error')}"
-                            }, status=response.status_code or 400)
-
-                    except requests.exceptions.RequestException as e:
-                        payment.status = Payment.STATUS_FAILED
-                        payment.save()
-                        return JsonResponse({
-                            'status': 'error',
-                            'message': f'Payment processing error: {str(e)}'
-                        }, status=500)
-                
-                else: # Should not happen if form is properly validated for choices
-                    return JsonResponse({'status': 'error', 'message': 'Invalid payment method.'}, status=400)
-
-            except Exception as e: # Catch any other unexpected error during AJAX processing
-                # Log the error e for server-side debugging
-                import logging
-                logger = logging.getLogger(__name__)
-                logger.error(f"AJAX Payment Processing Error: {str(e)}", exc_info=True)
-                return JsonResponse({'status': 'error', 'message': f'An unexpected error occurred: {str(e)}'}, status=500)
-        else: # Not an AJAX request, process directly
-            payment = form.save(commit=False)
-            payment.order = self.order
-            if not payment.reference:
-                payment.reference = str(uuid.uuid4())
-
-            # Handle Cash Payments Directly
-            if payment.payment_method == Payment.PAYMENT_METHOD_CASH:
-                payment.status = Payment.STATUS_COMPLETED
-                payment.save()
-                
-                order = payment.order
-                if order.status == "Pending": 
-                    order.status = "Accepted" 
-                    order.save()
-                
-                messages.success(self.request, 'Cash payment recorded successfully!')
-                return redirect(reverse('orders:order_detail', kwargs={'order_number': self.order.order_number})) # Changed pk to order_number
-
-            # Handle Mobile Money Payments Directly
-            elif payment.payment_method == Payment.PAYMENT_METHOD_MOBILE:
-                mobile_number_raw = self.request.POST.get('mobile_number')
-                
-                if not mobile_number_raw or not mobile_number_raw.strip():
-                    # form.add_error('mobile_number', 'Valid mobile number is required for mobile payment.') # Field doesn't exist on form
-                    messages.error(self.request, 'Valid mobile number is required for mobile payment.')
-                    return self.form_invalid(form)
-
-                cleaned_mobile_number = mobile_number_raw.strip()
-                if cleaned_mobile_number.startswith('+'):
-                    cleaned_mobile_number = cleaned_mobile_number[1:]
-                if cleaned_mobile_number.startswith('0'):
-                    cleaned_mobile_number = '233' + cleaned_mobile_number[1:]
-                
-                if not (cleaned_mobile_number.startswith('233') and len(cleaned_mobile_number) == 12 and cleaned_mobile_number[3:].isdigit()):
-                    # form.add_error('mobile_number', 'Invalid Ghanaian mobile number format. Expected 0XXXXXXXXX or +233XXXXXXXXX.') # Field doesn't exist on form
-                    messages.error(self.request, 'Invalid Ghanaian mobile number format.')
-                    return self.form_invalid(form)
-
-                payment.mobile_number = cleaned_mobile_number
-                payment.status = Payment.STATUS_PROCESSING
-                payment.save() 
-
-                paystack_secret = settings.PAYSTACK_SECRET_KEY
-                paystack_url = "https://api.paystack.co/transaction/initialize"
-                headers = {
-                    "Authorization": f"Bearer {paystack_secret}",
-                    "Content-Type": "application/json"
-                }
-                callback_url = self.request.build_absolute_uri(
-                    reverse('payments:verify_payment', kwargs={'reference': str(payment.reference)})
-                )
-                payload_data = {
-                    "email": f"customer_{self.order.customer_phone.replace('+', '').replace(' ', '')}@example.com",
-                    "amount": int(payment.amount * 100),
-                    "currency": "GHS",
-                    "reference": str(payment.reference),
-                    "callback_url": callback_url,
-                    "metadata": {
-                        "order_id": self.order.id,
-                        "payment_id": payment.id,
-                        "custom_fields": [{"display_name": "Phone Number", "variable_name": "phone_number", "value": payment.mobile_number}]
-                    }
-                }
-
-                try:
-                    response = requests.post(paystack_url, headers=headers, json=payload_data, timeout=10)
-                    response_data = response.json()
-
-                    if response.status_code == 200 and response_data.get('status'):
-                        authorization_url = response_data.get('data', {}).get('authorization_url')
-                        if authorization_url:
-                            PaymentTransaction.objects.create(
-                                payment=payment,
-                                transaction_id=response_data.get('data', {}).get('reference', str(uuid.uuid4())),
-                                status='initialized',
-                                amount=payment.amount,
-                                response_data=response_data
-                            )
-                            payment.paystack_reference = response_data.get('data', {}).get('reference', '')
-                            payment.response_data = response_data
-                            payment.save()
-                            return redirect(authorization_url)
-                        else:
-                            payment.status = Payment.STATUS_FAILED
-                            payment.save()
-                            messages.error(self.request, response_data.get('message', 'Paystack initialization failed: No authorization URL.'))
-                            return redirect(reverse('payments:payment_failed')) # Consider passing payment_id or order_id if failed page needs it
-                    else:
-                        payment.status = Payment.STATUS_FAILED
-                        payment.save()
-                        messages.error(self.request, f"Paystack API error: {response_data.get('message', 'Unknown error')}")
-                        return redirect(reverse('payments:payment_failed'))
-                except requests.exceptions.RequestException as e:
-                    payment.status = Payment.STATUS_FAILED
-                    payment.save()
-                    messages.error(self.request, f'Payment processing error: {str(e)}')
-                    return redirect(reverse('payments:payment_failed'))
-            
-            else: # Should not happen with current form choices
-                messages.error(self.request, "Invalid payment method selected.")
-                return self.form_invalid(form)
-
-# class CashPaymentView(LoginRequiredMixin, DetailView):
-#     """View for processing cash payments"""
-#     model = Payment
-#     template_name = 'payments/cash_payment.html'
-#     context_object_name = 'payment'
-#     pk_url_kwarg = 'payment_id'
-#     
-#     def get_queryset(self):
-#         return super().get_queryset().filter(payment_method=Payment.PAYMENT_METHOD_CASH)
-#     
-#     @transaction.atomic
-#     def post(self, request, *args, **kwargs):
-#         payment = self.get_object()
-#         order = payment.order
-#         
-#         # Process cash payment
-#         payment.status = Payment.STATUS_COMPLETED
-#         payment.save()
-#         
-#         # Update order status
-#         if order.status == 'Pending':
-#             order.status = 'Confirmed'
-#             order.save()
-#         
-#         messages.success(request, 'Cash payment recorded successfully!')
-#         return redirect('orders:order_detail', pk=order.id)
-
-
-# class MobilePaymentView(LoginRequiredMixin, FormView):
-#     """View for initiating mobile payments via Paystack"""
-#     template_name = 'payments/mobile_payment.html'
-#     form_class = PaystackPaymentForm # This form is also now potentially redundant
-#     
-#     def setup(self, request, *args, **kwargs):
-#         super().setup(request, *args, **kwargs)
-#         self.payment = get_object_or_404(
-#             Payment, 
-#             id=kwargs.get('payment_id'),
-#             payment_method=Payment.PAYMENT_METHOD_MOBILE
-#         )
-#     
-#     def get_context_data(self, **kwargs):
-#         context = super().get_context_data(**kwargs)
-#         context['payment'] = self.payment
-#         context['order'] = self.payment.order
-#         return context
-#     
-#     def form_valid(self, form):
-#         payment = self.payment
-#         order = payment.order
-#         mobile_number = form.cleaned_data['phone_number']
-#         
-#         # Save mobile number to payment
-#         payment.mobile_number = mobile_number
-#         payment.status = Payment.STATUS_PROCESSING
-#         payment.save()
-#         
-#         # Prepare Paystack API call
-#         paystack_secret = settings.PAYSTACK_SECRET_KEY
-#         url = "https://api.paystack.co/transaction/initialize"
-#         
-#         headers = {
-#             "Authorization": f"Bearer {paystack_secret}",
-#             "Content-Type": "application/json"
-#         }
-#         
-#         callback_url = self.request.build_absolute_uri(
-#             reverse('payments:verify_payment', kwargs={'reference': payment.reference})
-#         )
-#         
-#         data = {
-#             "email": f"customer_{order.customer_phone.replace('+', '').replace(' ', '')}@example.com",  # Generate email from customer phone
-#             "amount": int(payment.amount * 100),  # Convert to pesewas (or lowest currency unit)
-#             "currency": "GHS",
-#             "reference": str(payment.reference),
-#             "callback_url": callback_url,
-#             "metadata": {
-#                 "order_id": order.id,
-#                 "payment_id": payment.id,
-#                 "custom_fields": [
-#                     {
-#                         "display_name": "Phone Number",
-#                         "variable_name": "phone_number",
-#                         "value": mobile_number
-#                     }
-#                 ]
-#             }
-#         }
-#         
-#         try:
-#             response = requests.post(url, headers=headers, json=data)
-#             response_data = response.json()
-#             
-#             if response.status_code == 200 and response_data.get('status'):
-#                 # Create transaction record
-#                 transaction = PaymentTransaction.objects.create(
-#                     payment=payment,
-#                     transaction_id=response_data.get('data', {}).get('reference', ''),
-#                     status='initialized',
-#                     amount=payment.amount,
-#                     response_data=response_data
-#                 )
-#                 
-#                 # Update payment with Paystack reference
-#                 payment.paystack_reference = response_data.get('data', {}).get('reference', '')
-#                 payment.response_data = response_data
-#                 payment.save()
-#                 
-#                 # Redirect to Paystack payment URL
-#                 authorization_url = response_data.get('data', {}).get('authorization_url')
-#                 if authorization_url:
-#                     return redirect(authorization_url)
-#                 else:
-#                     messages.error(self.request, "Payment initialization failed. Please try again.")
-#             else:
-#                 messages.error(self.request, f"Payment failed: {response_data.get('message', 'Unknown error')}")
-#                 payment.status = Payment.STATUS_FAILED
-#                 payment.save()
-#         except Exception as e:
-#             messages.error(self.request, f"Payment processing error: {str(e)}")
-#             payment.status = Payment.STATUS_FAILED
-#             payment.save()
-#         
-#         return redirect('payments:payment_failed')
-
-
-class VerifyPaymentView(LoginRequiredMixin, View):
-    """View to verify a payment after Paystack redirect"""
-    
-    def get(self, request, reference):
-        payment = get_object_or_404(Payment, reference=reference)
-        
-        # Verify payment with Paystack
-        verified = self.verify_with_paystack(payment)
-        
-        if verified:
-            # Payment verified
-            payment.status = Payment.STATUS_COMPLETED
-            payment.save()
-            
-            order = payment.order # Ensure order is defined for context
-            # Update order status
-            if order.status == "Pending": 
-                order.status = "Accepted" 
-                order.save()
-            
-            # Update transaction status
-            pay_transaction = payment.transactions.first()
-            if pay_transaction:
-                pay_transaction.is_verified = True
-                pay_transaction.status = 'success' # Or match Paystack's status string if different
-                pay_transaction.response_data = payment.response_data # Ensure latest response data is captured if updated by verify_with_paystack
-                pay_transaction.save()
-            
-            messages.success(request, 'Payment verified successfully!')
-            order_detail_url = reverse('orders:order_detail', kwargs={'order_number': payment.order.order_number}) # Changed pk to order_number
-            return redirect(f"{order_detail_url}?payment_status=success&payment_ref={payment.reference}")
-        else:
-            payment.status = Payment.STATUS_FAILED
-            payment.save()
-            
-            order = payment.order # Define order for context
-            # Update transaction status
-            pay_transaction = payment.transactions.first()
-            if pay_transaction:
-                pay_transaction.status = 'failed' # Or match Paystack's status string
-                pay_transaction.response_data = payment.response_data
-                pay_transaction.save()
-            
-            messages.error(request, 'Payment verification failed.')
-            order_detail_url = reverse('orders:order_detail', kwargs={'order_number': payment.order.order_number}) # Changed pk to order_number
-            return redirect(f"{order_detail_url}?payment_status=failed&payment_ref={payment.reference}")
-    
-    def verify_with_paystack(self, payment):
-        """Verify payment with Paystack API"""
-        paystack_secret = settings.PAYSTACK_SECRET_KEY
-        reference = payment.paystack_reference or str(payment.reference)
-        
-        url = f"https://api.paystack.co/transaction/verify/{reference}"
-        headers = {
-            "Authorization": f"Bearer {paystack_secret}",
-            "Content-Type": "application/json"
-        }
-        
-        try:
-            response = requests.get(url, headers=headers)
-            response_data = response.json()
-            
-            if response.status_code == 200:
-                # Store verification response
-                payment.response_data = response_data
-                payment.save()
-                
-                # Check if payment is successful
-                if response_data.get('status') and response_data.get('data', {}).get('status') == 'success':
-                    return True
-            
-            return False
-        except Exception as e:
-            # Log the error
-            print(f"Paystack verification error: {str(e)}")
-            return False
-
-
-@method_decorator(csrf_exempt, name='dispatch')
-class PaystackWebhookView(View):
-    """Webhook handler for Paystack payment notifications"""
-    
+    @extend_schema(
+        summary="Initiate a Payment or Refund",
+        request=PaymentInitiateSerializer,
+        responses={
+            200: OpenApiTypes.OBJECT, # For cash success or Paystack redirect URL
+            201: PaymentSerializer, # For successfully created cash payment
+            400: OpenApiTypes.OBJECT, # For validation errors or Paystack errors
+            500: OpenApiTypes.OBJECT  # For server errors
+        },
+        description="Initiates a payment (Cash or Mobile Money) or a Cash Refund for an order. "
+                    "For Mobile Money, returns a Paystack authorization URL. "
+                    "For Cash Payment, creates the payment record directly. "
+                    "For Cash Refund, creates the refund record directly.",
+        tags=['Payments']
+    )
     def post(self, request, *args, **kwargs):
-        # Get the signature header
-        paystack_signature = request.headers.get('X-Paystack-Signature')
-        
-        if not paystack_signature:
-            return HttpResponseBadRequest("No signature header")
-        
-        # Get request body
-        payload = request.body
-        
-        # Verify signature
-        if not self.verify_webhook_signature(payload, paystack_signature):
-            return HttpResponseBadRequest("Invalid signature")
-        
-        # Process the webhook
-        try:
-            event_data = json.loads(payload)
-            event = event_data.get('event')
-            data = event_data.get('data', {})
-            reference = data.get('reference')
-            
-            if event == 'charge.success':
-                # Find the payment
-                try:
-                    payment = Payment.objects.get(paystack_reference=reference)
-                    
-                    # Update payment status
-                    payment.status = Payment.STATUS_COMPLETED
-                    payment.response_data = event_data
-                    payment.save()
-                    
-                    # Update transaction
-                    transaction = PaymentTransaction.objects.filter(payment=payment).first()
-                    if transaction:
-                        transaction.status = 'success'
-                        transaction.is_verified = True
-                        transaction.response_data = event_data
-                        transaction.save()
-                    
-                    # Update order status
-                    order = payment.order
-                    if order.status == 'Pending':
-                        order.status = 'Confirmed'
-                        order.save()
-                except Payment.DoesNotExist:
-                    # Log that we couldn't find the payment
-                    print(f"Payment with reference {reference} not found")
-            
-            return HttpResponse(status=200)
-        except json.JSONDecodeError:
-            return HttpResponseBadRequest("Invalid JSON")
-        except Exception as e:
-            # Log the error
-            print(f"Webhook processing error: {str(e)}")
-            return HttpResponse(status=500)
-    
-    def verify_webhook_signature(self, payload, signature):
-        """Verify that the webhook is from Paystack"""
-        paystack_secret = settings.PAYSTACK_SECRET_KEY
-        
-        computed_hmac = hmac.new(
-            key=paystack_secret.encode(),
-            msg=payload,
-            digestmod=hashlib.sha512
-        ).hexdigest()
-        
-        return hmac.compare_digest(computed_hmac, signature)
+        serializer = PaymentInitiateSerializer(data=request.data, context={'request': request})
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+        validated_data = serializer.validated_data
+        order_number = validated_data['order_number']
+        amount = validated_data['amount']
+        payment_method = validated_data['payment_method']
+        mobile_number_raw = validated_data.get('mobile_number')
+        payment_type = validated_data.get('payment_type', Payment.PAYMENT_TYPE_PAYMENT)
 
-class TransactionListView(LoginRequiredMixin, ListView):
-    """
-    View for listing all payment transactions with filtering and pagination
-    """
-    model = Payment
-    template_name = 'payments/transaction_list.html'
-    context_object_name = 'transactions'
-    paginate_by = 15
-    
-    def dispatch(self, request, *args, **kwargs):
-        """Only allow admin and frontdesk staff to access"""
-        if not (request.user.is_admin() or request.user.is_frontdesk()):
-            messages.error(request, "You don't have permission to view transaction history.")
-            return redirect('users:dashboard')
-        return super().dispatch(request, *args, **kwargs)
-    
-    def get_queryset(self):
-        """Filter transactions based on query parameters"""
-        queryset = Payment.objects.all().select_related('order').order_by('-created_at')
-        
-        # Filter by payment method
-        payment_method = self.request.GET.get('payment_method')
-        if payment_method:
-            queryset = queryset.filter(payment_method=payment_method)
-        
-        # Filter by status
-        status = self.request.GET.get('status')
-        if status:
-            queryset = queryset.filter(status=status)
-        
-        # Filter by date range
-        start_date = self.request.GET.get('start_date')
-        end_date = self.request.GET.get('end_date')
-        
-        if start_date:
-            try:
-                start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
-                queryset = queryset.filter(created_at__date__gte=start_date)
-            except ValueError:
-                pass
+        order = get_object_or_404(Order, order_number=order_number)
+
+        with transaction.atomic():
+            payment_reference = uuid.uuid4()
+            
+            if payment_type == Payment.PAYMENT_TYPE_REFUND:
+                # Check if user has permission to issue refunds (superadmin or admin only)
+                if not ((request.user.is_superuser and hasattr(request.user, 'role') and request.user.role == 'superadmin') or 
+                       (hasattr(request.user, 'role') and request.user.role == 'admin')):
+                    return Response({"detail": "You do not have permission to issue refunds. Only superadmins and admins can process refunds."}, status=status.HTTP_403_FORBIDDEN)
                 
-        if end_date:
-            try:
-                end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
-                # Add one day to include the end date in the range
-                end_date = end_date + timedelta(days=1)
-                queryset = queryset.filter(created_at__date__lt=end_date)
-            except ValueError:
-                pass
-        
-        # Search by customer name or order ID
-        search_query = self.request.GET.get('q')
-        if search_query:
-            queryset = queryset.filter(
-                Q(order__customer_name__icontains=search_query) |
-                Q(order__id__icontains=search_query) |
-                Q(reference__icontains=search_query)
-            )
-        
-        return queryset
-    
-    def get_context_data(self, **kwargs):
-        """Add filter choices and statistics to context"""
-        context = super().get_context_data(**kwargs)
-        
-        # Add payment method choices
-        context['payment_method_choices'] = Payment.PAYMENT_METHOD_CHOICES
-        
-        # Add status choices
-        context['status_choices'] = Payment.PAYMENT_STATUS_CHOICES
-        
-        # Add current filters to context
-        context['current_filters'] = {
-            'payment_method': self.request.GET.get('payment_method', ''),
-            'status': self.request.GET.get('status', ''),
-            'start_date': self.request.GET.get('start_date', ''),
-            'end_date': self.request.GET.get('end_date', ''),
-            'q': self.request.GET.get('q', '')
-        }
-        
-        # Calculate total amount for filtered transactions
-        total_amount = sum(transaction.amount for transaction in context['transactions'])
-        context['total_amount'] = total_amount
-        
-        # Calculate transaction counts by status
-        queryset = self.get_queryset()
-        context['transaction_counts'] = {
-            'total': queryset.count(),
-            'completed': queryset.filter(status=Payment.STATUS_COMPLETED).count(),
-            'pending': queryset.filter(status=Payment.STATUS_PENDING).count(),
-            'failed': queryset.filter(status=Payment.STATUS_FAILED).count(),
-            'processing': queryset.filter(status=Payment.STATUS_PROCESSING).count(),
-        }
-        
-        return context
-
-
-@method_decorator(ensure_csrf_cookie, name='dispatch')
-class ProcessCashRefundModalView(LoginRequiredMixin, View):
-    def post(self, request, *args, **kwargs):
-        order_number_str = request.POST.get('order_number')
-        refund_amount_str = request.POST.get('refund_amount')
-
-        if not order_number_str:
-            return JsonResponse({'status': 'error', 'message': 'Order Number is required.'}, status=400)
-        if not refund_amount_str:
-            return JsonResponse({'status': 'error', 'message': 'Refund amount is required.'}, status=400)
-
-        try:
-            order = get_object_or_404(Order, order_number=order_number_str)
-        except Order.DoesNotExist: # Should be caught by get_object_or_404
-            return JsonResponse({'status': 'error', 'message': 'Order not found for the given Order Number.'}, status=404)
-        except ValueError:
-            return JsonResponse({'status': 'error', 'message': 'Invalid Order Number format.'}, status=400)
-
-        try:
-            refund_amount = Decimal(refund_amount_str)
-            if refund_amount <= Decimal('0.00'):
-                return JsonResponse({'status': 'error', 'message': 'Refund amount must be positive.'}, status=400)
-        except InvalidOperation:
-            return JsonResponse({'status': 'error', 'message': 'Invalid refund amount format.'}, status=400)
-
-        current_amount_paid_net = order.amount_paid() # Net amount after previous refunds
-        if refund_amount > current_amount_paid_net:
-            return JsonResponse({'status': 'error', 'message': f'Refund amount (₵{refund_amount}) cannot exceed the net amount paid (₵{current_amount_paid_net}).'}, status=400)
-
-        try:
-            with transaction.atomic():
-                Payment.objects.create(
-                    order=order,
-                    amount=refund_amount,
-                    payment_method=Payment.PAYMENT_METHOD_CASH,
-                    payment_type=Payment.PAYMENT_TYPE_REFUND,
-                    status=Payment.STATUS_COMPLETED, # Cash refund is immediate
-                    reference=uuid.uuid4(),
-                    notes=f"Cash refund of ₵{refund_amount} processed by {request.user.username or 'system'}."
-                )
-                order.refresh_from_db() 
-            return JsonResponse({'status': 'success', 'message': f'Cash refund of ₵{refund_amount} processed successfully. Order is now {order.get_payment_status()}.'})
-        except Exception as e:
-            # Log the exception e (e.g., import logging; logger.error(str(e), exc_info=True))
-            return JsonResponse({'status': 'error', 'message': f'An error occurred during refund processing: {str(e)}'}, status=500)
-
-@method_decorator(ensure_csrf_cookie, name='dispatch') # Ensures CSRF cookie is set for AJAX, good practice
-class ProcessCashPaymentModalView(LoginRequiredMixin, View):
-    def post(self, request, *args, **kwargs):
-        order_number_str = request.POST.get('order_number')
-        amount_str = request.POST.get('amount')
-
-        if not order_number_str:
-            return JsonResponse({'status': 'error', 'message': 'Order Number is required.'}, status=400)
-
-        try:
-            order = get_object_or_404(Order, order_number=order_number_str)
-        except ValueError: # If order_id is not a valid integer
-             return JsonResponse({'status': 'error', 'message': 'Invalid Order Number format.'}, status=400)
-
-        amount_to_pay = order.balance_due() # Default to balance due
-
-        if amount_str:
-            try:
-                posted_amount = Decimal(amount_str)
-                if posted_amount > Decimal('0.00'):
-                    # Cap payment at balance_due for this view's current logic
-                    amount_to_pay = min(posted_amount, order.balance_due()) 
-                    if amount_to_pay <= Decimal('0.00') and order.is_paid(): # Trying to pay 0 for already paid order
-                         return JsonResponse({'status': 'info', 'message': 'Order is already fully paid.'}, status=200)
-                else: # posted_amount is zero or negative
-                    if order.balance_due() <= Decimal('0.00'): # Already paid or overpaid
-                         return JsonResponse({'status': 'info', 'message': 'Order is already fully paid or overpaid.'}, status=200)
-                    # else, amount_to_pay remains order.balance_due()
-            except InvalidOperation:
-                return JsonResponse({'status': 'error', 'message': 'Invalid amount format.'}, status=400)
-        
-        if amount_to_pay <= Decimal('0.00'): # This can happen if balance_due was 0 initially and no amount_str provided
-            return JsonResponse({'status': 'info', 'message': 'No balance to pay for this order or order is already paid.'}, status=200)
-
-        try:
-            with transaction.atomic():
+                if payment_method not in [Payment.PAYMENT_METHOD_CASH, Payment.PAYMENT_METHOD_TELECEL_CASH, Payment.PAYMENT_METHOD_MTN_MOMO, Payment.PAYMENT_METHOD_PAYSTACK_USSD]:
+                    return Response({"detail": "Only cash-type refunds are supported via this endpoint."}, status=status.HTTP_400_BAD_REQUEST)
+                if amount > order.amount_paid():
+                     return Response({"detail": f"Refund amount (₵{amount}) cannot exceed net amount paid (₵{order.amount_paid()})."}, status=status.HTTP_400_BAD_REQUEST)
+                
                 payment = Payment.objects.create(
                     order=order,
-                    amount=amount_to_pay, # Use calculated amount
-                    payment_method=Payment.PAYMENT_METHOD_CASH,
-                    payment_type=Payment.PAYMENT_TYPE_PAYMENT, # Specify payment type
-                    status=Payment.STATUS_COMPLETED, # Cash is immediately completed
-                    reference=uuid.uuid4() 
+                    amount=amount,
+                    payment_method=payment_method,  # Use the specified payment method
+                    payment_type=Payment.PAYMENT_TYPE_REFUND,
+                    status=Payment.STATUS_COMPLETED, # Cash-type refund is immediate
+                    reference=payment_reference,
+                    notes=f"{payment_method} refund of ₵{amount} processed by {request.user.username}."
+                )
+                order.save() # Recalculate order totals if necessary
+                return Response(PaymentSerializer(payment).data, status=status.HTTP_201_CREATED)
+
+            # Handling PAYMENT_TYPE_PAYMENT
+            # Cash-like payments: CASH, TELECEL CASH, MTN MOMO, PAYSTACK(USSD)
+            if payment_method in [Payment.PAYMENT_METHOD_CASH, Payment.PAYMENT_METHOD_TELECEL_CASH, 
+                                Payment.PAYMENT_METHOD_MTN_MOMO, Payment.PAYMENT_METHOD_PAYSTACK_USSD]:
+                if amount > order.balance_due() and order.balance_due() > 0:
+                    # If trying to pay more than balance due, only accept up to balance_due for cash here for simplicity
+                    # Or adjust to allow overpayment and let order reflect it
+                    pass # Allow overpayment for cash-like payments
+                
+                payment = Payment.objects.create(
+                    order=order,
+                    amount=amount,
+                    payment_method=payment_method,  # Use the specific payment method
+                    payment_type=Payment.PAYMENT_TYPE_PAYMENT,
+                    status=Payment.STATUS_COMPLETED,
+                    reference=payment_reference,
+                    notes=f"{payment_method} payment of ₵{amount} received by {request.user.username}."
                 )
                 
-                order.refresh_from_db() # Reload order to get the updated amount_paid and is_paid status
-                if order.status == "Pending" and order.is_paid(): 
-                    order.status = "Accepted" 
-                    order.save(update_fields=['status'])
+                # Update order status based on order type and current status
+                if order.is_paid():  # Check if order is now fully paid
+                    if order.delivery_type == 'Delivery':
+                        # For delivery orders: Always move to Fulfilled when payment confirmed
+                        order.status = Order.STATUS_FULFILLED
+                    elif order.status == Order.STATUS_PENDING:
+                        # For pickup orders: Pending -> Accepted when payment received
+                        order.status = Order.STATUS_ACCEPTED
                 
-                PaymentTransaction.objects.create(
-                    payment=payment,
-                    transaction_id=f"cash_{payment.reference}",
-                    status='success',
-                    amount=payment.amount,
-                    is_verified=True
+                order.save() # Recalculate order totals
+                return Response(PaymentSerializer(payment).data, status=status.HTTP_201_CREATED)
+
+            elif payment_method == Payment.PAYMENT_METHOD_PAYSTACK_API:
+                if not mobile_number_raw:
+                    return Response({"mobile_number": "Mobile number is required for mobile money."}, status=status.HTTP_400_BAD_REQUEST)
+                
+                # Basic Mobile Number Cleaning (adapt as per your existing logic)
+                cleaned_mobile_number = mobile_number_raw.strip()
+                if cleaned_mobile_number.startswith('0') and len(cleaned_mobile_number) == 10:
+                    cleaned_mobile_number = '233' + cleaned_mobile_number[1:]
+                elif cleaned_mobile_number.startswith('+') and cleaned_mobile_number.startswith('+233'):
+                    cleaned_mobile_number = cleaned_mobile_number[1:]
+                
+                if not (cleaned_mobile_number.startswith('233') and len(cleaned_mobile_number) == 12 and cleaned_mobile_number[3:].isdigit()):
+                    return Response({"mobile_number": "Invalid Ghanaian mobile number format (expected 233XXXXXXXXX)."}, status=status.HTTP_400_BAD_REQUEST)
+
+                # Create a pending payment record first
+                payment = Payment.objects.create(
+                    order=order,
+                    amount=amount,
+                    payment_method=Payment.PAYMENT_METHOD_PAYSTACK_API,  # Use the specific method
+                    payment_type=Payment.PAYMENT_TYPE_PAYMENT,
+                    status=Payment.STATUS_PENDING, # Start as pending
+                    reference=payment_reference,
+                    mobile_number=cleaned_mobile_number
                 )
-
-            success_message = f'Cash payment of ₵{amount_to_pay} recorded successfully. Order is now {order.get_payment_status()}.'
-            return JsonResponse({'status': 'success', 'message': success_message})
-
-        except Exception as e:
-            return JsonResponse({'status': 'error', 'message': f'An error occurred: {str(e)}'}, status=500)
-
-
-@method_decorator(ensure_csrf_cookie, name='dispatch')
-class InitiatePaystackModalView(LoginRequiredMixin, View):
-    def post(self, request, *args, **kwargs):
-        order_number_str = request.POST.get('order_number')
-        mobile_number_raw = request.POST.get('mobile_number', '').strip()
-        amount_str = request.POST.get('amount')
-
-        if not order_number_str:
-            return JsonResponse({'status': 'error', 'message': 'Order Number is required.'}, status=400)
-        
-        try:
-            order = get_object_or_404(Order, order_number=order_number_str)
-        except ValueError: # If order_id is not a valid integer
-             return JsonResponse({'status': 'error', 'message': 'Invalid Order Number format.'}, status=400)
-
-        amount_to_initiate = order.balance_due() # Default to balance due
-
-        if amount_str:
-            try:
-                posted_amount = Decimal(amount_str)
-                if posted_amount > Decimal('0.00'):
-                    amount_to_initiate = min(posted_amount, order.balance_due())
-                    if amount_to_initiate <= Decimal('0.00') and order.is_paid():
-                         return JsonResponse({'status': 'info', 'message': 'Order is already fully paid.'}, status=200)
-                else: # posted_amount is zero or negative
-                    if order.balance_due() <= Decimal('0.00'):
-                         return JsonResponse({'status': 'info', 'message': 'Order is already fully paid or overpaid.'}, status=200)
-            except InvalidOperation:
-                return JsonResponse({'status': 'error', 'message': 'Invalid amount format.'}, status=400)
-
-        if amount_to_initiate <= Decimal('0.00'):
-            return JsonResponse({'status': 'info', 'message': 'No balance to pay for this order or order is already paid.'}, status=200)
-
-        # --- Start: Phone Number Validation Block ---
-        cleaned_mobile_number_for_paystack = None
-        if not mobile_number_raw:
-            return JsonResponse({'status': 'error', 'message': 'Valid mobile number is required.'}, status=400)
-
-        temp_number_for_validation = mobile_number_raw
-        if temp_number_for_validation.startswith('0') and len(temp_number_for_validation) == 10 and temp_number_for_validation[1:].isdigit():
-            cleaned_mobile_number_for_paystack = '233' + temp_number_for_validation[1:]
-        elif temp_number_for_validation.startswith('+233') and len(temp_number_for_validation) == 13 and temp_number_for_validation[4:].isdigit():
-            cleaned_mobile_number_for_paystack = temp_number_for_validation[1:]
-        elif temp_number_for_validation.startswith('233') and len(temp_number_for_validation) == 12 and temp_number_for_validation[3:].isdigit():
-            cleaned_mobile_number_for_paystack = temp_number_for_validation
-        else:
-            return JsonResponse({'status': 'error', 'message': 'Invalid mobile number format. Use 0XXXXXXXXX, +233XXXXXXXXX, or 233XXXXXXXXX.'}, status=400)
-        
-        if not (cleaned_mobile_number_for_paystack and cleaned_mobile_number_for_paystack.startswith('233') and len(cleaned_mobile_number_for_paystack) == 12 and cleaned_mobile_number_for_paystack[3:].isdigit()):
-            return JsonResponse({'status': 'error', 'message': 'Processed mobile number is not in Paystack format (233XXXXXXXXX).'}, status=400)
-        # --- End: Phone Number Validation Block ---
-
-        try:
-            with transaction.atomic():
-                payment_reference = uuid.uuid4()
-                # Check if a pending/processing payment already exists for this order with this method
-                existing_payment = Payment.objects.filter(
-                    order=order, 
-                    payment_method=Payment.PAYMENT_METHOD_MOBILE,
-                    status__in=[Payment.STATUS_PENDING, Payment.STATUS_PROCESSING]
-                ).first()
-
-                if existing_payment:
-                    payment = existing_payment
-                    payment.amount = amount_to_initiate # Update amount
-                    payment.mobile_number = cleaned_mobile_number_for_paystack
-                    # payment.reference = uuid.uuid4() # Consider if reference needs to change for retry
-                    payment.paystack_reference = None 
-                    payment.status = Payment.STATUS_PENDING
-                    payment.payment_type = Payment.PAYMENT_TYPE_PAYMENT # Ensure type is payment
-                    payment.save()
-                else:
-                    payment = Payment.objects.create(
-                        order=order,
-                        amount=amount_to_initiate, # Use determined amount
-                        payment_method=Payment.PAYMENT_METHOD_MOBILE,
-                        payment_type=Payment.PAYMENT_TYPE_PAYMENT, # Explicitly set type
-                        status=Payment.STATUS_PENDING, 
-                        reference=payment_reference,
-                        mobile_number=cleaned_mobile_number_for_paystack
-                    )
 
                 paystack_secret = settings.PAYSTACK_SECRET_KEY
+                if not paystack_secret:
+                    return Response({"detail": "Paystack secret key not configured."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                
                 paystack_url = "https://api.paystack.co/transaction/initialize"
                 headers = {
                     "Authorization": f"Bearer {paystack_secret}",
                     "Content-Type": "application/json"
                 }
                 callback_url = request.build_absolute_uri(
-                    reverse('payments:verify_payment', kwargs={'reference': str(payment.reference)})
+                    reverse('payments_api:verify-payment', kwargs={'reference': str(payment.reference)})
                 )
                 payload_data = {
-                    "email": f"customer_{order.customer_phone.replace('+', '').replace(' ', '') if order.customer_phone else str(order.id)}@example.com",
-                    "amount": int(amount_to_initiate * 100), # Use amount_to_initiate
+                    "email": f"customer_{order.id}_{payment.id}@example.com", # Ensure unique enough email
+                    "amount": int(amount * 100), # Amount in pesewas
                     "currency": "GHS",
                     "reference": str(payment.reference),
                     "callback_url": callback_url,
                     "metadata": {
-                        "order_id": order.id,
-                        "payment_id": payment.id,
+                        "order_db_id": order.id,
+                        "order_number": order.order_number,
+                        "payment_db_id": payment.id,
                         "customer_phone_submitted": mobile_number_raw,
-                        "custom_fields": [{
-                            "display_name": "Phone Number",
-                            "variable_name": "phone_number",
-                            "value": payment.mobile_number
-                        }]
                     }
                 }
+                try:
+                    api_response = requests.post(paystack_url, headers=headers, json=payload_data, timeout=10)
+                    api_response.raise_for_status() # Raise HTTPError for bad responses (4XX or 5XX)
+                    response_data = api_response.json()
 
-                api_response = requests.post(paystack_url, headers=headers, json=payload_data, timeout=10)
-                api_response_data = api_response.json()
+                    if response_data.get('status'):
+                        authorization_url = response_data.get('data', {}).get('authorization_url')
+                        paystack_api_reference = response_data.get('data', {}).get('reference')
 
-                if api_response.status_code == 200 and api_response_data.get('status'):
-                    authorization_url = api_response_data.get('data', {}).get('authorization_url')
-                    paystack_api_reference = api_response_data.get('data', {}).get('reference', '')
+                        if authorization_url and paystack_api_reference:
+                            payment.paystack_reference = paystack_api_reference
+                            payment.response_data = response_data
+                            payment.status = Payment.STATUS_PROCESSING # Update status
+                            payment.save()
 
-                    if authorization_url:
-                        payment.paystack_reference = paystack_api_reference 
-                        payment.response_data = api_response_data
-                        payment.status = Payment.STATUS_PROCESSING 
-                        payment.save()
-
-                        PaymentTransaction.objects.create(
-                            payment=payment,
-                            transaction_id=paystack_api_reference or str(uuid.uuid4()),
-                            status='initialized',
-                            amount=payment.amount,
-                            response_data=api_response_data,
-                            is_verified=False
-                        )
-                        return JsonResponse({
-                            'status': 'success',
-                            'authorization_url': authorization_url,
-                            'reference': str(payment.reference) 
-                        })
+                            PaymentTransaction.objects.create(
+                                payment=payment,
+                                transaction_id=paystack_api_reference,
+                                status='initialized',
+                                amount=payment.amount,
+                                response_data=response_data
+                            )
+                            return Response({
+                                'status': 'success',
+                                'payment_method': 'mobile_money',
+                                'authorization_url': authorization_url,
+                                'payment_reference': str(payment.reference)
+                            }, status=status.HTTP_200_OK)
+                        else:
+                            error_msg = response_data.get('message', 'Paystack init failed: No authorization URL or reference.')
+                            payment.status = Payment.STATUS_FAILED
+                            payment.notes = error_msg
+                            payment.save()
+                            return Response({"detail": error_msg}, status=status.HTTP_400_BAD_REQUEST)
                     else:
+                        error_msg = response_data.get('message', 'Paystack API did not return success status.')
                         payment.status = Payment.STATUS_FAILED
-                        payment.response_data = api_response_data
+                        payment.notes = error_msg
                         payment.save()
-                        return JsonResponse({'status': 'error', 'message': api_response_data.get('message', 'Paystack init failed: No authorization URL.')}, status=400)
+                        return Response({"detail": error_msg}, status=status.HTTP_400_BAD_REQUEST)
+                
+                except requests.exceptions.RequestException as e:
+                    payment.status = Payment.STATUS_FAILED
+                    payment.notes = f"Paystack request error: {str(e)}"
+                    payment.save()
+                    return Response({"detail": f"Payment processing error: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            else:
+                return Response({"detail": "Invalid payment method."}, status=status.HTTP_400_BAD_REQUEST)
+
+class PaystackVerifyAPIView(views.APIView):
+    permission_classes = [AllowAny] # Paystack redirects here, user might not be logged in on this browser session
+
+    @extend_schema(
+        summary="Verify Paystack Payment",
+        description="Endpoint for Paystack to redirect to after a payment attempt. Verifies the transaction and updates statuses.",
+        parameters=[
+            OpenApiParameter(name='reference', description='The payment reference (UUID) from our system.', type=OpenApiTypes.STR, location=OpenApiParameter.PATH, required=True),
+            OpenApiParameter(name='trxref', description='Transaction reference from Paystack (if provided in query)._Alternate to `reference` from Paystack._', type=OpenApiTypes.STR, location=OpenApiParameter.QUERY, required=False),
+            OpenApiParameter(name='reference', description='Duplicate of `trxref` that Paystack sometimes sends._Alternate to `trxref`._', type=OpenApiTypes.STR, location=OpenApiParameter.QUERY, required=False)
+        ],
+        responses={
+            200: OpenApiTypes.OBJECT, # Success (can redirect to a frontend success page)
+            400: OpenApiTypes.OBJECT, # Error verifying
+            404: OpenApiTypes.OBJECT  # Payment not found
+        },
+        tags=['Payments']
+    )
+    def get(self, request, reference):
+        payment = get_object_or_404(Payment, reference=reference)
+        paystack_ref_from_query = request.query_params.get('trxref') or request.query_params.get('reference')
+
+        # If Paystack provides its own reference in query, ensure it matches what we stored, if we stored one
+        if payment.paystack_reference and paystack_ref_from_query and payment.paystack_reference != paystack_ref_from_query:
+            # Log this discrepancy, but proceed with verification using our stored reference
+            print(f"Warning: Paystack query ref '{paystack_ref_from_query}' differs from stored ref '{payment.paystack_reference}' for payment '{payment.reference}'")
+        
+        # Use the paystack_reference stored on the payment record for verification
+        # This is the reference Paystack returned during initialization.
+        verification_reference = payment.paystack_reference or str(payment.reference)
+
+        paystack_secret = settings.PAYSTACK_SECRET_KEY
+        if not paystack_secret:
+            # Potentially redirect to a generic error page on frontend
+            return Response({"detail": "Paystack secret key not configured."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        verify_url = f"https://api.paystack.co/transaction/verify/{verification_reference}"
+        headers = {"Authorization": f"Bearer {paystack_secret}"}
+
+        try:
+            api_response = requests.get(verify_url, headers=headers, timeout=10)
+            api_response.raise_for_status()
+            response_data = api_response.json()
+
+            payment.response_data = response_data # Store latest response
+            verified_successfully = False
+
+            if response_data.get('status') and response_data.get('data', {}).get('status') == 'success':
+                # Check amount paid matches expected amount
+                amount_paid_pesewas = response_data.get('data', {}).get('amount', 0)
+                if Decimal(amount_paid_pesewas / 100) == payment.amount:
+                    payment.status = Payment.STATUS_COMPLETED
+                    verified_successfully = True
+                    
+                    # Update order status based on order type and current status
+                    order = payment.order
+                    if order.is_paid():  # Check if order is now fully paid
+                        if order.delivery_type == 'Delivery':
+                            # For delivery orders: Always move to Fulfilled when payment confirmed
+                            order.status = Order.STATUS_FULFILLED
+                        elif order.status == Order.STATUS_PENDING:
+                            # For pickup orders: Pending -> Accepted when payment received
+                            order.status = Order.STATUS_ACCEPTED
+                        order.save(update_fields=['status'])
                 else:
                     payment.status = Payment.STATUS_FAILED
-                    payment.response_data = api_response_data
-                    payment.save()
-                    return JsonResponse({'status': 'error', 'message': f"Paystack API error: {api_response_data.get('message', 'Unknown error')}"}, status=api_response.status_code or 400)
-
-        except requests.exceptions.RequestException as e_req:
-            if 'payment' in locals() and payment.pk:
-                payment.status = Payment.STATUS_FAILED
-                payment.notes = f"RequestException: {str(e_req)}"
-                payment.save()
-            return JsonResponse({'status': 'error', 'message': f'Network error during payment processing: {str(e_req)}'}, status=500)
-        except Exception as e_gen:
-            if 'payment' in locals() and payment.pk: 
-                payment.status = Payment.STATUS_FAILED
-                payment.notes = f"General Exception: {str(e_gen)}"
-                payment.save()
-            return JsonResponse({'status': 'error', 'message': f'An unexpected error occurred: {str(e_gen)}'}, status=500)
-
-class TransactionDetailView(LoginRequiredMixin, DetailView):
-    """
-    View for displaying details of a payment transaction
-    """
-    model = Payment
-    template_name = 'payments/transaction_detail.html'
-    context_object_name = 'transaction'
-    
-    def dispatch(self, request, *args, **kwargs):
-        """Only allow admin and frontdesk staff to access"""
-        if not (request.user.is_admin() or request.user.is_frontdesk()):
-            messages.error(request, "You don't have permission to view transaction details.")
-            return redirect('users:dashboard')
-        return super().dispatch(request, *args, **kwargs)
-    
-    def get_context_data(self, **kwargs):
-        """Add related data to context"""
-        context = super().get_context_data(**kwargs)
-        
-        # Get transaction history
-        transaction_history = PaymentTransaction.objects.filter(
-            payment=self.object
-        ).order_by('-created_at')
-        context['transaction_history'] = transaction_history
-        
-        # Get order items if order exists
-        if self.object.order:
-            order_items = self.object.order.items.all().select_related('menu_item')
-            context['order_items'] = order_items
-            
-            # Calculate order total
-            context['order_total'] = self.object.order.total_price
-        
-        # Add payment response data if available (for debugging)
-        if self.object.response_data:
-            # If it's stored as JSON string, parse it
-            if isinstance(self.object.response_data, str):
-                try:
-                    context['response_data'] = json.loads(self.object.response_data)
-                except json.JSONDecodeError:
-                    context['response_data'] = self.object.response_data
+                    payment.notes = f"Amount mismatch: Expected {payment.amount}, Paystack reported {Decimal(amount_paid_pesewas/100)}."
             else:
-                context['response_data'] = self.object.response_data
-        
-        return context
+                payment.status = Payment.STATUS_FAILED
+                payment.notes = response_data.get('data', {}).get('gateway_response', 'Verification failed.')
+            
+            payment.save()
 
+            # Update or create PaymentTransaction
+            transaction = payment.transactions.filter(transaction_id=verification_reference).first()
+            if transaction:
+                transaction.status = 'success' if verified_successfully else 'failed'
+                transaction.is_verified = True
+                transaction.response_data = response_data
+                transaction.save()
+            else:
+                PaymentTransaction.objects.create(
+                    payment=payment,
+                    transaction_id=verification_reference,
+                    status='success' if verified_successfully else 'failed',
+                    amount=payment.amount,
+                    response_data=response_data,
+                    is_verified=True
+                )
+            
+            # Redirect to a frontend page with status
+            # This should ideally be a configurable frontend URL
+            frontend_redirect_url = settings.FRONTEND_ORDER_DETAIL_URL.format(order_number=payment.order.order_number)
+            status_query_param = "payment_success" if verified_successfully else "payment_failed"
+            return redirect(f"{frontend_redirect_url}?status={status_query_param}&ref={payment.reference}")
+
+        except requests.exceptions.RequestException as e:
+            payment.status = Payment.STATUS_FAILED
+            payment.notes = f"Paystack verification error: {str(e)}"
+            payment.save()
+            # Redirect to a frontend error page
+            frontend_redirect_url = settings.FRONTEND_ORDER_DETAIL_URL.format(order_number=payment.order.order_number)
+            return redirect(f"{frontend_redirect_url}?status=payment_error&ref={payment.reference}")
+        except Exception as e:
+            # Generic error, log it
+            payment.status = Payment.STATUS_FAILED
+            payment.notes = f"Generic verification error: {str(e)}"
+            payment.save()
+            frontend_redirect_url = settings.FRONTEND_ORDER_DETAIL_URL.format(order_number=payment.order.order_number)
+            return redirect(f"{frontend_redirect_url}?status=payment_error&ref={payment.reference}")
+
+@method_decorator(csrf_exempt, name='dispatch')
+class PaystackWebhookAPIView(views.APIView):
+    permission_classes = [AllowAny] # Webhooks are server-to-server
+
+    @extend_schema(
+        summary="Paystack Webhook Handler",
+        request=PaystackWebhookSerializer,
+        responses={200: OpenApiTypes.OBJECT, 400: OpenApiTypes.OBJECT},
+        description="Receives and processes webhook notifications from Paystack for events like charge.success.",
+        tags=['Payments']
+    )
+    def post(self, request, *args, **kwargs):
+        paystack_signature = request.headers.get('X-Paystack-Signature')
+        payload = request.body
+
+        paystack_secret = settings.PAYSTACK_SECRET_KEY
+        if not paystack_secret:
+            return Response({"detail": "Webhook secret not configured."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        computed_hmac = hmac.new(paystack_secret.encode(), payload, hashlib.sha512).hexdigest()
+        if not hmac.compare_digest(computed_hmac, paystack_signature):
+            return Response({"detail": "Invalid signature"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            event_data = json.loads(payload)
+        except json.JSONDecodeError:
+            return Response({"detail": "Invalid JSON payload"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        serializer = PaystackWebhookSerializer(data=event_data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        event = serializer.validated_data['event']
+        data = serializer.validated_data['data']
+        paystack_api_reference = data.get('reference')
+
+        if event == 'charge.success':
+            try:
+                # Try to find Payment by paystack_reference first, then by our own reference as fallback
+                payment = Payment.objects.filter(paystack_reference=paystack_api_reference).first() or \
+                          Payment.objects.filter(reference=paystack_api_reference).first()
+
+                if not payment:
+                    print(f"Webhook: Payment with Paystack reference {paystack_api_reference} not found.")
+                    return Response({"detail": "Payment not found"}, status=status.HTTP_404_NOT_FOUND) # Or 200 if Paystack needs it
+
+                with transaction.atomic():
+                    amount_paid_pesewas = data.get('amount', 0)
+                    if Decimal(amount_paid_pesewas / 100) == payment.amount:
+                        payment.status = Payment.STATUS_COMPLETED
+                        payment.response_data = event_data # Save full webhook data
+                        payment.save()
+
+                        # Update order status based on order type and current status
+                        order = payment.order
+                        if order.is_paid():  # Check if order is now fully paid
+                            if order.delivery_type == 'Delivery':
+                                # For delivery orders: Always move to Fulfilled when payment confirmed
+                                order.status = Order.STATUS_FULFILLED
+                            elif order.status == Order.STATUS_PENDING:
+                                # For pickup orders: Pending -> Accepted when payment received
+                                order.status = Order.STATUS_ACCEPTED
+                            order.save(update_fields=['status'])
+                        
+                        # Update/Create transaction log
+                        trans_log, created = PaymentTransaction.objects.update_or_create(
+                            payment=payment, 
+                            transaction_id=paystack_api_reference,
+                            defaults={
+                                'status': 'success',
+                                'amount': payment.amount,
+                                'response_data': event_data,
+                                'is_verified': True
+                            }
+                        )
+                    else:
+                        payment.status = Payment.STATUS_FAILED
+                        payment.notes = f"Webhook amount mismatch: Expected {payment.amount}, Paystack reported {Decimal(amount_paid_pesewas/100)}."
+                        payment.response_data = event_data
+                        payment.save()
+
+            except Payment.DoesNotExist:
+                # This case is covered by the filter().first() check above
+                pass # Already handled
+            except Exception as e:
+                print(f"Error processing webhook: {str(e)}") # Log error
+                return Response({"detail": "Error processing event"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        return Response({"status": "webhook received"}, status=status.HTTP_200_OK)
+
+
+@extend_schema(
+    tags=['Payments']
+)
+class PaymentTransactionListAPIView(generics.ListAPIView):
+    """Dedicated endpoint for viewing all payment transactions with payment and order details."""
+    queryset = PaymentTransaction.objects.all().select_related(
+        'payment', 
+        'payment__order', 
+        'payment__order__delivery_location'
+    ).order_by('-created_at')
+    serializer_class = PaymentTransactionSerializer
+    permission_classes = [IsAdminOrFrontdesk]
+    filterset_fields = ['status', 'is_verified', 'payment__payment_method', 'payment__status']
+    search_fields = ['transaction_id', 'payment__reference', 'payment__order__order_number']
+    
+    @extend_schema(
+        summary="List Payment Transactions",
+        description="Retrieves a detailed list of all payment transactions with associated payment and order information. "
+                    "Useful for transaction-level analysis and reconciliation."
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+
+
+@extend_schema(
+    tags=['Payments']
+)
+class TransactionTableAPIView(views.APIView):
+    """
+    Provides a flattened view of all transactions for table display.
+    Maps through each payment and iterates through transactions to create
+    comprehensive table rows with all relevant transaction info.
+    """
+    permission_classes = [IsAdminOrFrontdesk]  # Admins and frontdesk staff can view transaction table
+    
+    @extend_schema(
+        summary="Get Flattened Transaction Table Data",
+        description="Returns a comprehensive list of all transactions in a flattened format suitable for table display. "
+                    "Each row contains transaction_id, order_number, payment_method, payment_type, status, amount, "
+                    "date, and customer details. Data is flattened from payments and their associated transactions.",
+        responses={
+            200: {
+                "type": "object",
+                "properties": {
+                    "transactions": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "transaction_id": {"type": "string"},
+                                "order_number": {"type": "string"},
+                                "payment_method": {"type": "string"},
+                                "payment_type": {"type": "string"},
+                                "status": {"type": "string"},
+                                "amount": {"type": "number"},
+                                "date": {"type": "string", "format": "date-time"},
+                                "customer_phone": {"type": "string"},
+                                "payment_reference": {"type": "string"},
+                                "currency": {"type": "string"},
+                                "is_verified": {"type": "boolean"},
+                                "order_total": {"type": "number"},
+                                "delivery_type": {"type": "string"}
+                            }
+                        }
+                    },
+                    "summary": {
+                        "type": "object",
+                        "properties": {
+                            "total_transactions": {"type": "integer"},
+                            "total_amount": {"type": "number"},
+                            "successful_transactions": {"type": "integer"},
+                            "failed_transactions": {"type": "integer"}
+                        }
+                    }
+                }
+            }
+        }
+    )
+    def get(self, request, *args, **kwargs):
+        """
+        Returns flattened transaction data for table display.
+        Maps through each payment and iterates through transactions.
+        """
+        # Get all payments with related data
+        payments = Payment.objects.select_related(
+            'order', 
+            'order__delivery_location'
+        ).prefetch_related('transactions').order_by('-created_at')
+        
+        transaction_rows = []
+        total_amount = Decimal('0.00')
+        successful_count = 0
+        failed_count = 0
+        
+        # Map through each payment
+        for payment in payments:
+            # Get basic payment/order info that will be shared across transactions
+            base_row_data = {
+                'order_number': payment.order.order_number,
+                'payment_method': payment.get_payment_method_display(),
+                'payment_type': payment.get_payment_type_display(),
+                'payment_reference': str(payment.reference),
+                'customer_phone': payment.order.customer_phone,
+                'order_total': float(payment.order.total_price),
+                'delivery_type': payment.order.delivery_type,
+            }
+            
+            # Iterate through transactions for this payment
+            transactions = payment.transactions.all()
+            
+            if transactions.exists():
+                # If payment has transactions, create a row for each transaction
+                for transaction in transactions:
+                    row = base_row_data.copy()
+                    row.update({
+                        'transaction_id': transaction.transaction_id,
+                        'status': transaction.get_status_display(),
+                        'amount': float(transaction.amount),
+                        'date': transaction.created_at.isoformat(),
+                        'currency': transaction.currency,
+                        'is_verified': transaction.is_verified,
+                    })
+                    transaction_rows.append(row)
+                    total_amount += transaction.amount
+                    
+                    if transaction.status == 'success':
+                        successful_count += 1
+                    elif transaction.status == 'failed':
+                        failed_count += 1
+            else:
+                # If payment has no transactions, create a row with payment data
+                row = base_row_data.copy()
+                row.update({
+                    'transaction_id': f"PAY-{payment.id}",  # Generate ID for payments without transactions
+                    'status': payment.get_status_display(),
+                    'amount': float(payment.amount),
+                    'date': payment.created_at.isoformat(),
+                    'currency': 'GHS',  # Default currency
+                    'is_verified': payment.status == Payment.STATUS_COMPLETED,
+                })
+                transaction_rows.append(row)
+                total_amount += payment.amount
+                
+                if payment.status == Payment.STATUS_COMPLETED:
+                    successful_count += 1
+                elif payment.status == Payment.STATUS_FAILED:
+                    failed_count += 1
+        
+        # Create summary data
+        summary = {
+            'total_transactions': len(transaction_rows),
+            'total_amount': float(total_amount),
+            'successful_transactions': successful_count,
+            'failed_transactions': failed_count
+        }
+        
+        return Response({
+            'transactions': transaction_rows,
+            'summary': summary
+        }, status=status.HTTP_200_OK)
+
+
+@extend_schema(
+    tags=['Payments']
+)
+class PaymentModesAPIView(views.APIView):
+    permission_classes = [IsAdminOrFrontdesk]  # Only admin and frontdesk can access payment modes
+    
+    @extend_schema(
+        summary="List Payment Modes",
+        description="Returns the available payment modes that can be used when processing payments.",
+        responses={
+            200: {
+                "type": "object",
+                "properties": {
+                    "payment_modes": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "value": {"type": "string"},
+                                "label": {"type": "string"}
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    )
+    def get(self, request, *args, **kwargs):
+        """
+        Returns the available payment modes/methods.
+        """
+        payment_modes = [
+            {"value": "CASH", "label": "Cash", "disabled": False},
+            {"value": "TELECEL CASH", "label": "Telecel Cash", "disabled": False},
+            {"value": "MTN MOMO", "label": "MTN MoMo", "disabled": False},
+            {"value": "PAYSTACK(USSD)", "label": "Paystack (USSD)", "disabled": False},
+            {"value": "PAYSTACK(API)", "label": "Paystack (API) - Coming Soon", "disabled": True}
+        ]
+        
+        return Response({"payment_modes": payment_modes}, status=status.HTTP_200_OK)
+
+
+@extend_schema(
+    summary="Payment History",
+    description="Returns a comprehensive payment history with detailed transaction information, including order details, payment methods, and transaction timelines.",
+    parameters=[
+        OpenApiParameter(
+            name='order_number',
+            description='Filter by specific order number',
+            required=False,
+            type=OpenApiTypes.STR
+        ),
+        OpenApiParameter(
+            name='payment_method',
+            description='Filter by payment method (CASH, TELECEL CASH, MTN MOMO, etc.)',
+            required=False,
+            type=OpenApiTypes.STR
+        ),
+        OpenApiParameter(
+            name='status',
+            description='Filter by payment status (pending, completed, failed, etc.)',
+            required=False,
+            type=OpenApiTypes.STR
+        ),
+        OpenApiParameter(
+            name='days',
+            description='Number of days to look back (default: 30)',
+            required=False,
+            type=OpenApiTypes.INT
+        ),
+    ],
+    tags=['Payments']
+)
+class PaymentHistoryAPIView(views.APIView):
+    permission_classes = [IsAdminOrFrontdesk]
+    
+    def get(self, request, *args, **kwargs):
+        """
+        Returns comprehensive payment history with filtering options.
+        """
+        # Start with all payments
+        queryset = Payment.objects.select_related(
+            'order', 
+            'order__delivery_location'
+        ).prefetch_related('transactions').order_by('-created_at')
+        
+        # Apply filters
+        order_number = request.query_params.get('order_number')
+        if order_number:
+            queryset = queryset.filter(order__order_number__icontains=order_number)
+        
+        payment_method = request.query_params.get('payment_method')
+        if payment_method:
+            queryset = queryset.filter(payment_method__icontains=payment_method)
+        
+        payment_status = request.query_params.get('status')
+        if payment_status:
+            queryset = queryset.filter(status__icontains=payment_status)
+        
+        # Filter by days (default to 30 days)
+        days = request.query_params.get('days', '30')
+        try:
+            days_int = int(days)
+            from django.utils import timezone
+            cutoff_date = timezone.now() - timezone.timedelta(days=days_int)
+            queryset = queryset.filter(created_at__gte=cutoff_date)
+        except ValueError:
+            pass  # Invalid days parameter, ignore filter
+        
+        payment_history = []
+        for payment in queryset:
+            # Get transactions for this payment
+            transactions = payment.transactions.all().order_by('created_at')
+            
+            transaction_details = []
+            for transaction in transactions:
+                transaction_details.append({
+                    'transaction_id': transaction.transaction_id,
+                    'status': transaction.get_status_display(),
+                    'amount': float(transaction.amount),
+                    'currency': transaction.currency,
+                    'is_verified': transaction.is_verified,
+                    'created_at': transaction.created_at.isoformat(),
+                    'time_ago': transaction.time_ago(),
+                })
+            
+            # Create payment history entry
+            history_entry = {
+                'payment_id': payment.id,
+                'payment_reference': str(payment.reference),
+                'order_number': payment.order.order_number,
+                'customer_phone': payment.order.customer_phone,
+                'payment_method': payment.get_payment_method_display(),
+                'payment_type': payment.get_payment_type_display(),
+                'status': payment.get_status_display(),
+                'amount': float(payment.amount),
+                'order_total': float(payment.order.total_price),
+                'delivery_type': payment.order.delivery_type,
+                'delivery_location': payment.order.delivery_location.name if payment.order.delivery_location else None,
+                'paystack_reference': payment.paystack_reference,
+                'mobile_number': payment.mobile_number,
+                'notes': payment.notes,
+                'created_at': payment.created_at.isoformat(),
+                'updated_at': payment.updated_at.isoformat(),
+                'time_ago': payment.time_ago(),
+                'transactions': transaction_details,
+                'transaction_count': len(transaction_details),
+                'payment_timeline': [
+                    {
+                        'event': 'Payment Created',
+                        'status': 'pending',
+                        'timestamp': payment.created_at.isoformat(),
+                        'is_current': payment.status == Payment.STATUS_PENDING
+                    },
+                    {
+                        'event': f'Payment {payment.get_status_display()}',
+                        'status': payment.status,
+                        'timestamp': payment.updated_at.isoformat(),
+                        'is_current': True
+                    }
+                ]
+            }
+            payment_history.append(history_entry)
+        
+        # Generate summary statistics
+        total_payments = len(payment_history)
+        total_amount = sum(entry['amount'] for entry in payment_history)
+        completed_payments = [entry for entry in payment_history if entry['status'] == 'Completed']
+        failed_payments = [entry for entry in payment_history if entry['status'] == 'Failed']
+        pending_payments = [entry for entry in payment_history if entry['status'] in ['Pending', 'Processing']]
+        
+        summary = {
+            'total_payments': total_payments,
+            'total_amount': total_amount,
+            'completed_count': len(completed_payments),
+            'completed_amount': sum(entry['amount'] for entry in completed_payments),
+            'failed_count': len(failed_payments),
+            'failed_amount': sum(entry['amount'] for entry in failed_payments),
+            'pending_count': len(pending_payments),
+            'pending_amount': sum(entry['amount'] for entry in pending_payments),
+        }
+        
+        return Response({
+            'count': total_payments,
+            'summary': summary,
+            'results': payment_history
+        }, status=status.HTTP_200_OK)

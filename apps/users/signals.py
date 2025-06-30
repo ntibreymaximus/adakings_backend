@@ -43,12 +43,22 @@ def generate_staff_id(sender, instance, **kwargs):
 def setup_role_specific_settings(sender, instance, created, **kwargs):
     """
     Handle role-specific setup after a user is created or updated.
-    - For admins: Set is_staff and is_superuser appropriately
-    - For other roles: Set appropriate permissions
+    - For superusers: Full access to everything
+    - For admin role: Staff access but limited permissions
+    - For other roles: No admin access, frontend only
     """
     if created:  # Only run this for newly created users
-        # Admin users should be staff users by default
-        if instance.role == 'admin' and not instance.is_staff:
-            instance.is_staff = True
-            instance.save(update_fields=['is_staff'])
+        # Note: is_staff is already handled in the model's save() method
+        # This is just for any additional setup that might be needed
+        
+        # Log the user creation for audit purposes
+        from django.utils import timezone
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        logger.info(
+            f"User created: {instance.username} (Role: {instance.role}, "
+            f"Staff: {instance.is_staff}, Superuser: {instance.is_superuser}) "
+            f"at {timezone.now()}"
+        )
 

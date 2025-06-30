@@ -20,34 +20,81 @@ from django.shortcuts import redirect
 from django.conf import settings
 from django.conf.urls.static import static
 from django.views.generic import RedirectView
+from drf_spectacular.utils import extend_schema
+from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
+from rest_framework import serializers
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.response import Response
+from rest_framework.reverse import reverse
+from rest_framework.permissions import AllowAny
+from rest_framework_simplejwt.views import (
+    TokenObtainPairView,
+    TokenRefreshView,
+    TokenVerifyView,
+)
 
 # Simple redirect view for the root URL to dashboard or login
 def home_redirect(request):
     if request.user.is_authenticated:
-        return redirect('users:dashboard')
-    return redirect('users:login')
+        # Redirect authenticated users to their API profile/me endpoint
+        return redirect('users_api:user-me') 
+    # Redirect unauthenticated users to the API login endpoint
+    return redirect('users_api:login')
+
+# Serializer for api_root response
+class APIRootSerializer(serializers.Serializer):
+    users = serializers.URLField()
+    menu = serializers.URLField() # Added
+    orders = serializers.URLField() # Added
+    payments = serializers.URLField() # Added
+    schema = serializers.URLField()
+    docs = serializers.URLField()
+    swagger = serializers.URLField()
+
+@extend_schema(responses=APIRootSerializer)
+@api_view(['GET'])
+@permission_classes([AllowAny]) # Add this line
+def api_root(request, format=None):
+    return Response({
+        'users': reverse('users_api:user-list', request=request, format=format),
+        'menu': reverse('menu_api:menuitem-list-create', request=request, format=format), # Added
+        'orders': reverse('orders_api:order-list-create', request=request, format=format), # Added
+        'payments': reverse('payments_api:payment-list', request=request, format=format), # Added
+        'schema': reverse('schema', request=request, format=format),
+        'docs': reverse('redoc', request=request, format=format),
+        'swagger': reverse('swagger-ui', request=request, format=format),
+    })
 
 urlpatterns = [
     # Admin URLs
     path('admin/', admin.site.urls),
-    
-    # Users app URLs
-    path('users/', include('apps.users.urls')),
-    
-    # Menu app URLs
-    path('menu/', include('apps.menu.urls')),
-    
-    # Orders app URLs
-    path('orders/', include('apps.orders.urls')),
-    
-    # Payments app URLs
-    path('payments/', include('apps.payments.urls', namespace='payments')),
-    
+
+    # Menu app API URLs
+    path('api/menu/', include('apps.menu.urls')),
+
+    # Orders app API URLs
+    path('api/orders/', include('apps.orders.urls')),
+
+    # Payments app API URLs
+    path('api/payments/', include('apps.payments.urls')),
+
+    # JWT token endpoints
+    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('api/token/verify/', TokenVerifyView.as_view(), name='token_verify'),
+
+    # API Root
+    path('api/', api_root, name='api-root'),
+    path('api/users/', include('apps.users.urls')),
+
+    # DRF Spectacular URLs
+    path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
+    # Optional UI:
+    path('api/docs/swagger/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
+    path('api/docs/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
+
     # Root URL redirects to dashboard or login page
     path('', home_redirect, name='home'),
-    
-    # Dashboard redirects (for convenience)
-    path('dashboard/', RedirectView.as_view(pattern_name='users:dashboard'), name='dashboard'),
 ]
 
 # Serve static and media files in development

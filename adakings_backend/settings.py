@@ -28,6 +28,43 @@ else:
         "See .env.example for required variables."
     )
 
+
+# Django REST Framework settings
+REST_FRAMEWORK = {
+    # Use Django's standard `django.contrib.auth` permissions,
+    # or allow read-only access for unauthenticated users.
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticatedOrReadOnly'
+    ],
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.BasicAuthentication',
+    ),
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema', # drf-spectacular
+}
+
+
+# drf-spectacular settings
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Adakings Backend API',
+    'DESCRIPTION': 'API for Adakings Restaurant Management System',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    'ENUM_NAME_OVERRIDES': {
+        'OrderStatusEnum': 'apps.orders.models.Order.STATUS_CHOICES',
+        'PaymentStatusEnum': 'apps.payments.models.Payment.PAYMENT_STATUS_CHOICES',
+        'PaymentTransactionStatusEnum': 'apps.payments.models.PaymentTransaction.TRANSACTION_STATUS_CHOICES',
+        # If the auto-generated name was different (e.g. Status4f4Enum), you'd map it from that:
+        # 'Status4f4Enum': 'apps.orders.models.Order.STATUS_CHOICES', 
+        # or more specific by targeting the serializer and field if direct model path doesn't work:
+        # 'OrderStatusEnum': 'apps.orders.serializers.OrderSerializer.status',
+        # 'PaymentStatusEnum': 'apps.payments.serializers.PaymentSerializer.status',
+        # 'PaymentTransactionStatusEnum': 'apps.payments.serializers.PaymentTransactionSerializer.status',
+    },
+    # OTHER SETTINGS
+}
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -37,6 +74,29 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-$d)4m^^$c*tb+oahwhl-1gjl*qip_i&dk_bj4-_5wg1!6x=_vt'
+
+# JWT Settings
+from datetime import timedelta
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'UPDATE_LAST_LOGIN': True,
+    'ALGORITHM': 'HS256',
+    'SIGNING_KEY': SECRET_KEY,
+    'VERIFYING_KEY': None,
+    'AUDIENCE': None,
+    'ISSUER': None,
+    'AUTH_HEADER_TYPES': ('Bearer',),
+    'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',
+    'USER_ID_FIELD': 'id',
+    'USER_ID_CLAIM': 'user_id',
+    'USER_AUTHENTICATION_RULE': 'rest_framework_simplejwt.authentication.default_user_authentication_rule',
+    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
+    'TOKEN_TYPE_CLAIM': 'token_type',
+}
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -59,6 +119,12 @@ INSTALLED_APPS = [
     'apps.menu',
     'apps.orders',
     'apps.payments',
+    # Third-party apps
+    'rest_framework',
+    'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
+    'drf_spectacular',
+    'corsheaders',
 ]
 
 # Custom user model
@@ -66,6 +132,7 @@ AUTH_USER_MODEL = 'users.CustomUser'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -153,13 +220,42 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Authentication settings
-LOGIN_URL = '/users/login/'
-LOGIN_REDIRECT_URL = '/dashboard/'
-LOGOUT_REDIRECT_URL = '/users/login/'
 
 # Email settings for password reset (using console backend for development)
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+# CORS settings
+CORS_ALLOW_ALL_ORIGINS = True  # Only use this for development
+CORS_ALLOW_CREDENTIALS = True  # Allow cookies for cross-origin requests
+
+# Allow cache-control header for API requests
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'cache-control',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
+
+# For production, use CORS_ALLOWED_ORIGINS instead:
+# CORS_ALLOWED_ORIGINS = [
+#     "http://localhost:3000",
+#     "http://127.0.0.1:3000",
+# ]
+
+# Cookie settings for cross-origin requests during development
+# IMPORTANT: For production, SameSite='None' REQUIRES Secure=True (HTTPS)
+SESSION_COOKIE_SAMESITE = 'Lax'
+SESSION_COOKIE_SECURE = False  # Must be True in production if SameSite='None'
+
+CSRF_COOKIE_SAMESITE = 'Lax' # Explicitly set for development
+CSRF_COOKIE_SECURE = False     # Must be True in production if SameSite is 'None', but okay for 'Lax' over HTTP
+CSRF_TRUSTED_ORIGINS = ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:8000', 'http://127.0.0.1:8000']
 
 # Payment settings
 # ==============================================================================
@@ -184,3 +280,5 @@ if not is_paystack_configured():
         "Paystack API keys are not configured. Mobile money payments will not work. "
         "Please set PAYSTACK_PUBLIC_KEY and PAYSTACK_SECRET_KEY environment variables."
     )
+
+
