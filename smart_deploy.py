@@ -254,8 +254,8 @@ else:
         self.log_success("Backup restored")
     
     def clean_deleted_local_branches(self):
-        """Clean up local branches that have been deleted from the remote"""
-        self.log_info("🧹 Cleaning up local branches that no longer exist on remote...")
+        """Clean up local branches that have been deleted from the remote repository"""
+        self.log_info("🧹 Cleaning up local branches deleted from remote...")
         
         try:
             # First, fetch and prune to get accurate remote state
@@ -270,7 +270,7 @@ else:
                 self.log_warning("Could not determine current branch")
                 return False
             
-            # Get list of local branches (excluding current branch)
+            # Get list of local branches
             result = self.run_command("git branch --format='%(refname:short)'", check=False)
             if not result:
                 self.log_warning("Could not get local branches")
@@ -278,13 +278,21 @@ else:
             
             local_branches = [b.strip() for b in result.stdout.strip().split('\n') if b.strip()]
             
-            # Get list of remote branches
-            result = self.run_command("git branch -r --format='%(refname:short)'", check=False)
+            # Get list of remote tracking branches (what used to exist on remote)
+            result = self.run_command("git for-each-ref --format='%(refname:short)' refs/remotes/origin/", check=False)
             if not result:
-                self.log_warning("Could not get remote branches")
+                self.log_warning("Could not get remote tracking branches")
                 return False
             
-            remote_branches = [b.strip().replace('origin/', '') for b in result.stdout.strip().split('\n') if b.strip() and not b.strip().endswith('/HEAD')]
+            remote_tracking = [b.strip().replace('origin/', '') for b in result.stdout.strip().split('\n') if b.strip() and not b.strip().endswith('/HEAD')]
+            
+            # Get current remote branches (what actually exists on remote now)
+            result = self.run_command("git ls-remote --heads origin", check=False)
+            if not result:
+                self.log_warning("Could not get current remote branches")
+                return False
+            
+            current_remote = [line.split('\trefs/heads/')[-1] for line in result.stdout.strip().split('\n') if '\trefs/heads/' in line]
             
             # Protected branches that should never be deleted
             protected_branches = {'main', 'master', 'production', 'dev', 'development', current_branch}
@@ -292,6 +300,7 @@ else:
             deleted_count = 0
             skipped_count = 0
             
+            # Only process branches that exist locally and used to have remote tracking
             for local_branch in local_branches:
                 # Skip if it's a protected branch
                 if local_branch in protected_branches:
@@ -301,29 +310,31 @@ else:
                 if local_branch == current_branch:
                     continue
                 
-                # Check if the branch exists on remote
-                if local_branch not in remote_branches:
-                    # Check if branch has unpushed commits by comparing with remote
+                # Only delete if:
+                # 1. The branch had a remote tracking branch (was pushed before)
+                # 2. But no longer exists on the remote (was deleted from remote)
+                if local_branch in remote_tracking and local_branch not in current_remote:
+                    # Check if branch has unpushed commits
+                    # Compare with the last known remote state if possible
                     has_unpushed = False
                     
-                    # Try to find a corresponding remote branch pattern
-                    potential_remotes = [rb for rb in remote_branches if rb.endswith(local_branch.split('/')[-1])]
+                    # Check if there's a remote tracking branch to compare against
+                    remote_ref = f"origin/{local_branch}"
+                    ref_exists = self.run_command(f"git show-ref --verify --quiet refs/remotes/{remote_ref}", check=False)
                     
-                    if potential_remotes:
-                        # Check if there are unpushed commits
-                        for remote_branch in potential_remotes:
-                            diff_result = self.run_command(f"git log origin/{remote_branch}..{local_branch} --oneline", check=False)
-                            if diff_result and diff_result.stdout.strip():
-                                has_unpushed = True
-                                break
+                    if ref_exists:
+                        # Check for unpushed commits
+                        diff_result = self.run_command(f"git log {remote_ref}..{local_branch} --oneline", check=False)
+                        if diff_result and diff_result.stdout.strip():
+                            has_unpushed = True
                     
                     if has_unpushed:
                         self.log_warning(f"⚠️  Skipping {local_branch} - has unpushed commits")
                         skipped_count += 1
                         continue
                     
-                    # Safe to delete - branch doesn't exist on remote and no unpushed commits
-                    self.log_info(f"🗑️  Deleting local branch: {local_branch}")
+                    # Safe to delete - branch was deleted from remote and no unpushed commits
+                    self.log_info(f"🗑️  Deleting local branch: {local_branch} (deleted from remote)")
                     delete_result = self.run_command(f"git branch -D {local_branch}", check=False)
                     if delete_result:
                         deleted_count += 1
@@ -332,9 +343,9 @@ else:
                         self.log_warning(f"Failed to delete {local_branch}")
             
             if deleted_count > 0:
-                self.log_success(f"✅ Cleaned up {deleted_count} local branches")
+                self.log_success(f"✅ Cleaned up {deleted_count} branches deleted from remote")
             else:
-                self.log_info("✓ No branches to clean up")
+                self.log_info("✓ No deleted remote branches to clean up")
             
             if skipped_count > 0:
                 self.log_info(f"ℹ️  Skipped {skipped_count} branches with unpushed commits")
@@ -440,23 +451,37 @@ else:
             self.log_warning(f"Could not determine version from git: {e}")
             return "1.0.0"
     
-    def read_version(self, branch_type="production"):
-        """Read current version based on branch type"""
-        return self.get_latest_version_for_branch_type(branch_type)
+    def read_version(self, version_type="production"):
+        """Read current version from appropriate version file"""
+        if version_type == "production":
+            version_file = self.base_dir / "VERSION_PRODUCTION"
+        else:
+            version_file = self.base_dir / "VERSION_FEATURES"
+        
+        if version_file.exists():
+            try:
+                version = version_file.read_text().strip()
+                if version and version.count('.') == 2:
+                    return version
+            except Exception:
+                pass
+        
+        # Default versions - both start at 1.0.0
+        return "1.0.0"
     
-    def bump_version(self, bump_type, current_version):
+    def bump_version(self, bump_type, current_version, version_type="production"):
         """Bump version based on type"""
         major, minor, patch = map(int, current_version.split('.'))
         
         if bump_type == 'major':
             new_version = f"{major + 1}.0.0"
-            self.log_info(f"🚀 MAJOR version bump: {current_version} -> {new_version}")
+            self.log_info(f"🚀 MAJOR version bump ({version_type}): {current_version} -> {new_version}")
         elif bump_type == 'minor':
             new_version = f"{major}.{minor + 1}.0"
-            self.log_info(f"✨ MINOR version bump: {current_version} -> {new_version}")
+            self.log_info(f"✨ MINOR version bump ({version_type}): {current_version} -> {new_version}")
         elif bump_type == 'patch':
             new_version = f"{major}.{minor}.{patch + 1}"
-            self.log_info(f"🐛 PATCH version bump: {current_version} -> {new_version}")
+            self.log_info(f"🐛 PATCH version bump ({version_type}): {current_version} -> {new_version}")
         else:
             self.log_error(f"Invalid bump type: {bump_type}")
             return None
@@ -523,15 +548,23 @@ else:
         
         return proposed_version
     
-    def update_version_files(self, new_version):
-        """Update version in all relevant files"""
-        # Update VERSION file
-        version_file = self.base_dir / "VERSION"
-        version_file.write_text(f"{new_version}\n")
-        self.log_info(f"✓ Updated VERSION file: {new_version}")
+    def update_version_files(self, new_version, version_type="production"):
+        """Update version in appropriate version file"""
+        # Update the appropriate version file
+        if version_type == "production":
+            version_file = self.base_dir / "VERSION_PRODUCTION"
+            self.log_info(f"✓ Updated VERSION_PRODUCTION: {new_version}")
+        else:
+            version_file = self.base_dir / "VERSION_FEATURES"
+            self.log_info(f"✓ Updated VERSION_FEATURES: {new_version}")
         
-        # Update README files with version badges
-        readme_files = ["README.md", "README-PRODUCTION.md", "README-DEVELOPMENT.md"]
+        version_file.write_text(f"{new_version}\n")
+        
+        # Update README files with version badges (only for the specific type)
+        if version_type == "production":
+            readme_files = ["README.md", "README-PRODUCTION.md"]
+        else:
+            readme_files = ["README.md", "README-DEVELOPMENT.md"]
         
         for readme_file in readme_files:
             readme_path = self.base_dir / readme_file
@@ -540,21 +573,29 @@ else:
                 
                 # Update version badge
                 import re
-                content = re.sub(
-                    r'(https://img\.shields\.io/badge/version-v)[^-]+(-.+\.svg)',
-                    rf'\g<1>{new_version}\g<2>',
-                    content
-                )
+                if version_type == "production":
+                    pattern = r'(https://img\.shields\.io/badge/production-v)[^-]+(-.+\.svg)'
+                else:
+                    pattern = r'(https://img\.shields\.io/badge/features-v)[^-]+(-.+\.svg)'
+                
+                content = re.sub(pattern, rf'\g<1>{new_version}\g<2>', content)
                 
                 # Update current version
-                content = re.sub(
-                    r'(\*\*Current Version\*\*: v)[^\s]+',
-                    rf'\g<1>{new_version}',
-                    content
-                )
+                if version_type == "production":
+                    content = re.sub(
+                        r'(\*\*Production Version\*\*: v)[^\s]+',
+                        rf'\g<1>{new_version}',
+                        content
+                    )
+                else:
+                    content = re.sub(
+                        r'(\*\*Features Version\*\*: v)[^\s]+',
+                        rf'\g<1>{new_version}',
+                        content
+                    )
                 
                 readme_path.write_text(content, encoding='utf-8')
-                self.log_info(f"✓ Updated {readme_file} with version {new_version}")
+                self.log_info(f"✓ Updated {readme_file} with {version_type} version {new_version}")
     
     def validate_production_config(self):
         """Validate production configuration files"""
@@ -676,8 +717,12 @@ else:
         validation_errors = []
         warnings = []
         
-        # Check .env.example file
+        # Check .env.example file - create if missing for feature branches
         env_file = self.base_dir / ".env.example"
+        if not env_file.exists():
+            self.log_info("📝 Creating missing .env.example file for feature branch...")
+            self.ensure_env_example_exists()
+        
         if env_file.exists():
             try:
                 env_content = env_file.read_text(encoding='utf-8')
@@ -738,6 +783,86 @@ else:
         
         self.log_success("✅ Development configuration validation passed")
         return True
+    
+    def ensure_env_example_exists(self):
+        """Ensure .env.example file exists for feature branches"""
+        env_example_path = self.base_dir / ".env.example"
+        
+        if env_example_path.exists():
+            return
+        
+        # Create .env.example with development-friendly defaults
+        env_example_content = '''# Development Environment Variables for Adakings Backend API
+# Copy this file to .env and update with your local values
+
+# Django Settings
+DJANGO_ENVIRONMENT=development
+DJANGO_SECRET_KEY=your-local-development-secret-key-change-this
+DJANGO_DEBUG=True
+DJANGO_ALLOWED_HOSTS=127.0.0.1,localhost,*.localhost
+
+# Database Configuration (SQLite for development, PostgreSQL for production-like testing)
+# Option 1: SQLite (easier for development)
+# DATABASE_URL=sqlite:///adakings_dev.db
+
+# Option 2: PostgreSQL (more production-like)
+DB_NAME=adakings_dev
+DB_USER=your_db_user
+DB_PASSWORD=your_db_password
+DB_HOST=localhost
+DB_PORT=5432
+
+# Email Configuration (Console backend for development)
+EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
+EMAIL_HOST=localhost
+EMAIL_PORT=1025
+EMAIL_HOST_USER=
+EMAIL_HOST_PASSWORD=
+DEFAULT_FROM_EMAIL=dev@adakings.local
+
+# Paystack Configuration (Test Keys Only - NEVER use live keys in development)
+PAYSTACK_PUBLIC_KEY_LIVE=pk_test_your_test_public_key_here
+PAYSTACK_SECRET_KEY_LIVE=sk_test_your_test_secret_key_here
+
+# CORS Configuration (Development)
+CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,http://localhost:8080
+CSRF_TRUSTED_ORIGINS=http://localhost:8000,http://127.0.0.1:8000
+
+# Redis Configuration (Optional - leave empty to disable)
+REDIS_URL=redis://127.0.0.1:6379/0
+
+# Security Headers (Disabled for development)
+SECURE_SSL_REDIRECT=False
+SECURE_HSTS_SECONDS=0
+SECURE_HSTS_INCLUDE_SUBDOMAINS=False
+SECURE_HSTS_PRELOAD=False
+
+# Monitoring & Logging (Development)
+SENTRY_DSN=
+LOG_LEVEL=DEBUG
+DJANGO_LOG_LEVEL=DEBUG
+
+# Performance Settings (Development)
+MAX_UPLOAD_SIZE=10485760
+CACHE_TIMEOUT=60
+
+# API Rate Limiting (Disabled or relaxed for development)
+RATE_LIMIT_ENABLE=False
+RATE_LIMIT_REQUESTS=1000
+RATE_LIMIT_WINDOW=60
+
+# Development Tools
+ENABLE_SWAGGER_UI=True
+ENABLE_REDOC=True
+ENABLE_DEBUG_TOOLBAR=True
+
+# Development Database (if using SQLite)
+# DATABASE_ENGINE=sqlite3
+# DATABASE_NAME=adakings_dev.db
+'''
+        
+        env_example_path.write_text(env_example_content, encoding='utf-8')
+        self.log_info("✓ Created .env.example file for feature branch")
     
     def validate_dev_test_config(self):
         """Validate dev-test configuration files - production-like with test values"""
@@ -957,7 +1082,7 @@ else:
                 "CHANGELOG.md",
                 "requirements.txt",
                 "adakings_backend/settings/__init__.py",
-                "VERSION",
+                "VERSION_PRODUCTION",
                 "smart_deploy.py",
                 "SMART_DEPLOY_GUIDE.md"
             ]
@@ -967,6 +1092,7 @@ else:
                 "adakings_backend/*.py",
                 "adakings_backend/settings/base.py",
                 "adakings_backend/settings/production.py",
+                "adakings_backend/settings/dev_test.py",
                 "adakings_backend/urls.py",
                 "adakings_backend/wsgi.py",
                 "adakings_backend/asgi.py",
@@ -996,47 +1122,13 @@ else:
             self.log_success(f"Added production-specific files for {env_type} branch")
             
         else:
-            # Development and feature branches: push development-specific files
-            development_files = [
-                ".env.example",
-                "README.md",
-                "CHANGELOG.md", 
-                "requirements.txt",
-                "adakings_backend/settings/__init__.py",
-                "VERSION",
-                "smart_deploy.py",
-                "SMART_DEPLOY_GUIDE.md"
-            ]
+            # Development and feature branches: push everything but only change development files
+            # Add ALL files to git
+            result = self.run_command("git add .", check=False)
+            if result and result.returncode == 0:
+                self.log_info("✓ Added all files (feature/development branch)")
             
-            # Add all application files including development tools
-            dev_patterns = [
-                "adakings_backend/*.py",
-                "adakings_backend/settings/*.py",
-                "apps/*/*.py",  # All Python files including forms.py, templatetags, etc.
-                "apps/*/templatetags/*.py",
-                "debug_*",
-                "test_*",
-                "tests/",
-                "manage.py",
-                "*.md",
-                "*.txt",
-                "*.json"
-            ]
-            
-            # Add specific development files
-            for file_path in development_files:
-                if (self.base_dir / file_path).exists():
-                    result = self.run_command(f"git add {file_path}", check=False)
-                    if result and result.returncode == 0:
-                        self.log_info(f"✓ Added: {file_path}")
-            
-            # Add development files using patterns
-            for pattern in dev_patterns:
-                result = self.run_command(f"git add {pattern}", check=False)
-                if result and result.returncode == 0:
-                    self.log_info(f"✓ Added pattern: {pattern}")
-            
-            self.log_success(f"Added development-specific files for feature/development branch")
+            self.log_success(f"Added all files for feature/development branch")
     
     def commit_and_push(self, env_type, target_branch, message_prefix=""):
         """Commit changes and push to appropriate branch"""
@@ -1082,25 +1174,21 @@ else:
     
     def version_management(self, target_env, bump_type):
         """Manage version bump for the deployment"""
-        # Get branch type for version tracking
-        if target_env == "production":
-            branch_type = "production"
-        elif target_env == "dev-test":
-            branch_type = "dev-test"
-        elif target_env.startswith("feature/"):
-            branch_type = target_env  # feature/name
+        # Determine version type based on environment
+        if target_env == "production" or target_env == "dev-test":
+            version_type = "production"
         else:
-            branch_type = "development"
+            version_type = "features"
         
-        current_version = self.read_version(branch_type)
+        current_version = self.read_version(version_type)
         if not current_version:
             raise Exception("Failed to read current version")
         
-        new_version = self.bump_version(bump_type, current_version)
+        new_version = self.bump_version(bump_type, current_version, version_type)
         if not new_version:
             raise Exception("Failed to bump version")
         
-        self.update_version_files(new_version)
+        self.update_version_files(new_version, version_type)
         return new_version
 
     def deployment_checks(self, target_env):
@@ -1129,34 +1217,24 @@ else:
         else:
             env_type = "development"
         
-        # Get the LATEST version for target branch determination (without updating files yet)
-        # This should get the highest version number from existing branches of this type
-        if target_env == "production":
-            branch_type = "production"
-        elif target_env == "dev-test":
-            branch_type = "dev-test"
-        elif target_env.startswith("feature/"):
-            branch_type = target_env  # feature/name
+        # Determine version type and get current version
+        if target_env == "production" or target_env == "dev-test":
+            version_type = "production"
         else:
-            branch_type = "development"
+            version_type = "features"
         
-        current_version = self.get_latest_version_for_branch_type(branch_type)
+        current_version = self.read_version(version_type)
         new_version = self.calculate_new_version(bump_type, current_version)
         
-        # Ensure the new version doesn't conflict with existing branches
-        new_version = self.ensure_unique_version(target_env, new_version, bump_type)
-        
-        # Determine target branch (with version for dev-test and feature branches)
+        # Determine target branch (simplified - no version in branch names)
         if target_env == "production":
             target_branch = "production"
         elif target_env == "dev-test":
-            target_branch = f"dev-test/{new_version}"
+            target_branch = "dev-test"
         elif target_env in ["dev", "development"]:
-            target_branch = f"dev/{new_version}"  # Versioned dev branches
+            target_branch = "dev"
         elif target_env.startswith("feature/"):
-            # Use feature-name-version format to avoid git naming conflicts
-            feature_name = target_env.split('/', 1)[1]
-            target_branch = f"feature/{feature_name}-{new_version}"  # Use dash instead of slash
+            target_branch = target_env  # Keep as feature/name
         else:
             target_branch = target_env
         
@@ -1172,7 +1250,12 @@ else:
                 raise Exception(f"Failed to switch to branch: {target_branch}")
             
             # Now update version files on the target branch
-            self.update_version_files(new_version)
+            version_type = "production" if target_env in ["production", "dev-test"] else "features"
+            self.update_version_files(new_version, version_type)
+            
+            # Ensure .env.example exists for feature branches before validation
+            if target_env.startswith("feature/") or target_env in ["dev", "development"]:
+                self.ensure_env_example_exists()
             
             # Pre-deployment checks
             if not self.deployment_checks(target_env):
@@ -1244,18 +1327,13 @@ def main():
     deployer = SmartDeployer()
     
     # Show deployment information using same logic as deploy function
-    if target_env == "production":
-        branch_type = "production"
-    elif target_env == "dev-test":
-        branch_type = "dev-test"
-    elif target_env.startswith("feature/"):
-        branch_type = target_env  # feature/name
+    if target_env == "production" or target_env == "dev-test":
+        version_type = "production"
     else:
-        branch_type = "development"
+        version_type = "features"
     
-    current_version = deployer.get_latest_version_for_branch_type(branch_type)
+    current_version = deployer.read_version(version_type)
     new_version = deployer.calculate_new_version(bump_type, current_version) if current_version else "unknown"
-    new_version = deployer.ensure_unique_version(target_env, new_version, bump_type)
     
     print(f"🎯 Target Environment: {target_env}")
     print(f"🔢 Version Bump: {bump_type} ({current_version} -> {new_version})")
