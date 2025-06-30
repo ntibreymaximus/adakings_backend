@@ -60,7 +60,7 @@ def update_readme_production(new_version):
         print("WARNING: README-PRODUCTION.md not found, skipping update")
         return
     
-    content = readme_file.read_text()
+    content = readme_file.read_text(encoding='utf-8')
     
     # Update version badge
     content = re.sub(
@@ -76,7 +76,7 @@ def update_readme_production(new_version):
         content
     )
     
-    readme_file.write_text(content)
+    readme_file.write_text(content, encoding='utf-8')
     print(f"✅ Updated README-PRODUCTION.md with version {new_version}")
 
 def main():

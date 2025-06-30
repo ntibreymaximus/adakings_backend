@@ -69,6 +69,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.2] - 2025-06-30
+
+### Added
+- Production environment configuration with settings architecture
+- Gunicorn WSGI server configuration for production deployment
+- Redis caching implementation for improved performance
+- Comprehensive logging system with file and console handlers
+- Automated deployment script with health checks
+- Production-specific requirements with monitoring tools
+- Environment variables template for production setup
+
+### Changed
+- Settings architecture restructured into base, development, and production modules
+- Database configuration optimized for PostgreSQL in production
+- Security headers enabled (HSTS, XSS protection, content type sniffing)
+- CORS configuration restricted to allowed origins for production
+- JWT token lifetime reduced for enhanced security in production
+
+### Security
+- SSL/HTTPS enforcement in production
+- Secure cookie settings for production environment
+- Live Paystack API keys configuration for production payments
+- Production secret key management through environment variables
+- Database SSL connection enforcement
+
+### Fixed
+- Version bump script encoding issues on Windows
+- Production README version badge updates
+
 ## Unreleased
 
 ### Planned for v1.1.0 (Minor)
