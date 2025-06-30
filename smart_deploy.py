@@ -785,36 +785,45 @@ else:
         return True
     
     def get_highest_remote_version_for_feature(self, feature_name):
-        """Get the highest version number for a specific feature branch from remote"""
+        """Get the highest version number from ALL feature branches on remote"""
         import re
         
-        # Get all remote branches for this feature
+        # Get all remote branches
         result = self.run_command("git branch -r", check=False)
         if not result or not result.stdout:
             return None
         
         remote_branches = result.stdout.strip().split('\n')
-        feature_versions = []
+        all_feature_versions = []
         
-        # Extract version numbers from remote branches matching the feature name
+        # Extract version numbers from ALL feature branches (pattern: feature/anything-x.x.x)
         for branch in remote_branches:
             branch = branch.strip()
-            if f"origin/{feature_name}-" in branch:
-                # Extract version from branch name like "origin/feature/name-1.2.3"
-                version_part = branch.split(f"origin/{feature_name}-")[-1]
-                try:
-                    # Validate it's a proper semantic version
-                    major, minor, patch = map(int, version_part.split('.'))
-                    feature_versions.append((major, minor, patch, version_part))
-                except (ValueError, IndexError):
-                    continue
+            if branch.startswith("origin/feature/") and "-" in branch:
+                # Extract version from any feature branch like "origin/feature/anything-1.2.3"
+                # Split on last dash to get version part
+                parts = branch.split("-")
+                if len(parts) >= 2:
+                    version_part = parts[-1]  # Get the last part after the last dash
+                    try:
+                        # Validate it's a proper semantic version (x.x.x)
+                        version_components = version_part.split('.')
+                        if len(version_components) == 3:
+                            major, minor, patch = map(int, version_components)
+                            all_feature_versions.append((major, minor, patch, version_part))
+                            self.log_info(f"🔍 Found feature version: {branch} -> {version_part}")
+                    except (ValueError, IndexError):
+                        continue
         
-        if not feature_versions:
+        if not all_feature_versions:
+            self.log_info("🔍 No feature branches with versions found on remote")
             return None
         
         # Sort versions and return the highest one
-        feature_versions.sort(key=lambda x: (x[0], x[1], x[2]), reverse=True)
-        return feature_versions[0][3]  # Return version string
+        all_feature_versions.sort(key=lambda x: (x[0], x[1], x[2]), reverse=True)
+        highest_version = all_feature_versions[0][3]
+        self.log_info(f"🏆 Highest version found across ALL feature branches: {highest_version}")
+        return highest_version
     
     def sync_local_branches_with_remote(self):
         """Sync local branches with remote - delete local branches that don't exist on remote"""
