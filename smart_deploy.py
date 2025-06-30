@@ -1338,21 +1338,21 @@ ENABLE_DEBUG_TOOLBAR=True
                 current_version = remote_version
                 self.log_info(f"📡 Using highest remote version for dev-test: {current_version}")
             else:
-                # No remote version found, use local VERSION_PRODUCTION as fallback
-                current_version = self.read_version(version_type)
-                self.log_info(f"📂 No remote dev-test version found, using local: {current_version}")
+                # No remote version found, start from 1.0.0
+                current_version = "1.0.0"
+                self.log_info(f"📂 No remote dev-test branches found, starting from: {current_version}")
         else:
             version_type = "features"
             if target_env.startswith("feature/"):
                 # For feature branches, use highest remote version from ALL feature branches
-                remote_version = self.get_highest_remote_version_for_branch_type(target_env)
+                remote_version = self.get_highest_remote_version_for_branch_type("feature/")
                 if remote_version:
                     current_version = remote_version
-                    self.log_info(f"📡 Using highest remote version for {target_env}: {current_version}")
+                    self.log_info(f"📡 Using highest remote version for feature branches: {current_version}")
                 else:
-                    # No remote version found, use local VERSION_FEATURES as fallback
-                    current_version = self.read_version(version_type)
-                    self.log_info(f"📂 No remote version found for {target_env}, using local: {current_version}")
+                    # No remote version found, start from 1.0.0
+                    current_version = "1.0.0"
+                    self.log_info(f"📂 No remote feature branches found, starting from: {current_version}")
             else:
                 current_version = self.read_version(version_type)
         
