@@ -1226,7 +1226,7 @@ ENABLE_DEBUG_TOOLBAR=True
         current_version = self.read_version(version_type)
         new_version = self.calculate_new_version(bump_type, current_version)
         
-        # Determine target branch (simplified - no version in branch names)
+        # Determine target branch
         if target_env == "production":
             target_branch = "production"
         elif target_env == "dev-test":
@@ -1234,7 +1234,9 @@ ENABLE_DEBUG_TOOLBAR=True
         elif target_env in ["dev", "development"]:
             target_branch = "dev"
         elif target_env.startswith("feature/"):
-            target_branch = target_env  # Keep as feature/name
+            # For feature branches, append version: feature/customname-x.x.x
+            feature_name = target_env  # This is already feature/customname
+            target_branch = f"{feature_name}-{new_version}"
         else:
             target_branch = target_env
         
