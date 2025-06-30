@@ -548,8 +548,8 @@ else:
         
         return proposed_version
     
-    def update_version_files(self, new_version, version_type="production"):
-        """Update version in appropriate version file"""
+    def update_version_files_and_changelog(self, new_version, version_type="production"):
+        """Update version and changelog files"""
         # Update the appropriate version file
         if version_type == "production":
             version_file = self.base_dir / "VERSION_PRODUCTION"
@@ -596,6 +596,15 @@ else:
                 
                 readme_path.write_text(content, encoding='utf-8')
                 self.log_info(f"✓ Updated {readme_file} with {version_type} version {new_version}")
+        
+        # Update CHANGELOG.md
+        changelog_path = self.base_dir / "CHANGELOG.md"
+        if changelog_path.exists():
+            changelog_content = changelog_path.read_text(encoding='utf-8')
+            new_entry = f"## {new_version} - {datetime.now().strftime('%Y-%m-%d')}\n\n- Deployment to {version_type} environment\n\n"
+            changelog_content = new_entry + changelog_content
+            changelog_path.write_text(changelog_content, encoding='utf-8')
+            self.log_info(f"✓ Updated CHANGELOG.md for {version_type} version {new_version}")
     
     def validate_production_config(self):
         """Validate production configuration files"""
@@ -1314,8 +1323,9 @@ ENABLE_DEBUG_TOOLBAR=True
         self.log_info(f"🚀 Starting deployment to {target_env} environment")
         
         # Validate environment
-        if target_env not in ["production", "dev-test", "dev", "development"] and not target_env.startswith("feature/"):
-            self.log_error(f"Invalid environment: {target_env}")
+        valid_environments = ["production", "dev-test", "dev", "development"]
+        if target_env not in valid_environments and not target_env.startswith("feature/"):
+            self.log_error(f"Invalid environment: {target_env}. Did you mean 'dev-test'? Please check and try again.")
             return False
         
         # Normalize environment type
@@ -1387,9 +1397,9 @@ ENABLE_DEBUG_TOOLBAR=True
             if not self.switch_branch(target_branch):
                 raise Exception(f"Failed to switch to branch: {target_branch}")
             
-            # Now update version files on the target branch
+            # Now update version files and changelog on the target branch
             version_type = "production" if target_env in ["production", "dev-test"] else "features"
-            self.update_version_files(new_version, version_type)
+            self.update_version_files_and_changelog(new_version, version_type)
             
             # Ensure .env.example exists for feature branches before validation
             if target_env.startswith("feature/") or target_env in ["dev", "development"]:
