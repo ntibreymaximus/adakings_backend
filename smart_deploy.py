@@ -835,12 +835,105 @@ else:
         
         return result is not None
     
+    def add_environment_specific_files(self, env_type, target_branch):
+        """Add files selectively based on environment type and branch"""
+        self.log_info(f"Adding files for {env_type} environment...")
+        
+        if env_type == "production" or env_type == "dev-test":
+            # Production and dev-test branches: only push production-specific files
+            production_files = [
+                ".env",
+                "README.md", 
+                "CHANGELOG.md",
+                "requirements.txt",
+                "adakings_backend/settings/__init__.py",
+                "VERSION",
+                "smart_deploy.py",
+                "SMART_DEPLOY_GUIDE.md"
+            ]
+            
+            # Add core application files (but not development-specific ones)
+            core_patterns = [
+                "adakings_backend/*.py",
+                "adakings_backend/settings/base.py",
+                "adakings_backend/settings/production.py",
+                "adakings_backend/urls.py",
+                "adakings_backend/wsgi.py",
+                "adakings_backend/asgi.py",
+                "apps/*/models.py",
+                "apps/*/views.py",
+                "apps/*/serializers.py",
+                "apps/*/urls.py",
+                "apps/*/__init__.py",
+                "apps/*/apps.py",
+                "apps/*/admin.py",
+                "manage.py"
+            ]
+            
+            # Add specific production files
+            for file_path in production_files:
+                if (self.base_dir / file_path).exists():
+                    result = self.run_command(f"git add {file_path}", check=False)
+                    if result and result.returncode == 0:
+                        self.log_info(f"✓ Added: {file_path}")
+            
+            # Add core application files using patterns
+            for pattern in core_patterns:
+                result = self.run_command(f"git add {pattern}", check=False)
+                if result and result.returncode == 0:
+                    self.log_info(f"✓ Added pattern: {pattern}")
+            
+            self.log_success(f"Added production-specific files for {env_type} branch")
+            
+        else:
+            # Development and feature branches: push development-specific files
+            development_files = [
+                ".env.example",
+                "README.md",
+                "CHANGELOG.md", 
+                "requirements.txt",
+                "adakings_backend/settings/__init__.py",
+                "VERSION",
+                "smart_deploy.py",
+                "SMART_DEPLOY_GUIDE.md"
+            ]
+            
+            # Add all application files including development tools
+            dev_patterns = [
+                "adakings_backend/*.py",
+                "adakings_backend/settings/*.py",
+                "apps/*/*.py",  # All Python files including forms.py, templatetags, etc.
+                "apps/*/templatetags/*.py",
+                "debug_*",
+                "test_*",
+                "tests/",
+                "manage.py",
+                "*.md",
+                "*.txt",
+                "*.json"
+            ]
+            
+            # Add specific development files
+            for file_path in development_files:
+                if (self.base_dir / file_path).exists():
+                    result = self.run_command(f"git add {file_path}", check=False)
+                    if result and result.returncode == 0:
+                        self.log_info(f"✓ Added: {file_path}")
+            
+            # Add development files using patterns
+            for pattern in dev_patterns:
+                result = self.run_command(f"git add {pattern}", check=False)
+                if result and result.returncode == 0:
+                    self.log_info(f"✓ Added pattern: {pattern}")
+            
+            self.log_success(f"Added development-specific files for feature/development branch")
+    
     def commit_and_push(self, env_type, target_branch, message_prefix=""):
         """Commit changes and push to appropriate branch"""
         # Use the provided target_branch instead of config
         
-        # Add all changes
-        self.run_command("git add .")
+        # Add files selectively based on branch type
+        self.add_environment_specific_files(env_type, target_branch)
         
         # Check if there are changes to commit
         result = self.run_command("git diff --cached --quiet", check=False)
