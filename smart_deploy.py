@@ -253,6 +253,98 @@ else:
         
         self.log_success("Backup restored")
     
+    def clean_deleted_local_branches(self):
+        """Clean up local branches that have been deleted from the remote"""
+        self.log_info("🧹 Cleaning up local branches that no longer exist on remote...")
+        
+        try:
+            # First, fetch and prune to get accurate remote state
+            fetch_result = self.run_command("git fetch origin --prune", check=False)
+            if not fetch_result:
+                self.log_warning("Failed to fetch/prune remote branches")
+                return False
+            
+            # Get current branch to avoid deleting it
+            current_branch = self.get_current_branch()
+            if not current_branch:
+                self.log_warning("Could not determine current branch")
+                return False
+            
+            # Get list of local branches (excluding current branch)
+            result = self.run_command("git branch --format='%(refname:short)'", check=False)
+            if not result:
+                self.log_warning("Could not get local branches")
+                return False
+            
+            local_branches = [b.strip() for b in result.stdout.strip().split('\n') if b.strip()]
+            
+            # Get list of remote branches
+            result = self.run_command("git branch -r --format='%(refname:short)'", check=False)
+            if not result:
+                self.log_warning("Could not get remote branches")
+                return False
+            
+            remote_branches = [b.strip().replace('origin/', '') for b in result.stdout.strip().split('\n') if b.strip() and not b.strip().endswith('/HEAD')]
+            
+            # Protected branches that should never be deleted
+            protected_branches = {'main', 'master', 'production', 'dev', 'development', current_branch}
+            
+            deleted_count = 0
+            skipped_count = 0
+            
+            for local_branch in local_branches:
+                # Skip if it's a protected branch
+                if local_branch in protected_branches:
+                    continue
+                
+                # Skip if it's the current branch
+                if local_branch == current_branch:
+                    continue
+                
+                # Check if the branch exists on remote
+                if local_branch not in remote_branches:
+                    # Check if branch has unpushed commits by comparing with remote
+                    has_unpushed = False
+                    
+                    # Try to find a corresponding remote branch pattern
+                    potential_remotes = [rb for rb in remote_branches if rb.endswith(local_branch.split('/')[-1])]
+                    
+                    if potential_remotes:
+                        # Check if there are unpushed commits
+                        for remote_branch in potential_remotes:
+                            diff_result = self.run_command(f"git log origin/{remote_branch}..{local_branch} --oneline", check=False)
+                            if diff_result and diff_result.stdout.strip():
+                                has_unpushed = True
+                                break
+                    
+                    if has_unpushed:
+                        self.log_warning(f"⚠️  Skipping {local_branch} - has unpushed commits")
+                        skipped_count += 1
+                        continue
+                    
+                    # Safe to delete - branch doesn't exist on remote and no unpushed commits
+                    self.log_info(f"🗑️  Deleting local branch: {local_branch}")
+                    delete_result = self.run_command(f"git branch -D {local_branch}", check=False)
+                    if delete_result:
+                        deleted_count += 1
+                        self.log_info(f"✓ Deleted {local_branch}")
+                    else:
+                        self.log_warning(f"Failed to delete {local_branch}")
+            
+            if deleted_count > 0:
+                self.log_success(f"✅ Cleaned up {deleted_count} local branches")
+            else:
+                self.log_info("✓ No branches to clean up")
+            
+            if skipped_count > 0:
+                self.log_info(f"ℹ️  Skipped {skipped_count} branches with unpushed commits")
+            
+            return True
+            
+        except Exception as e:
+            self.log_error(f"Error during branch cleanup: {str(e)}")
+            return False
+    
     def get_latest_version_for_branch_type(self, branch_type):
         """Get latest version for specific branch type from git remote branches"""
         import re
@@ -1069,6 +1161,9 @@ else:
             target_branch = target_env
         
         try:
+            # Clean up deleted local branches before starting deployment
+            self.clean_deleted_local_branches()
+            
             # Backup current state
             self.backup_current_state()
             
