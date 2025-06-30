@@ -258,8 +258,13 @@ else:
         import re
 
         try:
-            # Fetch latest from remote to ensure we have up-to-date branch info
-            self.run_command("git fetch origin", check=False)
+            # Fetch latest from remote and prune to ensure we have up-to-date branch info
+            self.log_info("Fetching latest from remote and pruning stale branches...")
+            fetch_result = self.run_command("git fetch origin --prune", check=False)
+            if fetch_result:
+                self.log_info("✓ Remote branches updated and pruned")
+            else:
+                self.log_warning("⚠️  Failed to fetch/prune remote branches")
             
             if branch_type == "production":
                 # For production, check VERSION file from production branch on remote
@@ -279,12 +284,24 @@ else:
                 return "1.0.0"  # Default for production
             
             elif branch_type == "dev-test":
-                # For dev-test, check dev-test/* branches on remote (Windows compatible)
-                result = self.run_command("git branch -r", check=False)
+                # For dev-test, check dev-test/* branches on remote using proper git command
+                result = self.run_command("git --no-pager branch -r --list 'origin/dev-test/*' --sort=-version:refname", check=False)
                 if result and result.stdout.strip():
-                    all_branches = result.stdout.strip().split('\n')
+                    branches = result.stdout.strip().split('\n')
+                    for branch in branches:
+                        branch_name = branch.strip().replace('origin/', '')
+                        if branch_name.startswith('dev-test/'):
+                            version_part = branch_name.split('/')[-1]
+                            if re.match(r'^\d+\.\d+\.\d+$', version_part):
+                                self.log_info(f"Found highest dev-test version: {version_part}")
+                                return version_part
+                
+                # Fallback: manually parse and sort if git sort doesn't work
+                result = self.run_command("git --no-pager branch -r --list 'origin/dev-test/*'", check=False)
+                if result and result.stdout.strip():
+                    branches = result.stdout.strip().split('\n')
                     versions = []
-                    for branch in all_branches:
+                    for branch in branches:
                         branch_name = branch.strip().replace('origin/', '')
                         if branch_name.startswith('dev-test/'):
                             version_part = branch_name.split('/')[-1]
@@ -294,6 +311,7 @@ else:
                     if versions:
                         # Sort versions properly (semantic versioning)
                         versions.sort(key=lambda x: [int(i) for i in x.split('.')], reverse=True)
+                        self.log_info(f"Found highest dev-test version: {versions[0]}")
                         return versions[0]  # Return highest version
                 return "1.0.0"  # Default for dev-test
             
