@@ -1,3 +1,76 @@
+# Environment-Specific Exclusions (FEATURE)
+# Applied during deployment to feature environment
+
+# Feature Environment - Ignore Production/Dev Files
+# This file prevents production and dev files from being included in feature deployments
+
+# Production environment files
+environments/production/
+
+# Production-specific files
+.env.production
+.env.prod
+gunicorn.conf.py
+nginx.conf
+
+# Production security files
+*.pem
+*.key
+*.crt
+*.p12
+
+# Production configuration
+docker-compose.production.yml
+Dockerfile.production
+*production*
+*prod.*
+
+# Dev environment files (keep features separate)
+environments/dev/
+
+# Dev-specific files
+.env.dev
+*dev.*
+
+# Production documentation
+README-PRODUCTION.md
+CHANGELOG-PRODUCTION.md
+
+# Dev documentation
+README-DEV.md
+CHANGELOG-DEV.md
+
+# Production logs
+*.prod.log
+production_*.log
+prod_*.log
+
+# Dev logs
+*.dev.log
+dev_*.log
+
+# Production secrets (never include in features)
+secrets/
+ssl/
+certs/
+
+# Production deployment files
+deploy_production.sh
+production_deploy.py
+
+# Dev deployment files
+deploy_dev.sh
+dev_deploy.py
+
+# Database files (use local/test DBs in features)
+*.sql
+*.dump
+migrations/
+production_data/
+dev_data/
+
+
+# Base Project Gitignore
 # Django .gitignore
 *.pyc
 __pycache__/
