@@ -1142,6 +1142,84 @@ ENABLE_DEBUG_TOOLBAR=True
         
         return True
     
+    def apply_environment_gitignore(self, env_type):
+        """Apply environment-specific gitignore to exclude other environments"""
+        self.log_info(f"🚫 Applying {env_type} environment gitignore to exclude other environments...")
+        
+        # Environment-specific gitignore mapping
+        env_gitignore_files = {
+            "production": "environments/production/.gitignore",
+            "dev": "environments/dev/.gitignore", 
+            "feature": "environments/feature/.gitignore"
+        }
+        
+        if env_type not in env_gitignore_files:
+            self.log_warning(f"No environment-specific gitignore found for {env_type}")
+            return
+        
+        env_gitignore_path = self.base_dir / env_gitignore_files[env_type]
+        root_gitignore_path = self.base_dir / ".gitignore"
+        
+        if not env_gitignore_path.exists():
+            self.log_warning(f"Environment gitignore not found: {env_gitignore_path}")
+            return
+        
+        try:
+            # Read the environment-specific gitignore
+            env_gitignore_content = env_gitignore_path.read_text(encoding='utf-8')
+            
+            # Read existing root gitignore if it exists
+            existing_gitignore = ""
+            if root_gitignore_path.exists():
+                existing_gitignore = root_gitignore_path.read_text(encoding='utf-8')
+            
+            # Combine with environment-specific rules at the top
+            combined_gitignore = f"# Environment-Specific Exclusions ({env_type.upper()})\n"
+            combined_gitignore += f"# Applied during deployment to {env_type} environment\n\n"
+            combined_gitignore += env_gitignore_content + "\n\n"
+            combined_gitignore += "# Base Project Gitignore\n"
+            combined_gitignore += existing_gitignore
+            
+            # Write the combined gitignore
+            root_gitignore_path.write_text(combined_gitignore, encoding='utf-8')
+            self.log_info(f"✓ Applied {env_type} environment gitignore rules")
+            
+            # Remove other environment directories from git tracking
+            self.remove_other_environments_from_git(env_type)
+            
+        except Exception as e:
+            self.log_error(f"Failed to apply environment gitignore: {e}")
+    
+    def remove_other_environments_from_git(self, current_env):
+        """Remove other environment directories from git tracking"""
+        self.log_info(f"🗑️  Removing other environment directories from git tracking...")
+        
+        # Define which environments to remove based on current environment
+        env_dirs_to_remove = []
+        
+        if current_env == "production":
+            env_dirs_to_remove = ["environments/dev/", "environments/feature/"]
+        elif current_env == "dev":
+            env_dirs_to_remove = ["environments/production/", "environments/feature/"]
+        elif current_env == "feature":
+            env_dirs_to_remove = ["environments/production/", "environments/dev/"]
+        
+        for env_dir in env_dirs_to_remove:
+            # Check if directory exists and is tracked by git
+            if (self.base_dir / env_dir).exists():
+                result = self.run_command(f"git ls-files {env_dir}", check=False)
+                if result and result.stdout.strip():
+                    # Remove from git tracking
+                    remove_result = self.run_command(f"git rm -r --cached {env_dir}", check=False)
+                    if remove_result:
+                        self.log_info(f"✓ Removed {env_dir} from git tracking")
+                    else:
+                        self.log_warning(f"Failed to remove {env_dir} from git tracking")
+                else:
+                    self.log_info(f"✓ {env_dir} not tracked by git")
+            else:
+                self.log_info(f"✓ {env_dir} does not exist")
+
     def clean_environment_files(self, env_type):
         """Remove files not needed for specific environment"""
         config = self.env_configs.get(env_type)
@@ -1453,6 +1531,9 @@ ENABLE_DEBUG_TOOLBAR=True
             # Set up environment files
             if not self.setup_environment_files(env_type):
                 raise Exception(f"Failed to setup {env_type} files")
+            
+            # Apply environment-specific gitignore to exclude other environments
+            self.apply_environment_gitignore(env_type)
             
             # Clean environment-specific files
             self.clean_environment_files(env_type)

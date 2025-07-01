@@ -2,6 +2,10 @@
 
 - Deployment to features environment
 
+## 1.0.1 - 2025-07-01
+
+- Deployment to features environment
+
 ## 0.9.2 - 2025-07-01
 
 - Deployment to features environment
