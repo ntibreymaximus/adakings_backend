@@ -1,0 +1,31 @@
+[Unit]
+Description=Adakings Backend API - Development Environment
+After=network.target postgresql.service redis.service
+Wants=postgresql.service redis.service
+
+[Service]
+Type=notify
+User=adakings
+Group=adakings
+WorkingDirectory=/var/www/adakings_backend
+Environment=PATH=/var/www/adakings_backend/venv/bin
+Environment=DJANGO_SETTINGS_MODULE=adakings_backend.settings.dev
+Environment=DJANGO_ENVIRONMENT=dev
+ExecStart=/var/www/adakings_backend/venv/bin/gunicorn -c environments/dev/gunicorn.conf.py adakings_backend.wsgi:application
+ExecReload=/bin/kill -s HUP $MAINPID
+KillMode=mixed
+TimeoutStopSec=5
+PrivateTmp=true
+Restart=on-failure
+RestartSec=3
+
+# Security settings
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/www/adakings_backend/logs
+ReadWritePaths=/var/www/adakings_backend/staticfiles
+ReadWritePaths=/var/www/adakings_backend/mediafiles
+
+[Install]
+WantedBy=multi-user.target
