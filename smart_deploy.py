@@ -33,20 +33,40 @@ class SmartDeployer:
             "production": {
                 "files": {
                     ".env": {
-                        "source": ".env.production.template",
+                        "source": "environments/production/.env",
                         "description": "Production environment variables"
                     },
                     "README.md": {
-                        "source": "README-PRODUCTION.md", 
+                        "source": "environments/production/README.md", 
                         "description": "Production documentation"
                     },
                     "CHANGELOG.md": {
-                        "source": "CHANGELOG-PRODUCTION.md",
+                        "source": "environments/production/CHANGELOG.md",
                         "description": "Production changelog"
                     },
                     "requirements.txt": {
-                        "source": "requirements-production.txt",
+                        "source": "environments/production/requirements.txt",
                         "description": "Production dependencies"
+                    },
+                    "gunicorn.conf.py": {
+                        "source": "environments/production/gunicorn.conf.py",
+                        "description": "Production Gunicorn configuration"
+                    },
+                    "nginx.conf": {
+                        "source": "environments/production/nginx.conf",
+                        "description": "Production Nginx configuration"
+                    },
+                    "docker-compose.yml": {
+                        "source": "environments/production/docker-compose.yml",
+                        "description": "Production Docker Compose configuration"
+                    },
+                    "Dockerfile": {
+                        "source": "environments/production/Dockerfile",
+                        "description": "Production Docker configuration"
+                    },
+                    "adakings-backend.service": {
+                        "source": "environments/production/adakings-backend.service",
+                        "description": "Production systemd service file"
                     },
                     "adakings_backend/settings/__init__.py": {
                         "content": '''"""
@@ -75,85 +95,82 @@ print("🚀 Production environment loaded (production branch)")''',
                 "branch": "production"
             },
             
-            "dev-test": {
+            "dev": {
                 "files": {
                     ".env": {
-                        "source": ".env.dev-test.template",
-                        "description": "Dev-test environment variables (production-like with test values)"
+                        "source": "environments/dev/.env",
+                        "description": "Dev environment variables (production-like with dev values)"
                     },
                     "README.md": {
-                        "source": "README-PRODUCTION.md", 
-                        "description": "Production-like documentation"
+                        "source": "environments/dev/README.md", 
+                        "description": "Dev environment documentation"
                     },
                     "CHANGELOG.md": {
-                        "source": "CHANGELOG-PRODUCTION.md",
-                        "description": "Production-like changelog"
+                        "source": "environments/dev/CHANGELOG.md",
+                        "description": "Dev environment changelog"
                     },
                     "requirements.txt": {
-                        "source": "requirements-production.txt",
-                        "description": "Production dependencies"
+                        "source": "environments/dev/requirements.txt",
+                        "description": "Dev environment dependencies"
+                    },
+                    "gunicorn.conf.py": {
+                        "source": "environments/dev/gunicorn.conf.py",
+                        "description": "Dev Gunicorn configuration"
+                    },
+                    "nginx.conf": {
+                        "source": "environments/dev/nginx.conf",
+                        "description": "Dev Nginx configuration"
+                    },
+                    "docker-compose.yml": {
+                        "source": "environments/dev/docker-compose.yml",
+                        "description": "Dev Docker Compose configuration"
+                    },
+                    "Dockerfile": {
+                        "source": "environments/dev/Dockerfile",
+                        "description": "Dev Docker configuration"
+                    },
+                    "adakings-backend-dev.service": {
+                        "source": "environments/dev/adakings-backend-dev.service",
+                        "description": "Dev systemd service file"
                     },
                     "adakings_backend/settings/__init__.py": {
-                        "content": '''"""\nDev-Test Settings for Adakings Backend API\n\nThis dev-test branch uses production-like configuration with test/placeholder values.\nSafe for testing production scenarios without real data/keys.\n"""\n\nimport os\n\n# Default to dev-test for this branch\nENVIRONMENT = os.environ.get('DJANGO_ENVIRONMENT', 'dev-test')\n\nif ENVIRONMENT == 'production':\n    from .production import *\n    print("🚀 Production environment loaded")\nelif ENVIRONMENT == 'dev-test':\n    from .dev_test import *\n    print("🧪 Dev-Test environment loaded (dev-test branch)")\nelif ENVIRONMENT == 'development':\n    from .development import *  \n    print("🔧 Development environment loaded")\nelse:\n    # Fallback to dev-test for this branch\n    from .dev_test import *\n    print("⚠️  Unknown environment '{}', falling back to dev-test".format(ENVIRONMENT))''',
-                        "description": "Dev-test settings loader"
+                        "content": '''"""\nDev Settings for Adakings Backend API\n\nThis dev branch uses production-like configuration but with development values.\nSimilar to production but safe for development work.\n"""\n\nimport os\n\n# Default to dev for this branch\nENVIRONMENT = os.environ.get('DJANGO_ENVIRONMENT', 'dev')\n\nif ENVIRONMENT == 'production':\n    from .production import *\n    print("🚀 Production environment loaded")\nelif ENVIRONMENT == 'dev':\n    from .dev import *\n    print("🔧 Dev environment loaded (dev branch)")\nelif ENVIRONMENT == 'development':\n    from .development import *  \n    print("🔧 Development environment loaded")\nelse:\n    # Fallback to dev for this branch\n    from .dev import *\n    print("⚠️  Unknown environment '{}', falling back to dev".format(ENVIRONMENT))''',
+                        "description": "Dev settings loader"
                     }
                 },
                 "exclude_patterns": [
-                    "*.dev.*",
-                    "*development*",
+                    "*.feature.*",
+                    "*local*",
                     "debug_*",
                     "test_*",
                     "apps/*/forms.py",
                     "apps/*/templatetags/",
                     ".env.example"
                 ],
-                "branch": "dev-test"
+                "branch": "dev"
             },
             
-            "development": {
+            "feature": {
                 "files": {
                     ".env.example": {
-                        "source": ".env.development.template",
-                        "description": "Development environment template"
+                        "source": "environments/feature/.env.template",
+                        "description": "Feature environment template for local development"
                     },
                     "README.md": {
-                        "source": "README.md",  # Use existing README
-                        "description": "Development documentation"
+                        "source": "environments/feature/README.md",
+                        "description": "Feature development documentation"
                     },
                     "CHANGELOG.md": {
-                        "source": "CHANGELOG.md",  # Use existing CHANGELOG
-                        "description": "Development changelog"
+                        "source": "environments/feature/CHANGELOG.md",
+                        "description": "Feature development changelog"
                     },
                     "requirements.txt": {
-                        "source": "requirements.txt",  # Use existing requirements
-                        "description": "Development dependencies"
+                        "source": "environments/feature/requirements.txt",
+                        "description": "Feature development dependencies"
                     },
                     "adakings_backend/settings/__init__.py": {
-                        "content": '''"""
-Settings package for Adakings Backend API
-
-Environment-specific settings loading:
-- production.py: Production environment
-- development.py: Development environment  
-- base.py: Shared base settings
-"""
-
-import os
-
-# Default to development if no environment is specified
-ENVIRONMENT = os.environ.get('DJANGO_ENVIRONMENT', 'development')
-
-if ENVIRONMENT == 'production':
-    from .production import *
-    print("🚀 Production environment loaded")
-elif ENVIRONMENT == 'development':
-    from .development import *  
-    print("🔧 Development environment loaded")
-else:
-    # Fallback to development for any other value
-    from .development import *
-    print("⚠️  Unknown environment '{}', falling back to development".format(ENVIRONMENT))''',
-                        "description": "Multi-environment settings loader"
+                        "content": '''"""\nSettings package for Adakings Backend API\n\nEnvironment-specific settings loading:\n- production.py: Production environment\n- dev.py: Development environment similar to production\n- development.py: Local development environment\n- base.py: Shared base settings\n"""\n\nimport os\n\n# Default to development for feature branches\nENVIRONMENT = os.environ.get('DJANGO_ENVIRONMENT', 'development')\n\nif ENVIRONMENT == 'production':\n    from .production import *\n    print("🚀 Production environment loaded")\nelif ENVIRONMENT == 'dev':\n    from .dev import *\n    print("🔧 Dev environment loaded")\nelif ENVIRONMENT == 'development':\n    from .development import *  \n    print("🔧 Development environment loaded (feature branch)")\nelse:\n    # Fallback to development for feature branches\n    from .development import *\n    print("⚠️  Unknown environment '{}', falling back to development".format(ENVIRONMENT))''',
+                        "description": "Feature branch settings loader"
                     }
                 },
                 "include_patterns": [
@@ -161,9 +178,10 @@ else:
                     "apps/*/templatetags/",
                     "debug_*",
                     "test_*",
-                    "*development*"
+                    "*development*",
+                    "*local*"
                 ],
-                "branch": "dev"
+                "branch": "feature"
             }
         }
     
@@ -452,21 +470,26 @@ else:
             return "1.0.0"
     
     def read_version(self, version_type="production"):
-        """Read current version from appropriate version file"""
-        if version_type == "production":
-            version_file = self.base_dir / "VERSION_PRODUCTION"
-        else:
-            version_file = self.base_dir / "VERSION_FEATURES"
+        """Read current version from environment-specific version file"""
+        # Environment-specific version file mapping
+        version_file_mapping = {
+            "production": "environments/production/VERSION", 
+            "dev": "environments/dev/VERSION",
+            "features": "environments/feature/VERSION"
+        }
         
-        if version_file.exists():
-            try:
-                version = version_file.read_text().strip()
-                if version and version.count('.') == 2:
-                    return version
-            except Exception:
-                pass
+        # Use environment-specific version files only
+        if version_type in version_file_mapping:
+            version_file = self.base_dir / version_file_mapping[version_type]
+            if version_file.exists():
+                try:
+                    version = version_file.read_text().strip()
+                    if version and version.count('.') == 2:
+                        return version
+                except Exception as e:
+                    self.log_warning(f"Failed to read {version_file}: {e}")
         
-        # Default versions - both start at 1.0.0
+        # Default version for all environments - start from 1.0.0
         return "1.0.0"
     
     def bump_version(self, bump_type, current_version, version_type="production"):
@@ -549,66 +572,44 @@ else:
         return proposed_version
     
     def update_version_files_and_changelog(self, new_version, version_type="production"):
-        """Update version and changelog files"""
-        # Update the appropriate version file
-        if version_type == "production":
-            version_file = self.base_dir / "VERSION_PRODUCTION"
-            self.log_info(f"✓ Updated VERSION_PRODUCTION: {new_version}")
+        """Update version and changelog files using new environment-specific system only"""
+        
+        # Environment-specific version file mapping
+        version_file_mapping = {
+            "production": "environments/production/VERSION", 
+            "dev": "environments/dev/VERSION",
+            "features": "environments/feature/VERSION"
+        }
+        
+        # Update the environment-specific version file
+        if version_type in version_file_mapping:
+            version_file = self.base_dir / version_file_mapping[version_type]
+            version_file.parent.mkdir(parents=True, exist_ok=True)
+            version_file.write_text(f"{new_version}\n")
+            self.log_success(f"✅ Updated {version_type} environment version: {new_version}")
         else:
-            version_file = self.base_dir / "VERSION_FEATURES"
-            self.log_info(f"✓ Updated VERSION_FEATURES: {new_version}")
+            self.log_error(f"Unknown version type: {version_type}")
+            return
         
-        version_file.write_text(f"{new_version}\n")
+        # Update environment-specific changelog
+        changelog_files = {
+            "production": "environments/production/CHANGELOG.md",
+            "dev": "environments/dev/CHANGELOG.md", 
+            "features": "environments/feature/CHANGELOG.md"
+        }
         
-        # Update README files with version badges (only for the specific type)
-        if version_type == "production":
-            readme_files = ["README.md", "README-PRODUCTION.md"]
-        else:
-            readme_files = ["README.md", "README-DEVELOPMENT.md"]
-        
-        for readme_file in readme_files:
-            readme_path = self.base_dir / readme_file
-            if readme_path.exists():
-                content = readme_path.read_text(encoding='utf-8')
-                
-                # Update version badge
-                import re
-                if version_type == "production":
-                    pattern = r'(https://img\.shields\.io/badge/production-v)[^-]+(-.+\.svg)'
-                else:
-                    pattern = r'(https://img\.shields\.io/badge/features-v)[^-]+(-.+\.svg)'
-                
-                content = re.sub(pattern, rf'\g<1>{new_version}\g<2>', content)
-                
-                # Update current version
-                if version_type == "production":
-                    content = re.sub(
-                        r'(\*\*Production Version\*\*: v)[^\s]+',
-                        rf'\g<1>{new_version}',
-                        content
-                    )
-                else:
-                    content = re.sub(
-                        r'(\*\*Features Version\*\*: v)[^\s]+',
-                        rf'\g<1>{new_version}',
-                        content
-                    )
-                
-                readme_path.write_text(content, encoding='utf-8')
-                self.log_info(f"✓ Updated {readme_file} with {version_type} version {new_version}")
-        
-        # Update CHANGELOG.md
-        changelog_path = self.base_dir / "CHANGELOG.md"
-        if changelog_path.exists():
-            changelog_content = changelog_path.read_text(encoding='utf-8')
-            new_entry = f"## {new_version} - {datetime.now().strftime('%Y-%m-%d')}\n\n- Deployment to {version_type} environment\n\n"
-            changelog_content = new_entry + changelog_content
-            changelog_path.write_text(changelog_content, encoding='utf-8')
-            self.log_info(f"✓ Updated CHANGELOG.md for {version_type} version {new_version}")
-    
+        if version_type in changelog_files:
+            changelog_path = self.base_dir / changelog_files[version_type]
+            if changelog_path.exists():
+                changelog_content = changelog_path.read_text(encoding='utf-8')
+                new_entry = f"## {new_version} - {datetime.now().strftime('%Y-%m-%d')}\n\n- Deployment to {version_type} environment\n\n"
+                changelog_content = new_entry + changelog_content
+                changelog_path.write_text(changelog_content, encoding='utf-8')
+                self.log_success(f"✅ Updated {version_type} environment changelog")
+            else:
+                self.log_warning(f"Changelog not found: {changelog_path}")
+
     def validate_production_config(self):
-        """Validate production configuration files"""
-        self.log_info("🔍 Validating production configuration...")
         
         validation_errors = []
         warnings = []
@@ -825,20 +826,20 @@ else:
                         except (ValueError, IndexError):
                             continue
         
-        elif branch_type == "dev-test":
-            # Extract version numbers from ALL dev-test branches (pattern: dev-test/x.x.x)
+        elif branch_type == "dev":
+            # Extract version numbers from ALL dev branches (pattern: dev/x.x.x)
             for branch in remote_branches:
                 branch = branch.strip()
-                if branch.startswith("origin/dev-test/"):
-                    # Extract version from dev-test branch like "origin/dev-test/1.2.3"
-                    version_part = branch.replace("origin/dev-test/", "")
+                if branch.startswith("origin/dev/"):
+                    # Extract version from dev branch like "origin/dev/1.2.3"
+                    version_part = branch.replace("origin/dev/", "")
                     try:
                         # Validate it's a proper semantic version (x.x.x)
                         version_components = version_part.split('.')
                         if len(version_components) == 3:
                             major, minor, patch = map(int, version_components)
                             all_versions.append((major, minor, patch, version_part))
-                            self.log_info(f"🔍 Found dev-test version: {branch} -> {version_part}")
+                            self.log_info(f"🔍 Found dev version: {branch} -> {version_part}")
                     except (ValueError, IndexError):
                         continue
         
@@ -1189,64 +1190,114 @@ ENABLE_DEBUG_TOOLBAR=True
         return result is not None
     
     def add_environment_specific_files(self, env_type, target_branch):
-        """Add files selectively based on environment type and branch"""
-        self.log_info(f"Adding files for {env_type} environment...")
+        """Add only environment-specific files based on environment type"""
+        self.log_info(f"Adding {env_type} environment-specific files...")
         
-        if env_type == "production" or env_type == "dev-test":
-            # Production and dev-test branches: only push production-specific files
-            production_files = [
-                ".env",
-                "README.md", 
-                "CHANGELOG.md",
-                "requirements.txt",
-                "adakings_backend/settings/__init__.py",
-                "VERSION_PRODUCTION",
-                "smart_deploy.py",
-                "SMART_DEPLOY_GUIDE.md"
-            ]
+        # Define environment-specific files
+        env_files = {
+            "production": {
+                "version_file": "environments/production/VERSION",
+                "changelog": "environments/production/CHANGELOG.md",
+                "env_template": "environments/production/.env.template",
+                "requirements": "environments/production/requirements.txt",
+                "deploy_script": "environments/production/deploy.sh",
+                "deploy_ps_script": "environments/production/deploy.ps1",
+                "readme": "environments/production/README.md",
+                "settings_file": "adakings_backend/settings/production.py",
+                "gunicorn_conf": "environments/production/gunicorn.conf.py",
+                "nginx_conf": "environments/production/nginx.conf",
+                "dockerfile": "environments/production/Dockerfile",
+                "docker_compose": "environments/production/docker-compose.yml",
+                "systemd_service": "environments/production/adakings-backend.service",
+            },
+            "dev": {
+                "version_file": "environments/dev/VERSION",
+                "changelog": "environments/dev/CHANGELOG.md",
+                "env_template": "environments/dev/.env.template",
+                "requirements": "environments/dev/requirements.txt",
+                "deploy_script": "environments/dev/deploy.sh",
+                "deploy_ps_script": "environments/dev/deploy.ps1",
+                "readme": "environments/dev/README.md",
+                "settings_file": "adakings_backend/settings/dev.py",
+                "gunicorn_conf": "environments/dev/gunicorn.conf.py",
+                "nginx_conf": "environments/dev/nginx.conf",
+                "dockerfile": "environments/dev/Dockerfile",
+                "docker_compose": "environments/dev/docker-compose.yml",
+                "systemd_service": "environments/dev/adakings-backend-dev.service",
+            },
+            "feature": {
+                "version_file": "environments/feature/VERSION",
+                "changelog": "environments/feature/CHANGELOG.md",
+                "env_template": "environments/feature/.env.template",
+                "requirements": "environments/feature/requirements.txt",
+                "setup_script": "environments/feature/setup.sh",
+                "setup_ps_script": "environments/feature/setup.ps1",
+                "readme": "environments/feature/README.md",
+                "settings_file": "adakings_backend/settings/development.py",
+            }
+        }
+        
+        # Core application files (always needed)
+        core_files = [
+            "manage.py",
+            "adakings_backend/__init__.py",
+            "adakings_backend/urls.py",
+            "adakings_backend/wsgi.py",
+            "adakings_backend/asgi.py",
+            "adakings_backend/settings/__init__.py",
+            "adakings_backend/settings/base.py",
+        ]
+        
+        # Core app patterns (always needed)
+        core_patterns = [
+            "apps/*/models.py",
+            "apps/*/views.py",
+            "apps/*/serializers.py",
+            "apps/*/urls.py",
+            "apps/*/__init__.py",
+            "apps/*/apps.py",
+            "apps/*/admin.py",
+        ]
+        
+        # Add environment-specific files
+        if env_type in env_files:
+            env_file_list = env_files[env_type]
             
-            # Add core application files (but not development-specific ones)
-            core_patterns = [
-                "adakings_backend/*.py",
-                "adakings_backend/settings/base.py",
-                "adakings_backend/settings/production.py",
-                "adakings_backend/settings/dev_test.py",
-                "adakings_backend/urls.py",
-                "adakings_backend/wsgi.py",
-                "adakings_backend/asgi.py",
-                "apps/*/models.py",
-                "apps/*/views.py",
-                "apps/*/serializers.py",
-                "apps/*/urls.py",
-                "apps/*/__init__.py",
-                "apps/*/apps.py",
-                "apps/*/admin.py",
-                "manage.py"
-            ]
-            
-            # Add specific production files
-            for file_path in production_files:
+            for file_desc, file_path in env_file_list.items():
                 if (self.base_dir / file_path).exists():
                     result = self.run_command(f"git add {file_path}", check=False)
                     if result and result.returncode == 0:
-                        self.log_info(f"✓ Added: {file_path}")
-            
-            # Add core application files using patterns
-            for pattern in core_patterns:
-                result = self.run_command(f"git add {pattern}", check=False)
+                        self.log_info(f"✓ Added {env_type} {file_desc}: {file_path}")
+                else:
+                    self.log_warning(f"⚠️  {env_type} {file_desc} not found: {file_path}")
+        
+        # Add core application files
+        self.log_info("Adding core application files...")
+        for file_path in core_files:
+            if (self.base_dir / file_path).exists():
+                result = self.run_command(f"git add {file_path}", check=False)
                 if result and result.returncode == 0:
-                    self.log_info(f"✓ Added pattern: {pattern}")
-            
-            self.log_success(f"Added production-specific files for {env_type} branch")
-            
-        else:
-            # Development and feature branches: push everything but only change development files
-            # Add ALL files to git
-            result = self.run_command("git add .", check=False)
+                    self.log_info(f"✓ Added core file: {file_path}")
+        
+        # Add core application patterns
+        for pattern in core_patterns:
+            result = self.run_command(f"git add {pattern}", check=False)
             if result and result.returncode == 0:
-                self.log_info("✓ Added all files (feature/development branch)")
-            
-            self.log_success(f"Added all files for feature/development branch")
+                self.log_info(f"✓ Added core pattern: {pattern}")
+        
+        # Add smart deploy script and environment guide (always useful)
+        additional_files = [
+            "smart_deploy.py",
+            "ENVIRONMENT_GUIDE.md"
+        ]
+        
+        for file_path in additional_files:
+            if (self.base_dir / file_path).exists():
+                result = self.run_command(f"git add {file_path}", check=False)
+                if result and result.returncode == 0:
+                    self.log_info(f"✓ Added utility: {file_path}")
+        
+        self.log_success(f"Added {env_type} environment-specific files and core application files")
     
     def commit_and_push(self, env_type, target_branch, message_prefix=""):
         """Commit changes and push to appropriate branch"""
@@ -1306,7 +1357,7 @@ ENABLE_DEBUG_TOOLBAR=True
         if not new_version:
             raise Exception("Failed to bump version")
         
-        self.update_version_files(new_version, version_type)
+        self.update_version_files_and_changelog(new_version, version_type)
         return new_version
 
     def deployment_checks(self, target_env):
@@ -1323,34 +1374,34 @@ ENABLE_DEBUG_TOOLBAR=True
         self.log_info(f"🚀 Starting deployment to {target_env} environment")
         
         # Validate environment
-        valid_environments = ["production", "dev-test", "dev", "development"]
+        valid_environments = ["production", "dev", "development"]
         if target_env not in valid_environments and not target_env.startswith("feature/"):
-            self.log_error(f"Invalid environment: {target_env}. Did you mean 'dev-test'? Please check and try again.")
+            self.log_error(f"Invalid environment: {target_env}. Please check and try again.")
             return False
         
         # Normalize environment type
         if target_env == "production":
             env_type = "production"
-        elif target_env == "dev-test":
-            env_type = "dev-test"
+        elif target_env == "dev":
+            env_type = "dev"
         else:
-            env_type = "development"
+            env_type = "feature"
         
         # Determine version type and get current version
         if target_env == "production":
             version_type = "production"
             current_version = self.read_version(version_type)
-        elif target_env == "dev-test":
+        elif target_env == "dev":
             version_type = "production"
-            # For dev-test branches, use highest remote version from ALL dev-test branches
-            remote_version = self.get_highest_remote_version_for_branch_type("dev-test")
+            # For dev branches, use highest remote version from ALL dev branches
+            remote_version = self.get_highest_remote_version_for_branch_type("dev")
             if remote_version:
                 current_version = remote_version
-                self.log_info(f"📡 Using highest remote version for dev-test: {current_version}")
+                self.log_info(f"📡 Using highest remote version for dev: {current_version}")
             else:
                 # No remote version found, start from 0.9.0 so increment becomes 1.0.0
                 current_version = "0.9.0"
-                self.log_info(f"📂 No remote dev-test branches found, will create dev-test/1.0.0")
+                self.log_info(f"📂 No remote dev branches found, will create dev/1.0.0")
         else:
             version_type = "features"
             if target_env.startswith("feature/"):
@@ -1371,10 +1422,10 @@ ENABLE_DEBUG_TOOLBAR=True
         # Determine target branch
         if target_env == "production":
             target_branch = "production"
-        elif target_env == "dev-test":
-            # For dev-test branches, format: dev-test/x.x.x
-            target_branch = f"dev-test/{new_version}"
-        elif target_env in ["dev", "development"]:
+        elif target_env == "dev":
+            # For dev branches, format: dev/x.x.x
+            target_branch = f"dev/{new_version}"
+        elif target_env == "development":
             target_branch = "dev"
         elif target_env.startswith("feature/"):
             # For feature branches, append version: feature/customname-x.x.x
@@ -1398,11 +1449,11 @@ ENABLE_DEBUG_TOOLBAR=True
                 raise Exception(f"Failed to switch to branch: {target_branch}")
             
             # Now update version files and changelog on the target branch
-            version_type = "production" if target_env in ["production", "dev-test"] else "features"
+            version_type = "production" if target_env in ["production", "dev"] else "features"
             self.update_version_files_and_changelog(new_version, version_type)
             
             # Ensure .env.example exists for feature branches before validation
-            if target_env.startswith("feature/") or target_env in ["dev", "development"]:
+            if target_env.startswith("feature/") or target_env == "development":
                 self.ensure_env_example_exists()
             
             # Pre-deployment checks
@@ -1440,7 +1491,7 @@ def main():
         print(__doc__)
         print("\nAvailable environments:")
         print("  production [major|minor|patch]     - Deploy to production branch with version bump")
-        print("  dev-test [minor|patch]             - Deploy to dev-test branch (production-like with test values)")
+        print("  dev [minor|patch]                  - Deploy to dev branch (production-like with dev values)")
         print("  dev [minor|patch]                  - Deploy to dev branch with version bump")
         print("  feature/name [patch]               - Deploy to feature branch with version bump")
         print("\nVersion bump types:")

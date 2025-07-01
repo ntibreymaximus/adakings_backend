@@ -16,14 +16,29 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 # Load environment variables from .env file (if it exists)
-env_path = BASE_DIR / '.env'
-if env_path.exists():
-    load_dotenv(env_path)
+# Check if a custom .env path is specified (for environment-specific files)
+custom_env_path = os.environ.get('DOTENV_PATH')
+if custom_env_path:
+    env_path = Path(custom_env_path)
+    if env_path.exists():
+        load_dotenv(env_path)
+        print(f"📁 Loaded environment variables from: {env_path}")
+    else:
+        logging.warning(
+            f"Custom .env file not found at {env_path}. "
+            "Environment variables must be set manually."
+        )
 else:
-    logging.warning(
-        "No .env file found. Environment variables must be set manually. "
-        "See .env.example for required variables."
-    )
+    # Default to .env in project root
+    env_path = BASE_DIR / '.env'
+    if env_path.exists():
+        load_dotenv(env_path)
+        print(f"📁 Loaded environment variables from: {env_path}")
+    else:
+        logging.warning(
+            "No .env file found. Environment variables must be set manually. "
+            "See .env.example for required variables."
+        )
 
 # Application definition
 INSTALLED_APPS = [
