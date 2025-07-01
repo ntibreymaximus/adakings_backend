@@ -1484,6 +1484,166 @@ ENABLE_DEBUG_TOOLBAR=True
             self.log_info("Restoring backup...")
             self.restore_backup()
             return False
+    
+    def merge_to_main(self, source_branch=None):
+        """Merge current branch into main branch"""
+        self.log_info("🚀 Starting merge to main branch...")
+        
+        # Get current branch if no source specified
+        if not source_branch:
+            source_branch = self.get_current_branch()
+            if not source_branch:
+                self.log_error("Could not determine current branch")
+                return False
+        
+        self.log_info(f"📍 Source branch: {source_branch}")
+        
+        # Check for uncommitted changes first
+        status_result = self.run_command("git status --porcelain", check=False)
+        has_changes = bool(status_result and status_result.stdout.strip())
+        
+        if has_changes:
+            self.log_warning("⚠️  Uncommitted changes detected. These need to be handled for main branch merge.")
+            
+            # Show what changes exist
+            status_show = self.run_command("git status --short", check=False)
+            if status_show and status_show.stdout.strip():
+                self.log_info("📋 Current changes:")
+                for line in status_show.stdout.strip().split('\n'):
+                    self.log_info(f"   {line}")
+            
+            # For main branch operations, we need to commit changes first
+            self.log_info("💡 Committing current changes before switching to main...")
+            
+            # Add all changes
+            add_result = self.run_command("git add .", check=False)
+            if not add_result:
+                self.log_error("Failed to add changes")
+                return False
+            
+            # Create a commit message
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            commit_msg = f"feat: Auto-commit before merge to main\n\nBranch: {source_branch}\nTimestamp: {timestamp}\n\nChanges committed automatically by smart_deploy.py before merging to main."
+            
+            # Commit changes
+            commit_result = self.run_command(['git', 'commit', '-m', commit_msg], shell=False, check=False)
+            if not commit_result:
+                self.log_error("Failed to commit changes")
+                return False
+            
+            self.log_success("✅ Successfully committed changes on current branch")
+        
+        try:
+            # Backup current state
+            self.backup_current_state()
+            
+            # Ensure we have the latest changes from remote
+            self.log_info("📡 Fetching latest changes from remote...")
+            fetch_result = self.run_command("git fetch origin --prune")
+            if not fetch_result:
+                self.log_warning("Failed to fetch from remote")
+            
+            # Check if main branch exists locally
+            main_exists_locally = self.run_command("git branch --list main", check=False)
+            main_exists_locally = bool(main_exists_locally and main_exists_locally.stdout.strip())
+            
+            # Check if main branch exists on remote
+            remote_branches_result = self.run_command("git ls-remote --heads origin", check=False)
+            main_exists_remotely = False
+            if remote_branches_result and remote_branches_result.stdout:
+                main_exists_remotely = 'refs/heads/main' in remote_branches_result.stdout
+            
+            # Switch to or create main branch (now safe since we committed changes)
+            if main_exists_locally:
+                self.log_info("🔄 Switching to existing main branch...")
+                switch_result = self.run_command("git checkout main")
+                if not switch_result:
+                    # Try git switch as fallback
+                    switch_result = self.run_command("git switch main", check=False)
+                    if not switch_result:
+                        raise Exception("Failed to switch to main branch")
+                
+                # Pull latest changes if main exists remotely
+                if main_exists_remotely:
+                    self.log_info("⬇️ Pulling latest changes from remote main...")
+                    pull_result = self.run_command("git pull origin main", check=False)
+                    if not pull_result:
+                        self.log_warning("Failed to pull from remote main, continuing...")
+            else:
+                if main_exists_remotely:
+                    self.log_info("📥 Creating local main branch from remote...")
+                    checkout_result = self.run_command("git checkout -b main origin/main")
+                else:
+                    self.log_info("🆕 Creating new main branch...")
+                    checkout_result = self.run_command("git checkout -b main")
+                
+                if not checkout_result:
+                    raise Exception("Failed to create/checkout main branch")
+            
+            # If we're already on main, we're done with switching
+            if source_branch == "main":
+                self.log_info("✅ Already on main branch")
+                # Just push current state to remote
+                push_result = self.run_command("git push origin main")
+                if push_result:
+                    self.log_success("🎉 Successfully pushed main branch to remote!")
+                    return True
+                else:
+                    raise Exception("Failed to push main branch to remote")
+            
+            # Merge changes from source branch
+            self.log_info(f"🔄 Merging changes from {source_branch} into main...")
+            merge_result = self.run_command(['git', 'merge', source_branch, '--no-ff', '-m', f'Merge {source_branch} into main'], shell=False, check=False)
+            
+            if not merge_result or merge_result.returncode != 0:
+                # Check if it's just a "already up to date" situation
+                if merge_result and "Already up to date" in merge_result.stdout:
+                    self.log_info("✅ Main is already up to date with source branch")
+                else:
+                    self.log_error(f"Merge failed: {merge_result.stderr if merge_result else 'Unknown error'}")
+                    # Try to resolve merge conflicts or provide guidance
+                    status_result = self.run_command("git status --porcelain", check=False)
+                    if status_result and status_result.stdout.strip():
+                        self.log_error("📋 Merge conflicts detected:")
+                        self.log_error(status_result.stdout.strip())
+                        self.log_error("\n🔧 Please resolve merge conflicts manually and then run:")
+                        self.log_error("   git add .")
+                        self.log_error("   git commit")
+                        self.log_error(f"   git push origin main")
+                        return False
+                    else:
+                        raise Exception(f"Merge failed: {merge_result.stderr if merge_result else 'Unknown error'}")
+            
+            # Push merged changes to remote main
+            self.log_info("⬆️ Pushing merged changes to remote main...")
+            push_result = self.run_command("git push origin main")
+            if not push_result:
+                raise Exception("Failed to push to remote main")
+            
+            self.log_success(f"🎉 Successfully merged {source_branch} into main and pushed to remote!")
+            self.log_info("📍 Main branch is now up to date with all changes")
+            
+            # Switch back to source branch
+            if source_branch != "main":
+                self.log_info(f"🔙 Switching back to {source_branch}...")
+                switch_back = self.run_command(f"git checkout {source_branch}", check=False)
+                if not switch_back:
+                    switch_back = self.run_command(f"git switch {source_branch}", check=False)
+                    if not switch_back:
+                        self.log_warning(f"Failed to switch back to {source_branch}")
+                        self.log_info(f"You are currently on main branch. To switch back manually: git checkout {source_branch}")
+                    else:
+                        self.log_success(f"✅ Switched back to {source_branch}")
+                else:
+                    self.log_success(f"✅ Switched back to {source_branch}")
+            
+            return True
+            
+        except Exception as e:
+            self.log_error(f"Merge to main failed: {str(e)}")
+            self.log_info("Restoring backup...")
+            self.restore_backup()
+            return False
 
 
 def main():
@@ -1524,6 +1684,26 @@ def main():
         print("⚠️  WARNING: Major version bump in production - this indicates breaking changes!")
     
     deployer = SmartDeployer()
+    
+    # Special handling for 'main' branch merge
+    if target_env == "main":
+        print(f"🎯 Target: Merge current branch into main")
+        print("📝 This will merge your current branch into the main branch")
+        
+        # Confirm main merge
+        print("⚠️  WARNING: This will merge into MAIN branch!")
+        response = input("Are you sure you want to continue? (yes/no): ")
+        if response.lower() not in ["yes", "y"]:
+            print("Merge cancelled.")
+            sys.exit(0)
+        
+        # Run merge to main
+        success = deployer.merge_to_main()
+        if success:
+            print("✅ Successfully merged into main branch!")
+        else:
+            print("❌ Failed to merge changes into main branch")
+        sys.exit(0 if success else 1)
     
     # Show deployment information using same logic as deploy function
     if target_env == "production" or target_env == "dev-test":
