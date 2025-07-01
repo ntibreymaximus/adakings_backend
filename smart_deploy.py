@@ -1143,82 +1143,29 @@ ENABLE_DEBUG_TOOLBAR=True
         return True
     
     def apply_environment_gitignore(self, env_type):
-        """Apply environment-specific gitignore to exclude other environments"""
-        self.log_info(f"🚫 Applying {env_type} environment gitignore to exclude other environments...")
+        """Apply deployment-safe gitignore that preserves all environments"""
+        self.log_info(f"📝 Applying deployment-safe gitignore for {env_type} environment...")
         
-        # Environment-specific gitignore mapping
-        env_gitignore_files = {
-            "production": "environments/production/.gitignore",
-            "dev": "environments/dev/.gitignore", 
-            "feature": "environments/feature/.gitignore"
-        }
+        # Instead of removing other environments, just ensure sensitive files are ignored
+        # All environment folders should remain in git for proper version control
         
-        if env_type not in env_gitignore_files:
-            self.log_warning(f"No environment-specific gitignore found for {env_type}")
-            return
+        self.log_info(f"✓ Using base gitignore - all environments preserved")
         
-        env_gitignore_path = self.base_dir / env_gitignore_files[env_type]
-        root_gitignore_path = self.base_dir / ".gitignore"
-        
-        if not env_gitignore_path.exists():
-            self.log_warning(f"Environment gitignore not found: {env_gitignore_path}")
-            return
-        
-        try:
-            # Read the environment-specific gitignore
-            env_gitignore_content = env_gitignore_path.read_text(encoding='utf-8')
-            
-            # Read existing root gitignore if it exists
-            existing_gitignore = ""
-            if root_gitignore_path.exists():
-                existing_gitignore = root_gitignore_path.read_text(encoding='utf-8')
-            
-            # Combine with environment-specific rules at the top
-            combined_gitignore = f"# Environment-Specific Exclusions ({env_type.upper()})\n"
-            combined_gitignore += f"# Applied during deployment to {env_type} environment\n\n"
-            combined_gitignore += env_gitignore_content + "\n\n"
-            combined_gitignore += "# Base Project Gitignore\n"
-            combined_gitignore += existing_gitignore
-            
-            # Write the combined gitignore
-            root_gitignore_path.write_text(combined_gitignore, encoding='utf-8')
-            self.log_info(f"✓ Applied {env_type} environment gitignore rules")
-            
-            # Remove other environment directories from git tracking
-            self.remove_other_environments_from_git(env_type)
-            
-        except Exception as e:
-            self.log_error(f"Failed to apply environment gitignore: {e}")
+        # Do NOT remove other environment directories from git tracking
+        # This was causing the deletion issue
+        self.log_info("✓ All environment directories preserved in git tracking")
     
     def remove_other_environments_from_git(self, current_env):
-        """Remove other environment directories from git tracking"""
-        self.log_info(f"🗑️  Removing other environment directories from git tracking...")
+        """DISABLED: This method previously removed other environment directories from git tracking
         
-        # Define which environments to remove based on current environment
-        env_dirs_to_remove = []
+        This functionality has been disabled to prevent environment folders from being deleted.
+        All environment directories should remain tracked in git for proper version control.
+        """
+        self.log_info(f"✓ Preserving all environment directories in git (removal disabled)")
         
-        if current_env == "production":
-            env_dirs_to_remove = ["environments/dev/", "environments/feature/"]
-        elif current_env == "dev":
-            env_dirs_to_remove = ["environments/production/", "environments/feature/"]
-        elif current_env == "feature":
-            env_dirs_to_remove = ["environments/production/", "environments/dev/"]
-        
-        for env_dir in env_dirs_to_remove:
-            # Check if directory exists and is tracked by git
-            if (self.base_dir / env_dir).exists():
-                result = self.run_command(f"git ls-files {env_dir}", check=False)
-                if result and result.stdout.strip():
-                    # Remove from git tracking
-                    remove_result = self.run_command(f"git rm -r --cached {env_dir}", check=False)
-                    if remove_result:
-                        self.log_info(f"✓ Removed {env_dir} from git tracking")
-                    else:
-                        self.log_warning(f"Failed to remove {env_dir} from git tracking")
-                else:
-                    self.log_info(f"✓ {env_dir} not tracked by git")
-            else:
-                self.log_info(f"✓ {env_dir} does not exist")
+        # This method is intentionally disabled to prevent the deletion issue
+        # All environment folders (production, dev, feature) should remain in git
+        # This ensures proper version control and prevents accidental deletion
 
     def clean_environment_files(self, env_type):
         """Remove files not needed for specific environment"""
