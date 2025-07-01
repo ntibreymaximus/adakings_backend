@@ -1522,26 +1522,41 @@ ENABLE_DEBUG_TOOLBAR=True
                 for line in status_show.stdout.strip().split('\n'):
                     self.log_info(f"   {line}")
             
-            # For main branch operations, we need to commit changes first
-            self.log_info("💡 Committing current changes before switching to main...")
+            # Special handling for backup directory files - these should be ignored
+            self.log_info("🧹 Cleaning up backup directory files that might interfere...")
             
-            # Add all changes
-            add_result = self.run_command("git add .", check=False)
-            if not add_result:
-                self.log_error("Failed to add changes")
-                return False
+            # Remove any changes in the backup directory
+            backup_clean_result = self.run_command("git checkout -- .deploy_backup/", check=False)
+            if backup_clean_result:
+                self.log_info("✓ Cleaned up backup directory changes")
             
-            # Create a commit message
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            commit_msg = f"feat: Auto-commit before merge to main\n\nBranch: {source_branch}\nTimestamp: {timestamp}\n\nChanges committed automatically by smart_deploy.py before merging to main."
+            # Check if we still have changes after cleanup
+            status_result = self.run_command("git status --porcelain", check=False)
+            has_changes = bool(status_result and status_result.stdout.strip())
             
-            # Commit changes
-            commit_result = self.run_command(['git', 'commit', '-m', commit_msg], shell=False, check=False)
-            if not commit_result:
-                self.log_error("Failed to commit changes")
-                return False
-            
-            self.log_success("✅ Successfully committed changes on current branch")
+            if has_changes:
+                # For main branch operations, we need to commit remaining changes
+                self.log_info("💡 Committing remaining changes before switching to main...")
+                
+                # Add all changes
+                add_result = self.run_command("git add .", check=False)
+                if not add_result:
+                    self.log_error("Failed to add changes")
+                    return False
+                
+                # Create a commit message
+                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                commit_msg = f"feat: Auto-commit before merge to main\n\nBranch: {source_branch}\nTimestamp: {timestamp}\n\nChanges committed automatically by smart_deploy.py before merging to main."
+                
+                # Commit changes
+                commit_result = self.run_command(['git', 'commit', '-m', commit_msg], shell=False, check=False)
+                if not commit_result:
+                    self.log_error("Failed to commit changes")
+                    return False
+                
+                self.log_success("✅ Successfully committed changes on current branch")
+            else:
+                self.log_success("✅ All backup directory changes cleaned up, no commit needed")
         
         try:
             # Backup current state
