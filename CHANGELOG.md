@@ -1,141 +1,93 @@
-## 1.0.0 - 2025-06-30
+## 1.1.0 - 2025-07-01
 
 - Deployment to features environment
 
-# Production Changelog
+# Feature Environment Changelog
 
-All notable changes to the production environment will be documented in this file.
+All notable changes to the **feature environment** will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.0] - 2025-06-30
+## [0.1.0] - 2025-07-01
 
-### Added - MAJOR RELEASE
-- **Complete API-only architecture** - Pure REST API backend using Django REST Framework
-- **Authentication & Authorization** - Session-based authentication with API permissions
-- **API Documentation** - Comprehensive Swagger/OpenAPI documentation at `/api/docs/`
-- **Menu Management API** - CRUD operations for categories, items, and extras
-- **Order Processing API** - Real-time order tracking and management
-- **Payment Integration** - Paystack integration for mobile money transactions
-- **User Management API** - Role-based access control (Admin, Kitchen, Front Desk, Delivery)
-- **Database Optimizations** - Streamlined models and efficient migrations
-- **Security Features** - CORS configuration, input validation, role-based permissions
-- **Production Deployment** - Gunicorn-ready WSGI configuration
+### Added - INITIAL FEATURE RELEASE
+- **Local Development Environment** - Optimized for feature development and local testing
+- **SQLite Database** - Zero-setup database perfect for local development
+- **Development Tools** - Full suite of development and debugging tools
+- **Console Email Backend** - Email messages printed to console for easy testing
+- **Debug Mode** - Always enabled with detailed error pages and debugging information
+- **Hot Reloading** - Automatic server restart on code changes
+- **Relaxed Security** - Development-friendly security settings
+- **Complete API Documentation** - Full Swagger UI and ReDoc access
+- **Environment-Specific Files** - Self-contained feature environment directory
 
-### Changed - BREAKING CHANGES
-- **Architecture**: Converted from full-stack Django to pure API backend
-- **URLs**: All endpoints now prefixed with `/api/`
-- **Authentication**: Moved to API-based authentication (removed form-based)
-- **Data Format**: All responses now in JSON format
-- **Frontend Decoupling**: Removed all Django templates and static web assets
+### Features
+- **Database**: SQLite (default) with optional PostgreSQL support
+- **Email**: Console backend with optional SMTP testing
+- **Payments**: Test Paystack keys for development
+- **Security**: Relaxed settings for easy development
+- **API Documentation**: Full interactive documentation
+- **Caching**: Dummy cache (no setup required)
+- **Debug Mode**: Always enabled for development
+- **CORS**: Allows all origins for easy frontend integration
 
-### Removed - BREAKING CHANGES
-- **Web Interface**: All HTML templates and forms
-- **Static Assets**: CSS, JavaScript, and theme files
-- **Django Views**: Traditional view functions replaced with API views
-- **Form Classes**: All Django forms removed in favor of serializers
+### Development Tools
+- **Django Debug Toolbar**: Optional performance analysis
+- **IPython Shell**: Enhanced interactive shell
+- **Code Quality Tools**: Black, flake8, isort, mypy
+- **Testing Framework**: pytest with coverage
+- **API Testing**: Comprehensive testing utilities
+- **Rich Terminal Output**: Beautiful terminal formatting
 
-### Security
-- Environment-based configuration for production secrets
-- Secure payment processing with Paystack
-- Role-based API permissions
-- Input validation and sanitization
+### Configuration
+- **Environment Variables**: Minimal required configuration
+- **Hot Reloading**: Automatic code change detection
+- **Error Handling**: Detailed error pages with debugging info
+- **Logging**: Console and file logging with DEBUG level
+- **Performance**: Generous limits for development convenience
 
-### Technical Details
-- **Framework**: Django 4.x + Django REST Framework
-- **Database**: PostgreSQL recommended for production
-- **Authentication**: Session-based (JWT-ready)
-- **API Format**: REST with JSON responses
-- **Documentation**: OpenAPI 3.0 schema
+### Workflow Integration
+- **Git Integration**: Ready for feature branch workflows
+- **Testing**: Complete test suite with coverage
+- **Code Quality**: Linting and formatting tools
+- **Documentation**: Auto-generated API docs
 
 ---
 
 ## Version Bump Guidelines
 
 ### MAJOR (X.0.0)
-- API breaking changes
-- Architecture changes
-- Incompatible API modifications
-- Major feature removals
+- Breaking changes in development workflow
+- Major tool changes
+- Incompatible development environment changes
 
 ### MINOR (X.Y.0)
-- New API endpoints
-- New features (backward compatible)
-- Database schema additions
-- New integrations
+- New development tools
+- New testing capabilities
+- Enhanced debugging features
+- New development utilities
 
 ### PATCH (X.Y.Z)
-- Bug fixes
-- Security patches
+- Bug fixes in development environment
+- Tool configuration improvements
+- Performance optimizations
 - Documentation updates
-- Performance improvements
 
 ---
 
-## [1.0.2] - 2025-06-30
-
-### Added
-- Production environment configuration with settings architecture
-- Gunicorn WSGI server configuration for production deployment
-- Redis caching implementation for improved performance
-- Comprehensive logging system with file and console handlers
-- Automated deployment script with health checks
-- Production-specific requirements with monitoring tools
-- Environment variables template for production setup
-
-### Changed
-- Settings architecture restructured into base, development, and production modules
-- Database configuration optimized for PostgreSQL in production
-- Security headers enabled (HSTS, XSS protection, content type sniffing)
-- CORS configuration restricted to allowed origins for production
-- JWT token lifetime reduced for enhanced security in production
-
-### Security
-- SSL/HTTPS enforcement in production
-- Secure cookie settings for production environment
-- Live Paystack API keys configuration for production payments
-- Production secret key management through environment variables
-- Database SSL connection enforcement
-
-### Fixed
-- Version bump script encoding issues on Windows
-- Production README version badge updates
-
-## [1.0.3] - 2025-06-30
-
-### Removed
-- Development-specific files removed from production branch
-- .env.example (development version) replaced with production template
-- Django forms files (not needed for API-only architecture)
-- Template tags and development utilities
-- Development test files and debug scripts
-- Old monolithic settings.py replaced with modular settings
-
-### Changed
-- Production branch now contains only production-relevant files
-- Settings architecture simplified for production-only loading
-- requirements.txt now contains complete production dependencies
-- deploy.sh updated for streamlined file structure
-- bump_version.py updated for production branch structure
-
-### Improved
-- Clean separation between development and production environments
-- Reduced deployment footprint and security surface
-- Simplified production maintenance and updates
-
 ## Unreleased
 
-### Planned for v1.1.0 (Minor)
-- JWT token authentication
-- Real-time WebSocket notifications
-- Advanced reporting endpoints
-- Bulk operations API
+### Planned for v0.2.0 (Minor)
+- Advanced debugging tools
+- Performance profiling
+- Enhanced test utilities
+- Code generation tools
 
-### Planned for v1.0.1 (Patch)
-- Performance optimizations
-- Bug fixes
-- Enhanced error handling
+### Planned for v0.1.1 (Patch)
+- Development workflow improvements
+- Better error messages
+- Enhanced development tools
 - Documentation improvements
 
 ---
@@ -147,3 +99,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 🔒 Security update
 - 📚 Documentation
 - ⚡ Performance
+- 🛠️ Development tools

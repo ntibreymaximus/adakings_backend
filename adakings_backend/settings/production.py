@@ -181,8 +181,11 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB
 # API rate limiting (if django-ratelimit is used)
 RATELIMIT_ENABLE = True
 
-print("🚀 Production settings loaded successfully!")
-print(f"📍 Allowed hosts: {ALLOWED_HOSTS}")
-print(f"🔒 SSL redirect: {SECURE_SSL_REDIRECT}")
-print(f"💾 Database: PostgreSQL")
-print(f"📧 Email backend: SMTP")
+# Only print environment info once
+if not os.environ.get('DJANGO_SETTINGS_LOADED'):
+    os.environ['DJANGO_SETTINGS_LOADED'] = 'production'
+    print("🚀 Production settings loaded successfully!")
+    print(f"📍 Allowed hosts: {ALLOWED_HOSTS}")
+    print(f"🔒 SSL redirect: {SECURE_SSL_REDIRECT}")
+    print(f"💾 Database: PostgreSQL")
+    print(f"📧 Email backend: SMTP")

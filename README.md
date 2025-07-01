@@ -1,213 +1,142 @@
-# Adakings Backend API - Production
+# Adakings Backend API - Feature Environment
 
-[![Version](https://img.shields.io/badge/version-v0.1.1-blue.svg)](https://github.com/ntibreymaximus/adakings_backend)
-[![Status](https://img.shields.io/badge/status-production-green.svg)](https://github.com/ntibreymaximus/adakings_backend)
-[![API](https://img.shields.io/badge/API-REST-orange.svg)](https://github.com/ntibreymaximus/adakings_backend)
+## Overview
+This is the **feature environment** for the Adakings Backend API. This environment is optimized for local development with debugging enabled, minimal setup requirements, and developer-friendly features.
 
-A production-ready RESTful API backend for the Adakings restaurant management system, built with Django and Django REST Framework.
+## Features
+- SQLite database (no PostgreSQL setup required)
+- Django Debug Toolbar (optional)
+- Console email backend
+- Test Paystack integration
+- Relaxed security settings for development
+- Hot reloading and debugging
+- Comprehensive API documentation
 
-## 🚀 Production Information
+## Running the Feature Environment
 
-- **Current Version**: v0.1.1
-- **Release Date**: June 30, 2025
-- **Environment**: Production
-- **API Base URL**: `https://api.adakings.com/api/` (Replace with your actual domain)
-- **Status**: ✅ Stable
-
-## 📋 Version History
-
-### v1.0.0 (2025-06-30) - **PRODUCTION RELEASE**
-- **MAJOR RELEASE**: Complete API-only architecture
-- **Breaking Changes**: Removed all web interface components
-- **Features**:
-  - Pure REST API backend using Django REST Framework
-  - Comprehensive API documentation with Swagger/OpenAPI
-  - Session-based authentication with API permissions
-  - Complete serializers for all models (menu, orders, payments, users)
-  - Optimized database models and migrations
-  - Paystack payment integration for mobile money
-  - Role-based access control (Admin, Kitchen, Front Desk, Delivery)
-  - Order management with status tracking
-  - Menu management with categories and extras
-  - User management and authentication
-
-## 🛡️ Production Features
-
-### Core Modules
-- **Authentication & Authorization**: JWT-ready session-based auth
-- **Menu Management**: Categories, items, extras, pricing
-- **Order Processing**: Real-time order tracking and management
-- **Payment Integration**: Cash and Mobile Money (Paystack)
-- **User Management**: Role-based access control
-- **API Documentation**: Swagger UI and ReDoc
-
-### Security Features
-- CORS configuration for frontend integration
-- Environment-based configuration
-- Secure payment processing
-- Role-based permissions
-- Input validation and sanitization
-
-## 📚 API Documentation
-
-### Available Endpoints
-- **OpenAPI Schema**: `/api/schema/`
-- **Swagger UI**: `/api/docs/swagger/`
-- **ReDoc**: `/api/docs/`
-
-### Core API Endpoints
-```
-Authentication:
-POST   /api/users/register/     - User registration
-POST   /api/users/login/        - User login
-POST   /api/users/logout/       - User logout
-GET    /api/users/me/           - Current user profile
-
-Menu Management:
-GET    /api/menu/categories/    - List categories
-GET    /api/menu/items/         - List menu items
-GET    /api/menu/extras/        - List extras
-
-Order Management:
-GET    /api/orders/             - List orders
-POST   /api/orders/             - Create new order
-GET    /api/orders/{id}/        - Order details
-PUT    /api/orders/{id}/        - Update order
-
-Payment Processing:
-POST   /api/payments/process/   - Process payment
-GET    /api/payments/verify/    - Verify payment status
-```
-
-## 🔧 Production Setup
-
-### Prerequisites
-- Python 3.8+
-- PostgreSQL (recommended for production)
-- Redis (for caching - optional)
-- NGINX (for reverse proxy)
-
-### Environment Variables
 ```bash
-# Database
-DATABASE_URL=postgresql://user:password@localhost:5432/adakings_prod
+# Start the local development server
+python manage.py runserver local
 
-# Django Settings
-DJANGO_SECRET_KEY=your-production-secret-key
-DJANGO_DEBUG=False
-DJANGO_ALLOWED_HOSTS=yourdomain.com,api.yourdomain.com
-
-# Payment Integration
-PAYSTACK_PUBLIC_KEY=pk_live_your_live_public_key
-PAYSTACK_SECRET_KEY=sk_live_your_live_secret_key
-
-# CORS (for frontend)
-CORS_ALLOWED_ORIGINS=https://yourdomain.com,https://app.yourdomain.com
+# Or with custom port
+python manage.py runserver local 8001
 ```
 
-### Production Deployment
-1. Clone the production branch
-2. Set up virtual environment
-3. Install dependencies: `pip install -r requirements.txt`
-4. Configure environment variables
-5. Run migrations: `python manage.py migrate`
-6. Collect static files: `python manage.py collectstatic`
-7. Start with WSGI server (Gunicorn recommended)
+## Environment Variables
+For feature development, you can use the example environment file:
 
-### Health Check
 ```bash
-curl -f http://localhost:8000/api/schema/ || exit 1
+cp .env.feature.template .env.example
+# Edit .env.example with your local values (optional)
 ```
 
-## 🔄 Semantic Versioning
+Many settings have sensible defaults for local development.
 
-This project follows [Semantic Versioning](https://semver.org/):
-
-- **MAJOR** (X.0.0): Breaking changes, incompatible API changes
-- **MINOR** (X.Y.0): New features, backward compatible
-- **PATCH** (X.Y.Z): Bug fixes, backward compatible
-
-### Version Bump Guidelines
-- **MAJOR**: API breaking changes, architecture changes
-- **MINOR**: New endpoints, new features, database schema additions
-- **PATCH**: Bug fixes, security patches, documentation updates
-
-## 🚀 Deployment
-
-### Quick Start
+## Database Setup
 ```bash
-# Clone production branch
-git clone -b production https://github.com/ntibreymaximus/adakings_backend.git
-cd adakings_backend
-
-# Setup environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -r requirements.txt
-
-# Configure environment  
-# Edit .env file with your production values
-
-# Database setup
+# Create and migrate database (SQLite)
 python manage.py migrate
+
+# Create superuser
 python manage.py createsuperuser
 
-# Start server
-python manage.py runserver 0.0.0.0:8000
+# Load sample data (if available)
+python manage.py loaddata feature_sample_data.json
 ```
 
-### Production Server (Gunicorn)
+## Development Features
+- **Hot Reloading**: Code changes automatically reload the server
+- **Debug Mode**: Detailed error pages and debugging information
+- **Console Email**: Emails are printed to the console
+- **API Documentation**: Full Swagger UI and ReDoc available
+- **Debug Toolbar**: Optional Django Debug Toolbar for performance analysis
+- **Relaxed CORS**: Allows all origins for easy frontend integration
+
+## Database Options
+### SQLite (Default - Recommended for features)
+```python
+# No setup required - works out of the box
+DATABASE_URL=sqlite:///adakings_feature.db
+```
+
+### PostgreSQL (Optional - for production-like testing)
 ```bash
-gunicorn --bind 0.0.0.0:8000 adakings_backend.wsgi:application
+# If you want to test with PostgreSQL locally
+DB_NAME=adakings_feature
+DB_USER=your_username
+DB_PASSWORD=your_password
+DB_HOST=localhost
+DB_PORT=5432
 ```
 
-## 📊 Performance & Monitoring
+## API Documentation
+- Swagger UI: http://localhost:8000/api/docs/
+- ReDoc: http://localhost:8000/api/redoc/
+- API Schema: http://localhost:8000/api/schema/
 
-### Recommended Monitoring
-- API response times
-- Database query performance
-- Payment transaction success rates
-- User authentication metrics
-- Error rates and logging
+## Development Tools
 
-### Scaling Considerations
-- Database connection pooling
-- Redis caching implementation
-- Load balancer configuration
-- CDN for static assets
+### Django Debug Toolbar (Optional)
+Enable debug toolbar by setting:
+```bash
+ENABLE_DEBUG_TOOLBAR=True
+```
 
-## 🛠️ Maintenance
+### Email Testing
+Emails are printed to console by default. For testing email sending:
+```bash
+# Use Mailtrap or similar for email testing
+EMAIL_HOST=smtp.mailtrap.io
+EMAIL_PORT=2525
+EMAIL_HOST_USER=your_mailtrap_user
+EMAIL_HOST_PASSWORD=your_mailtrap_password
+```
 
-### Regular Tasks
-- Monitor server logs
-- Update dependencies
-- Database backups
-- Security patches
-- Performance optimization
+## Logging
+Development logs are written to:
+- Console: DEBUG level and above
+- File: `logs/development.log` (DEBUG level and above)
 
-### Support Information
-- **Documentation**: Available in `/api/docs/`
-- **Health Check**: `GET /api/health/` (if implemented)
-- **Version Info**: `GET /api/version/` (if implemented)
+## Cache Configuration
+- Default: Dummy cache (no setup required)
+- Optional: Redis (if REDIS_URL is configured)
 
-## 📞 Production Support
+## Testing Paystack Integration
+Use test keys only:
+```bash
+PAYSTACK_PUBLIC_KEY_LIVE=pk_test_your_test_key
+PAYSTACK_SECRET_KEY_LIVE=sk_test_your_test_key
+```
 
-For production issues:
-1. Check server logs
-2. Verify environment variables
-3. Test database connectivity
-4. Validate payment service status
+## Common Development Commands
+```bash
+# Run migrations
+python manage.py migrate
 
-## 🔒 Security
+# Create superuser
+python manage.py createsuperuser
 
-- Keep Django and dependencies updated
-- Use HTTPS in production
-- Implement rate limiting
-- Monitor for suspicious activity
-- Regular security audits
+# Run tests
+python manage.py test
+
+# Start interactive shell
+python manage.py shell
+
+# Check for issues
+python manage.py check
+
+# Collect static files (if needed)
+python manage.py collectstatic
+```
+
+## Performance Considerations
+- Generous file upload limits (10MB)
+- No rate limiting
+- Relaxed security settings
+- Longer JWT token lifetimes for convenience
 
 ---
-
-**Production Branch**: `production`  
-**Last Updated**: June 30, 2025  
-**Maintainer**: Adakings Development Team
+**Environment**: Feature/Local  
+**Purpose**: Local development and feature work  
+**Database**: SQLite (default) or PostgreSQL (optional)  
+**Debug Mode**: TRUE (always)

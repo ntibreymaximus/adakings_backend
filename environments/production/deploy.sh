@@ -1,5 +1,6 @@
 #!/bin/bash
 # Production deployment script for Adakings Backend API
+# This script deploys the application to production environment
 
 set -e  # Exit on any error
 
@@ -20,6 +21,7 @@ STATIC_DIR="$PROJECT_DIR/staticfiles"
 MEDIA_DIR="$PROJECT_DIR/mediafiles"
 LOG_DIR="/var/log/adakings"
 RUN_DIR="/var/run/adakings"
+ENV_DIR="$PROJECT_DIR/environments/production"
 
 # Functions
 log_info() {
@@ -53,25 +55,28 @@ log_success "Directory structure created"
 # Navigate to project directory
 cd $PROJECT_DIR
 
-# Check if .env file exists
-if [ ! -f ".env" ]; then
-    log_error ".env file not found!"
-    log_info "Please configure the .env file with your production values"
+# Check if production .env file exists
+if [ ! -f "$ENV_DIR/.env" ]; then
+    log_error "Production .env file not found at $ENV_DIR/.env!"
+    log_info "Please copy $ENV_DIR/.env.template to $ENV_DIR/.env and configure with production values"
     exit 1
 fi
 
-log_info "Production environment file found"
+# Copy production environment file to project root
+log_info "Setting up production environment..."
+cp "$ENV_DIR/.env" ".env"
+log_success "Production environment configured"
 
 # Activate virtual environment
 log_info "Activating virtual environment..."
 source $VENV_DIR/bin/activate
 log_success "Virtual environment activated"
 
-# Install/update dependencies
+# Install/update production dependencies
 log_info "Installing production dependencies..."
 pip install --upgrade pip
-pip install -r requirements.txt
-log_success "Dependencies installed"
+pip install -r $ENV_DIR/requirements.txt
+log_success "Production dependencies installed"
 
 # Set Django settings for production
 export DJANGO_SETTINGS_MODULE=adakings_backend.settings.production
@@ -147,10 +152,10 @@ else
 fi
 
 # Final status
-log_success "🎉 Deployment completed successfully!"
-log_info "API is available at: http://your-domain.com/api/"
-log_info "Admin interface: http://your-domain.com/admin/"
-log_info "API documentation: http://your-domain.com/api/docs/"
+log_success "🎉 Production deployment completed successfully!"
+log_info "API is available at: https://your-domain.com/api/"
+log_info "Admin interface: https://your-domain.com/admin/"
+log_info "Health check: https://your-domain.com/health/"
 
 # Show service status
 echo
@@ -161,3 +166,4 @@ systemctl is-active nginx || echo "Nginx: Not running"
 echo
 log_info "Deployment completed at: $(date)"
 log_info "Check logs at: $LOG_DIR"
+log_info "Environment: Production"

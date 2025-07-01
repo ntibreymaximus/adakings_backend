@@ -6,11 +6,11 @@ The `smart_deploy.py` script automates environment-specific deployments for the 
 
 ## Features
 
-- **Environment-Specific File Management**: Automatically uses the right files for each environment
-- **Branch Management**: Switches to the correct branch or creates new feature branches
-- **Backup & Restore**: Creates backups before deployment and can restore on failure
+- **Environment-Specific File Management**: Uses only environment-specific files and core application files
+- **Branch and Version Management**: Switches to the correct branch, bumps version, and manages environment-specific files
+- **Backup 6 Restore**: Creates backups before deployment and can restore on failure
 - **Safety Checks**: Requires confirmation for production deployments
-- **Automated Commit & Push**: Handles git operations automatically
+- **Automated Git Handling**: Pushing only environment-specific and core files
 
 ## Usage
 
@@ -50,16 +50,17 @@ python smart_deploy.py feature/new-payment-system
 - Includes all development tools for feature development
 - Commits and pushes to the feature branch
 
-## Environment Configurations
+## Environment-Specific Configuration
 
 ### Production Environment
 **Target Branch**: `production`
 **Files Used**:
-- `.env` (from `.env.production.template`)
-- `README.md` (from `README-PRODUCTION.md`)
-- `CHANGELOG.md` (from `CHANGELOG-PRODUCTION.md`)
-- `requirements.txt` (from `requirements-production.txt`)
-- Production-only settings loader
+- `environments/production/.env.template`
+- `environments/production/README.md`
+- `environments/production/CHANGELOG.md`
+- `environments/production/requirements.txt`
+- `environments/production/VERSION`
+- Deployment and settings scripts
 
 **Excluded Files**:
 - Development forms (`apps/*/forms.py`)
@@ -68,21 +69,30 @@ python smart_deploy.py feature/new-payment-system
 - Test files (`test_*`)
 - Development utilities
 
-### Development Environment  
-**Target Branch**: `dev` or `feature/*`
+### Dev Environment
+**Target Branch**: `dev`
 **Files Used**:
-- `.env.example` (from `.env.development.template`)
-- `README.md` (from `README-DEVELOPMENT.md`)
-- `CHANGELOG.md` (from `CHANGELOG-DEVELOPMENT.md`)
-- `requirements.txt` (from `requirements-development.txt`)
-- Multi-environment settings loader
+- `environments/dev/.env.template`
+- `environments/dev/README.md`
+- `environments/dev/CHANGELOG.md`
+- `environments/dev/requirements.txt`
+- `environments/dev/VERSION`
+- Deployment and settings scripts
+
+### Feature Environment
+**Target Branch**: `feature/*`
+**Files Used**:
+- `environments/feature/.env.template`
+- `environments/feature/README.md`
+- `environments/feature/CHANGELOG.md`
+- `environments/feature/requirements.txt`
+- `environments/feature/VERSION`
+- Setup and settings scripts
 
 **Included Files**:
-- All development tools and utilities
-- Django forms for testing
-- Template tags and debug scripts
-- Comprehensive test suite
-- Development dependencies
+- Dev environment includes development tools and utilities
+- Feature environment includes testing modules and debugging capabilities
+- Each environment maintains its own version and changelog
 
 ## Safety Features
 
@@ -175,8 +185,7 @@ python smart_deploy.py production
 - Ensure all template files exist in the repository
 - Check file names match the configuration in `smart_deploy.py`
 - Verify file permissions
-
-**Deployment fails:**
+* Deployment fails:
 - Check the backup in `.deploy_backup/` folder
 - Review error messages for specific issues
 - Restore backup manually if needed

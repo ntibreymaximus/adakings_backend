@@ -1,25 +1,33 @@
 """
-Dev-Test Settings for Adakings Backend API
+Settings package for Adakings Backend API
 
-This dev-test branch uses production-like configuration with test/placeholder values.
-Safe for testing production scenarios without real data/keys.
+Environment-specific settings loading:
+- production.py: Production environment
+- dev.py: Development environment (production-like with dev values)
+- development.py: Local development environment  
+- base.py: Shared base settings
 """
 
 import os
 
-# Default to dev-test for this branch
-ENVIRONMENT = os.environ.get('DJANGO_ENVIRONMENT', 'dev-test')
+# Default to development if no environment is specified
+ENVIRONMENT = os.environ.get('DJANGO_ENVIRONMENT', 'development')
 
+# Only print environment info once from __init__.py if not already loaded
 if ENVIRONMENT == 'production':
     from .production import *
-    print("🚀 Production environment loaded")
-elif ENVIRONMENT == 'dev-test':
-    from .dev_test import *
-    print("🧪 Dev-Test environment loaded (dev-test branch)")
+    if not os.environ.get('DJANGO_SETTINGS_LOADED'):
+        print("🚀 Production environment loaded")
+elif ENVIRONMENT == 'dev':
+    from .dev import *
+    if not os.environ.get('DJANGO_SETTINGS_LOADED'):
+        print("🔧 Dev environment loaded (production-like with dev values)")
 elif ENVIRONMENT == 'development':
     from .development import *  
-    print("🔧 Development environment loaded")
+    if not os.environ.get('DJANGO_SETTINGS_LOADED'):
+        print("🔧 Development environment loaded (local development)")
 else:
-    # Fallback to dev-test for this branch
-    from .dev_test import *
-    print("⚠️  Unknown environment '{}', falling back to dev-test".format(ENVIRONMENT))
+    # Fallback to development for any other value
+    from .development import *
+    if not os.environ.get('DJANGO_SETTINGS_LOADED'):
+        print("⚠️  Unknown environment '{}', falling back to development".format(ENVIRONMENT))

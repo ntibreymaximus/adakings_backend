@@ -41,7 +41,22 @@ local_settings.py
 db.sqlite3
 instance/
 .webassets-cache
+# Environment files (exclude actual .env files, keep templates)
 .env
+.env.local
+.env.*.local
+environments/*/.env
+environments/feature/.env
+environments/dev/.env
+environments/production/.env
+
+# Keep environment templates (these should be committed)
+!.env.template
+!.env.*.template
+!environments/*/.env.template
+
+# Deployment manifests (generated, don't commit)
+environments/*/deployment_manifest.json
 .venv
 env/
 venv/
