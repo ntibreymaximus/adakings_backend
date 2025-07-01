@@ -374,100 +374,99 @@ print("🚀 Production environment loaded (production branch)")''',
             self.log_error(f"Error during branch cleanup: {str(e)}")
             return False
     
-    def get_latest_version_for_branch_type(self, branch_type):
-        """Get latest version for specific branch type from git remote branches"""
+    def get_highest_version_from_remote(self, branch_type, specific_feature_name=None):
+        """Get the highest version from ALL remote branches of a specific type"""
         import re
-
+        
         try:
-            # Fetch latest from remote and prune to ensure we have up-to-date branch info
-            self.log_info("Fetching latest from remote and pruning stale branches...")
+            # Always fetch latest from remote first
+            self.log_info("🔄 Fetching latest from remote to get accurate version info...")
             fetch_result = self.run_command("git fetch origin --prune", check=False)
             if fetch_result:
                 self.log_info("✓ Remote branches updated and pruned")
             else:
-                self.log_warning("⚠️  Failed to fetch/prune remote branches")
+                self.log_warning("⚠️  Failed to fetch from remote")
+            
+            # Get all remote branches
+            result = self.run_command("git branch -r", check=False)
+            if not result or not result.stdout:
+                self.log_warning("Could not get remote branches")
+                return "0.9.0"  # Will become 1.0.0 after increment
+            
+            remote_branches = [b.strip() for b in result.stdout.strip().split('\n') if b.strip()]
+            all_versions = []
+            
+            self.log_info(f"🔍 Searching for {branch_type} versions in remote branches...")
             
             if branch_type == "production":
-                # For production, check VERSION file from production branch on remote
-                result = self.run_command("git show origin/production:VERSION", check=False)
-                if result and result.stdout.strip():
-                    version = result.stdout.strip()
+                # For production, check production branch VERSION file
+                version_result = self.run_command("git show origin/production:environments/production/VERSION", check=False)
+                if version_result and version_result.stdout.strip():
+                    version = version_result.stdout.strip()
                     if re.match(r'^\d+\.\d+\.\d+$', version):
+                        self.log_info(f"📋 Found production VERSION file: {version}")
                         return version
                 
-                # If no production branch, check git tags as fallback
-                result = self.run_command("git tag --list --sort=-version:refname", check=False)
-                if result and result.stdout.strip():
-                    tags = result.stdout.strip().split('\n')
+                # Fallback: check git tags
+                tags_result = self.run_command("git tag --list --sort=-version:refname 'v*'", check=False)
+                if tags_result and tags_result.stdout.strip():
+                    tags = tags_result.stdout.strip().split('\n')
                     for tag in tags:
-                        if re.match(r'^v?\d+\.\d+\.\d+$', tag):
-                            return tag.lstrip('v')
-                return "1.0.0"  # Default for production
-            
-            elif branch_type == "dev-test":
-                # For dev-test, check dev-test/* branches on remote using proper git command
-                result = self.run_command("git --no-pager branch -r --list 'origin/dev-test/*' --sort=-version:refname", check=False)
-                if result and result.stdout.strip():
-                    branches = result.stdout.strip().split('\n')
-                    for branch in branches:
-                        branch_name = branch.strip().replace('origin/', '')
-                        if branch_name.startswith('dev-test/'):
-                            version_part = branch_name.split('/')[-1]
-                            if re.match(r'^\d+\.\d+\.\d+$', version_part):
-                                self.log_info(f"Found highest dev-test version: {version_part}")
-                                return version_part
+                        clean_tag = tag.lstrip('v')
+                        if re.match(r'^\d+\.\d+\.\d+$', clean_tag):
+                            self.log_info(f"📋 Found highest production tag: {clean_tag}")
+                            return clean_tag
                 
-                # Fallback: manually parse and sort if git sort doesn't work
-                result = self.run_command("git --no-pager branch -r --list 'origin/dev-test/*'", check=False)
-                if result and result.stdout.strip():
-                    branches = result.stdout.strip().split('\n')
-                    versions = []
-                    for branch in branches:
-                        branch_name = branch.strip().replace('origin/', '')
-                        if branch_name.startswith('dev-test/'):
-                            version_part = branch_name.split('/')[-1]
-                            if re.match(r'^\d+\.\d+\.\d+$', version_part):
-                                versions.append(version_part)
-                    
-                    if versions:
-                        # Sort versions properly (semantic versioning)
-                        versions.sort(key=lambda x: [int(i) for i in x.split('.')], reverse=True)
-                        self.log_info(f"Found highest dev-test version: {versions[0]}")
-                        return versions[0]  # Return highest version
-                return "1.0.0"  # Default for dev-test
+                return "0.9.0"  # Will become 1.0.0 after increment
+            
+            elif branch_type == "dev":
+                # For dev, look for dev/x.x.x pattern
+                for branch in remote_branches:
+                    if branch.startswith("origin/dev/"):
+                        version_part = branch.replace("origin/dev/", "")
+                        if re.match(r'^\d+\.\d+\.\d+$', version_part):
+                            major, minor, patch = map(int, version_part.split('.'))
+                            all_versions.append((major, minor, patch, version_part))
+                            self.log_info(f"🔍 Found dev version: {branch} -> {version_part}")
             
             elif branch_type.startswith("feature/"):
-                # For feature branches, check feature/name-version branches on remote
-                feature_name = branch_type.split('/', 1)[1]
-                pattern = f"origin/feature/{feature_name}-*"
-                result = self.run_command(f"git branch -r --list '{pattern}' --sort=-version:refname", check=False)
-                if result and result.stdout.strip():
-                    branches = result.stdout.strip().split('\n')
-                    for branch in branches:
-                        branch_name = branch.strip().replace('origin/', '')
-                        # Extract version from feature/name-version format
-                        if f"feature/{feature_name}-" in branch_name:
-                            version_part = branch_name.split(f"feature/{feature_name}-")[-1]
+                # For feature branches, look for feature/name-x.x.x pattern
+                if specific_feature_name:
+                    # Look for this specific feature's versions
+                    pattern_prefix = f"origin/feature/{specific_feature_name}-"
+                    for branch in remote_branches:
+                        if branch.startswith(pattern_prefix):
+                            version_part = branch.replace(pattern_prefix, "")
                             if re.match(r'^\d+\.\d+\.\d+$', version_part):
-                                return version_part
-                return "0.1.0"  # Default for feature branches
+                                major, minor, patch = map(int, version_part.split('.'))
+                                all_versions.append((major, minor, patch, version_part))
+                                self.log_info(f"🔍 Found {specific_feature_name} version: {branch} -> {version_part}")
+                else:
+                    # Look across ALL feature branches to get global highest
+                    for branch in remote_branches:
+                        if branch.startswith("origin/feature/") and "-" in branch:
+                            # Extract version from any feature branch
+                            parts = branch.split("-")
+                            if len(parts) >= 2:
+                                version_part = parts[-1]
+                                if re.match(r'^\d+\.\d+\.\d+$', version_part):
+                                    major, minor, patch = map(int, version_part.split('.'))
+                                    all_versions.append((major, minor, patch, version_part))
+                                    self.log_info(f"🔍 Found feature version: {branch} -> {version_part}")
             
-            else:
-                # For dev/development, check dev/* branches on remote
-                result = self.run_command("git branch -r --list 'origin/dev/*' --sort=-version:refname", check=False)
-                if result and result.stdout.strip():
-                    branches = result.stdout.strip().split('\n')
-                    for branch in branches:
-                        branch_name = branch.strip().replace('origin/', '')
-                        version_part = branch_name.split('/')[-1]
-                        if re.match(r'^\d+\.\d+\.\d+$', version_part):
-                            return version_part
-                
-                return "0.1.0"  # Default for dev
-                
+            if not all_versions:
+                self.log_info(f"🆕 No existing {branch_type} versions found, starting fresh")
+                return "0.9.0"  # Will become 1.0.0 after increment
+            
+            # Sort and return highest version
+            all_versions.sort(key=lambda x: (x[0], x[1], x[2]), reverse=True)
+            highest = all_versions[0][3]
+            self.log_info(f"🏆 Highest {branch_type} version found: {highest}")
+            return highest
+            
         except Exception as e:
-            self.log_warning(f"Could not determine version from git: {e}")
-            return "1.0.0"
+            self.log_warning(f"Error getting version from remote: {e}")
+            return "0.9.0"  # Will become 1.0.0 after increment
     
     def read_version(self, version_type="production"):
         """Read current version from environment-specific version file"""
@@ -1387,35 +1386,26 @@ ENABLE_DEBUG_TOOLBAR=True
         else:
             env_type = "feature"
         
-        # Determine version type and get current version
+        # Determine version type and get current version FROM REMOTE
         if target_env == "production":
             version_type = "production"
-            current_version = self.read_version(version_type)
+            # Always get highest from remote for production
+            current_version = self.get_highest_version_from_remote("production")
+            self.log_info(f"📡 Using highest remote version for production: {current_version}")
         elif target_env == "dev":
             version_type = "production"
             # For dev branches, use highest remote version from ALL dev branches
-            remote_version = self.get_highest_remote_version_for_branch_type("dev")
-            if remote_version:
-                current_version = remote_version
-                self.log_info(f"📡 Using highest remote version for dev: {current_version}")
-            else:
-                # No remote version found, start from 0.9.0 so increment becomes 1.0.0
-                current_version = "0.9.0"
-                self.log_info(f"📂 No remote dev branches found, will create dev/1.0.0")
+            current_version = self.get_highest_version_from_remote("dev")
+            self.log_info(f"📡 Using highest remote version for dev: {current_version}")
         else:
             version_type = "features"
             if target_env.startswith("feature/"):
                 # For feature branches, use highest remote version from ALL feature branches
-                remote_version = self.get_highest_remote_version_for_branch_type("feature/")
-                if remote_version:
-                    current_version = remote_version
-                    self.log_info(f"📡 Using highest remote version for feature branches: {current_version}")
-                else:
-                    # No remote version found, start from 0.9.0 so increment becomes 1.0.0
-                    current_version = "0.9.0"
-                    self.log_info(f"📂 No remote feature branches found, will create {target_env}-1.0.0")
+                feature_name = target_env.split('/', 1)[1] if '/' in target_env else None
+                current_version = self.get_highest_version_from_remote("feature/", feature_name)
+                self.log_info(f"📡 Using highest remote version for feature branches: {current_version}")
             else:
-                current_version = self.read_version(version_type)
+                current_version = self.get_highest_version_from_remote("dev")
         
         new_version = self.calculate_new_version(bump_type, current_version)
         
