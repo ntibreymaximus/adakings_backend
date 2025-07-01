@@ -57,6 +57,9 @@ environments/production/.env
 
 # Deployment manifests (generated, don't commit)
 environments/*/deployment_manifest.json
+
+# Smart deploy backup directory (temporary files, don't commit)
+.deploy_backup/
 .venv
 env/
 venv/
