@@ -3,31 +3,26 @@ Settings package for Adakings Backend API
 
 Environment-specific settings loading:
 - production.py: Production environment
-- dev.py: Development environment (production-like with dev values)
-- development.py: Local development environment  
+- dev.py: Development environment similar to production
+- development.py: Local development environment
 - base.py: Shared base settings
 """
 
 import os
 
-# Default to development if no environment is specified
+# Default to development for feature branches
 ENVIRONMENT = os.environ.get('DJANGO_ENVIRONMENT', 'development')
 
-# Only print environment info once from __init__.py if not already loaded
 if ENVIRONMENT == 'production':
     from .production import *
-    if not os.environ.get('DJANGO_SETTINGS_LOADED'):
-        print("🚀 Production environment loaded")
+    print("🚀 Production environment loaded")
 elif ENVIRONMENT == 'dev':
     from .dev import *
-    if not os.environ.get('DJANGO_SETTINGS_LOADED'):
-        print("🔧 Dev environment loaded (production-like with dev values)")
+    print("🔧 Dev environment loaded")
 elif ENVIRONMENT == 'development':
     from .development import *  
-    if not os.environ.get('DJANGO_SETTINGS_LOADED'):
-        print("🔧 Development environment loaded (local development)")
+    print("🔧 Development environment loaded (feature branch)")
 else:
-    # Fallback to development for any other value
+    # Fallback to development for feature branches
     from .development import *
-    if not os.environ.get('DJANGO_SETTINGS_LOADED'):
-        print("⚠️  Unknown environment '{}', falling back to development".format(ENVIRONMENT))
+    print("⚠️  Unknown environment '{}', falling back to development".format(ENVIRONMENT))
