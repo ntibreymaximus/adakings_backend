@@ -1,0 +1,48 @@
+# Dev Environment - Ignore Production/Feature Files
+# This file prevents production and feature files from being included in dev deployments
+
+# Production environment files
+environments/production/
+
+# Production-specific files
+.env.production
+.env.prod
+gunicorn.conf.py
+nginx.conf
+
+# Production security files
+*.pem
+*.key
+*.crt
+*.p12
+
+# Production configuration
+docker-compose.production.yml
+Dockerfile.production
+*production*
+*prod.*
+
+# Feature environment files (keep dev separate from features)
+environments/feature/
+
+# Feature-specific files
+.env.feature
+*feature.*
+
+# Production documentation
+README-PRODUCTION.md
+CHANGELOG-PRODUCTION.md
+
+# Production logs
+*.prod.log
+production_*.log
+prod_*.log
+
+# Production secrets (never include in dev)
+secrets/
+ssl/
+certs/
+
+# Production deployment files
+deploy_production.sh
+production_deploy.py
