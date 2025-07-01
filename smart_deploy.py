@@ -391,7 +391,7 @@ print("🚀 Production environment loaded (production branch)")''',
             result = self.run_command("git branch -r", check=False)
             if not result or not result.stdout:
                 self.log_warning("Could not get remote branches")
-                return "0.9.0"  # Will become 1.0.0 after increment
+                return "1.0.0"  # Start directly from 1.0.0
             
             remote_branches = [b.strip() for b in result.stdout.strip().split('\n') if b.strip()]
             all_versions = []
@@ -417,7 +417,7 @@ print("🚀 Production environment loaded (production branch)")''',
                             self.log_info(f"📋 Found highest production tag: {clean_tag}")
                             return clean_tag
                 
-                return "0.9.0"  # Will become 1.0.0 after increment
+                return "1.0.0"  # Start directly from 1.0.0
             
             elif branch_type == "dev":
                 # For dev, look for dev/x.x.x pattern
@@ -455,8 +455,8 @@ print("🚀 Production environment loaded (production branch)")''',
                                     self.log_info(f"🔍 Found feature version: {branch} -> {version_part}")
             
             if not all_versions:
-                self.log_info(f"🆕 No existing {branch_type} versions found, starting fresh")
-                return "0.9.0"  # Will become 1.0.0 after increment
+                self.log_info(f"🆕 No existing {branch_type} versions found, starting from 1.0.0")
+                return "1.0.0"  # Start directly from 1.0.0
             
             # Sort and return highest version
             all_versions.sort(key=lambda x: (x[0], x[1], x[2]), reverse=True)
@@ -466,7 +466,7 @@ print("🚀 Production environment loaded (production branch)")''',
             
         except Exception as e:
             self.log_warning(f"Error getting version from remote: {e}")
-            return "0.9.0"  # Will become 1.0.0 after increment
+            return "1.0.0"  # Start directly from 1.0.0
     
     def read_version(self, version_type="production"):
         """Read current version from environment-specific version file"""
