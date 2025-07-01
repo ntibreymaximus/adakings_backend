@@ -1477,6 +1477,16 @@ ENABLE_DEBUG_TOOLBAR=True
             self.log_info(f"Environment: {env_type}")
             self.log_info(f"Version: {new_version}")
             
+            # Automatically merge to main after successful deployment
+            self.log_info(f"\n🔄 Auto-merging {target_branch} to main branch...")
+            merge_success = self.merge_to_main(target_branch)
+            
+            if merge_success:
+                self.log_success(f"✅ Successfully merged {target_branch} into main!")
+            else:
+                self.log_warning(f"⚠️  Deployment succeeded but merge to main failed")
+                self.log_warning(f"You can manually merge later with: python smart_deploy.py main")
+            
             return True
             
         except Exception as e:
