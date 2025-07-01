@@ -1213,6 +1213,27 @@ ENABLE_DEBUG_TOOLBAR=True
         
         return result is not None
     
+    def create_environment_branch(self, env_type, target_branch):
+        """Create environment-specific branch with ONLY the target environment files"""
+        self.log_info(f"🌿 Creating environment-specific branch: {target_branch}")
+        
+        # Ensure we start from the latest main
+        self.run_command("git checkout main")
+        self.run_command("git pull origin main")
+        
+        # Create new branch from main
+        result = self.run_command(f"git checkout -B {target_branch}")
+        if not result:
+            raise Exception(f"Failed to create branch: {target_branch}")
+        
+        # Reset staging area
+        self.run_command("git reset", check=False)
+        
+        # Now add only environment-specific files
+        self.add_environment_specific_files(env_type, target_branch)
+        
+        return True
+    
     def add_environment_specific_files(self, env_type, target_branch):
         """Add ONLY the specific environment folder and core files - selective deployment"""
         self.log_info(f"🎯 Adding ONLY {env_type} environment files for selective deployment...")
@@ -1245,6 +1266,15 @@ ENABLE_DEBUG_TOOLBAR=True
             "apps/*/apps.py",
             "apps/*/admin.py",
         ]
+        
+        # IMPORTANT: Remove OTHER environment folders from this branch
+        self.log_info(f"🗑️ Removing OTHER environment folders from {target_branch} branch...")
+        for env_name, env_folder in env_folders.items():
+            if env_name != env_type:  # Remove other environments
+                if (self.base_dir / env_folder).exists():
+                    # Remove from git index and working directory for this branch only
+                    self.run_command(f"git rm -r --cached {env_folder}", check=False)
+                    self.log_info(f"🚫 Removed {env_folder} from branch {target_branch}")
         
         # Add ONLY the specific environment folder
         if env_type in env_folders:
@@ -1290,7 +1320,9 @@ ENABLE_DEBUG_TOOLBAR=True
         # Show what was NOT added (other environment folders)
         other_envs = [env for env in env_folders.keys() if env != env_type]
         if other_envs:
-            self.log_info(f"📌 Preserved locally (not pushed): {', '.join([env_folders[env] for env in other_envs])}")
+            removed_folders = [env_folders[env] for env in other_envs]
+            self.log_info(f"📌 Removed from branch {target_branch}: {', '.join(removed_folders)}")
+            self.log_info(f"💾 Still preserved in main branch: {', '.join(removed_folders)}")
     
     def commit_and_push(self, env_type, target_branch, message_prefix=""):
         """Commit changes and push to appropriate branch"""
@@ -1428,13 +1460,18 @@ ENABLE_DEBUG_TOOLBAR=True
             # Backup current state
             self.backup_current_state()
             
-            # Switch to target branch FIRST (before any file changes)
-            if not self.switch_branch(target_branch):
-                raise Exception(f"Failed to switch to branch: {target_branch}")
+            # Create environment-specific branch with ONLY target environment files
+            self.log_info(f"🌿 Creating environment-specific branch: {target_branch}")
+            if not self.create_environment_branch(env_type, target_branch):
+                raise Exception(f"Failed to create environment branch: {target_branch}")
             
             # Now update version files and changelog on the target branch
             version_type = "production" if target_env in ["production", "dev"] else "features"
             self.update_version_files_and_changelog(new_version, version_type)
+            
+            # Set up environment files
+            if not self.setup_environment_files(env_type):
+                raise Exception(f"Failed to setup {env_type} files")
             
             # Ensure .env.example exists for feature branches before validation
             if target_env.startswith("feature/") or target_env == "development":
@@ -1444,20 +1481,39 @@ ENABLE_DEBUG_TOOLBAR=True
             if not self.deployment_checks(target_env):
                 raise Exception("Pre-deployment checks failed")
             
-            # Set up environment files
-            if not self.setup_environment_files(env_type):
-                raise Exception(f"Failed to setup {env_type} files")
-            
             # Apply environment-specific gitignore to exclude other environments
             self.apply_environment_gitignore(env_type)
             
             # Clean environment-specific files
             self.clean_environment_files(env_type)
             
-            # Commit and push
+            # Commit and push ONLY the environment-specific files
             commit_prefix = f"\n\nVersion: {new_version}\n"
-            if not self.commit_and_push(env_type, target_branch, commit_prefix):
-                raise Exception("Failed to commit and push changes")
+            commit_message = f"feat: Deploy {env_type} environment v{new_version}\n\n"
+            commit_message += f"Environment: {env_type.upper()}\n"
+            commit_message += f"Target Branch: {target_branch}\n"
+            commit_message += f"Version: {new_version}\n"
+            commit_message += f"Deployed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+            commit_message += f"✅ Selective deployment: Only {env_type} environment files\n"
+            commit_message += f"🚫 Other environment folders excluded from this branch\n"
+            commit_message += f"💾 All environments preserved in main branch"
+            
+            # Check if there are changes to commit
+            result = self.run_command("git diff --cached --quiet", check=False)
+            if result and result.returncode == 0:
+                # No staged changes, stage all changes
+                self.run_command("git add .")
+            
+            # Commit the changes
+            commit_result = self.run_command(['git', 'commit', '-m', commit_message], shell=False, check=False)
+            if not commit_result:
+                self.log_warning("No changes to commit or commit failed")
+            
+            # Push to remote
+            self.log_info(f"📤 Pushing {target_branch} with ONLY {env_type} environment files...")
+            push_result = self.run_command(f"git push origin {target_branch}")
+            if not push_result:
+                raise Exception(f"Failed to push {target_branch} to remote")
             
             self.log_success(f"🎉 Successfully deployed to {target_env} environment!")
             self.log_info(f"Branch: {target_branch}")
