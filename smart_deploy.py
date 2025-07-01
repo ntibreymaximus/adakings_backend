@@ -1214,54 +1214,17 @@ ENABLE_DEBUG_TOOLBAR=True
         return result is not None
     
     def add_environment_specific_files(self, env_type, target_branch):
-        """Add only environment-specific files based on environment type"""
-        self.log_info(f"Adding {env_type} environment-specific files...")
+        """Add ONLY the specific environment folder and core files - selective deployment"""
+        self.log_info(f"🎯 Adding ONLY {env_type} environment files for selective deployment...")
         
-        # Define environment-specific files
-        env_files = {
-            "production": {
-                "version_file": "environments/production/VERSION",
-                "changelog": "environments/production/CHANGELOG.md",
-                "env_template": "environments/production/.env.template",
-                "requirements": "environments/production/requirements.txt",
-                "deploy_script": "environments/production/deploy.sh",
-                "deploy_ps_script": "environments/production/deploy.ps1",
-                "readme": "environments/production/README.md",
-                "settings_file": "adakings_backend/settings/production.py",
-                "gunicorn_conf": "environments/production/gunicorn.conf.py",
-                "nginx_conf": "environments/production/nginx.conf",
-                "dockerfile": "environments/production/Dockerfile",
-                "docker_compose": "environments/production/docker-compose.yml",
-                "systemd_service": "environments/production/adakings-backend.service",
-            },
-            "dev": {
-                "version_file": "environments/dev/VERSION",
-                "changelog": "environments/dev/CHANGELOG.md",
-                "env_template": "environments/dev/.env.template",
-                "requirements": "environments/dev/requirements.txt",
-                "deploy_script": "environments/dev/deploy.sh",
-                "deploy_ps_script": "environments/dev/deploy.ps1",
-                "readme": "environments/dev/README.md",
-                "settings_file": "adakings_backend/settings/dev.py",
-                "gunicorn_conf": "environments/dev/gunicorn.conf.py",
-                "nginx_conf": "environments/dev/nginx.conf",
-                "dockerfile": "environments/dev/Dockerfile",
-                "docker_compose": "environments/dev/docker-compose.yml",
-                "systemd_service": "environments/dev/adakings-backend-dev.service",
-            },
-            "feature": {
-                "version_file": "environments/feature/VERSION",
-                "changelog": "environments/feature/CHANGELOG.md",
-                "env_template": "environments/feature/.env.template",
-                "requirements": "environments/feature/requirements.txt",
-                "setup_script": "environments/feature/setup.sh",
-                "setup_ps_script": "environments/feature/setup.ps1",
-                "readme": "environments/feature/README.md",
-                "settings_file": "adakings_backend/settings/development.py",
-            }
+        # Define environment folder mapping
+        env_folders = {
+            "production": "environments/production/",
+            "dev": "environments/dev/", 
+            "feature": "environments/feature/"
         }
         
-        # Core application files (always needed)
+        # Core application files (always needed for functionality)
         core_files = [
             "manage.py",
             "adakings_backend/__init__.py",
@@ -1272,7 +1235,7 @@ ENABLE_DEBUG_TOOLBAR=True
             "adakings_backend/settings/base.py",
         ]
         
-        # Core app patterns (always needed)
+        # Core app patterns (always needed for functionality)
         core_patterns = [
             "apps/*/models.py",
             "apps/*/views.py",
@@ -1283,45 +1246,51 @@ ENABLE_DEBUG_TOOLBAR=True
             "apps/*/admin.py",
         ]
         
-        # Add environment-specific files
-        if env_type in env_files:
-            env_file_list = env_files[env_type]
+        # Add ONLY the specific environment folder
+        if env_type in env_folders:
+            env_folder = env_folders[env_type]
+            self.log_info(f"📁 Adding ONLY {env_folder} folder...")
             
-            for file_desc, file_path in env_file_list.items():
-                if (self.base_dir / file_path).exists():
-                    result = self.run_command(f"git add {file_path}", check=False)
-                    if result and result.returncode == 0:
-                        self.log_info(f"✓ Added {env_type} {file_desc}: {file_path}")
-                else:
-                    self.log_warning(f"⚠️  {env_type} {file_desc} not found: {file_path}")
+            # Add the entire environment folder
+            result = self.run_command(f"git add {env_folder}", check=False)
+            if result and result.returncode == 0:
+                self.log_success(f"✅ Added {env_type} environment folder: {env_folder}")
+            else:
+                self.log_warning(f"⚠️  Failed to add {env_folder}")
         
-        # Add core application files
-        self.log_info("Adding core application files...")
+        # Add core application files (needed for the app to work)
+        self.log_info("📦 Adding core application files...")
         for file_path in core_files:
             if (self.base_dir / file_path).exists():
                 result = self.run_command(f"git add {file_path}", check=False)
                 if result and result.returncode == 0:
                     self.log_info(f"✓ Added core file: {file_path}")
         
-        # Add core application patterns
+        # Add core application patterns (needed for the app to work)
         for pattern in core_patterns:
             result = self.run_command(f"git add {pattern}", check=False)
             if result and result.returncode == 0:
                 self.log_info(f"✓ Added core pattern: {pattern}")
         
-        # Add smart deploy script and environment guide (always useful)
-        additional_files = [
+        # Add essential deployment files
+        essential_files = [
             "smart_deploy.py",
-            "ENVIRONMENT_GUIDE.md"
+            ".gitignore",
+            "requirements.txt"  # Add only root requirements.txt if it exists
         ]
         
-        for file_path in additional_files:
+        for file_path in essential_files:
             if (self.base_dir / file_path).exists():
                 result = self.run_command(f"git add {file_path}", check=False)
                 if result and result.returncode == 0:
-                    self.log_info(f"✓ Added utility: {file_path}")
+                    self.log_info(f"✓ Added essential file: {file_path}")
         
-        self.log_success(f"Added {env_type} environment-specific files and core application files")
+        self.log_success(f"🎯 Selective deployment: Added ONLY {env_type} environment folder + core files")
+        
+        # Show what was NOT added (other environment folders)
+        other_envs = [env for env in env_folders.keys() if env != env_type]
+        if other_envs:
+            self.log_info(f"📌 Preserved locally (not pushed): {', '.join([env_folders[env] for env in other_envs])}")
     
     def commit_and_push(self, env_type, target_branch, message_prefix=""):
         """Commit changes and push to appropriate branch"""
