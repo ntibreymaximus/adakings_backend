@@ -1,3 +1,7 @@
+## 1.1.0 - 2025-07-01
+
+- Deployment to production environment
+
 # Production Environment Changelog
 
 All notable changes to the **production environment** will be documented in this file.
