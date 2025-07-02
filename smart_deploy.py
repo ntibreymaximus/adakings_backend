@@ -670,17 +670,16 @@ All notable changes to this project will be documented in this file.
             self.sync_with_remote()
             
             # Determine which version to use as base
-            if target_env.startswith("feature/") or target_env == "dev":
-                # For feature and dev branches, use highest remote version
-                current_version = self.get_highest_remote_version()
-                self.log_info(f"Using highest remote version as base: {current_version}")
+            highest_remote_version = self.get_highest_remote_version()
+            if not highest_remote_version or highest_remote_version == "1.0.0":
+                self.log_info("No valid remote version found. Using 1.0.0 as first version")
+                # For first deployment, use 1.0.0 directly instead of bumping
+                new_version = "1.0.0"
             else:
-                # For production, use local VERSION file
-                current_version = self.get_current_version()
-                self.log_info(f"Using local version as base: {current_version}")
-            
-            # Calculate new version
-            new_version = self.bump_version(bump_type, current_version)
+                current_version = highest_remote_version
+                self.log_info(f"Using highest remote version as base: {current_version}")
+                # Calculate new version
+                new_version = self.bump_version(bump_type, current_version)
             
             # Parse target environment and create versioned branch names
             if target_env.startswith("feature/"):
