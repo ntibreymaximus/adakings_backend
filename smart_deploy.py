@@ -122,6 +122,51 @@ class SmartDeployer:
         if self.version_file.exists():
             return self.version_file.read_text().strip()
         return "1.0.0"
+    
+    def get_highest_remote_version(self):
+        """Get the highest version number from all remote branches."""
+        try:
+            # Get all remote branches
+            remote_branches = self.run_command("git branch -r").stdout
+            branches = [branch.strip() for branch in remote_branches.split('\n') if branch.strip() and not '->' in branch]
+            
+            versions = []
+            
+            # Extract version numbers from branch names
+            for branch in branches:
+                # Look for patterns like feature/name-x.x.x or dev/x.x.x
+                if '-' in branch and ('feature/' in branch or 'dev/' in branch):
+                    # Extract version from feature/name-x.x.x
+                    version_part = branch.split('-')[-1]
+                    if self.is_valid_version(version_part):
+                        versions.append(version_part)
+                elif branch.startswith('origin/dev/') and branch.count('/') == 2:
+                    # Extract version from dev/x.x.x
+                    version_part = branch.split('/')[-1]
+                    if self.is_valid_version(version_part):
+                        versions.append(version_part)
+            
+            if not versions:
+                return "1.0.0"  # Default if no versions found
+            
+            # Sort versions and return the highest
+            versions.sort(key=lambda v: tuple(map(int, v.split('.'))))
+            return versions[-1]
+            
+        except Exception:
+            return "1.0.0"  # Fallback to default
+    
+    def is_valid_version(self, version_str):
+        """Check if a string is a valid semantic version (x.x.x)."""
+        try:
+            parts = version_str.split('.')
+            if len(parts) != 3:
+                return False
+            for part in parts:
+                int(part)  # Will raise ValueError if not a number
+            return True
+        except (ValueError, AttributeError):
+            return False
 
     def bump_version(self, bump_type, current_version):
         """Bump version based on type."""
@@ -255,23 +300,61 @@ class SmartDeployer:
         self.log_info("Syncing with remote repository...")
         # Fetch all remote branches and tags
         self.run_command("git fetch --all")
-        # Update current branch
+        
+        # Update current branch only if it exists remotely
         current_branch = self.get_current_branch()
-        try:
-            self.run_command(f"git pull origin {current_branch}")
-        except subprocess.CalledProcessError:
-            self.log_warning(f"Could not pull from origin/{current_branch} - may be a new local branch")
+        
+        # Check if current branch exists remotely
+        remote_branches = self.run_command("git branch -r").stdout
+        if f"origin/{current_branch}" in remote_branches:
+            try:
+                self.run_command(f"git pull origin {current_branch}")
+                self.log_info(f"Updated {current_branch} from remote")
+            except subprocess.CalledProcessError:
+                self.log_warning(f"Could not pull from origin/{current_branch}")
+        else:
+            self.log_info(f"Branch {current_branch} doesn't exist remotely - skipping pull")
 
     def create_or_checkout_branch(self, branch_name):
-        """Create or checkout the target branch."""
-        try:
-            # Try to checkout existing branch
+        """Create or checkout the target branch, preserving current changes."""
+        
+        # Get current branch to know where we're coming from
+        current_branch = self.get_current_branch()
+        self.log_info(f"Currently on branch: {current_branch}")
+        
+        # Check if local branch exists first
+        local_branches = self.run_command("git branch").stdout
+        # Clean branch names and check if our target branch exists
+        clean_local_branches = [branch.strip().replace('*', '').strip() for branch in local_branches.split('\n') if branch.strip()]
+        local_branch_exists = branch_name in clean_local_branches
+        
+        # Check remote branches (precise matching to avoid partial matches)
+        remote_branches = self.run_command("git branch -r").stdout
+        # Split by lines and clean each branch name for exact matching
+        clean_remote_branches = [branch.strip() for branch in remote_branches.split('\n') if branch.strip() and not '->' in branch]
+        remote_branch_exists = f"origin/{branch_name}" in clean_remote_branches
+        
+        self.log_info(f"Local branch exists: {local_branch_exists}")
+        self.log_info(f"Remote branch exists: {remote_branch_exists}")
+        
+        if local_branch_exists:
+            # Local branch exists, just checkout
             self.run_command(f"git checkout {branch_name}")
-            self.log_info(f"Checked out existing branch: {branch_name}")
-        except subprocess.CalledProcessError:
-            # Create new branch
+            if remote_branch_exists:
+                # Pull latest changes if remote exists
+                try:
+                    self.run_command(f"git pull origin {branch_name}")
+                except subprocess.CalledProcessError:
+                    self.log_warning(f"Could not pull from origin/{branch_name}")
+            self.log_info(f"Checked out existing local branch: {branch_name}")
+        elif remote_branch_exists:
+            # Remote branch exists but not locally - create local tracking branch
+            self.run_command(f"git checkout -b {branch_name} origin/{branch_name}")
+            self.log_info(f"Created local branch tracking origin/{branch_name}")
+        else:
+            # Neither local nor remote branch exists - create new branch
             self.run_command(f"git checkout -b {branch_name}")
-            self.log_success(f"Created new branch: {branch_name}")
+            self.log_success(f"Created new branch: {branch_name} from {current_branch}")
 
     def push_to_branch(self, branch_name, commit_message):
         """Commit changes and push to branch."""
@@ -313,27 +396,6 @@ class SmartDeployer:
         """Main deployment function."""
         self.log_info(f"🚀 Starting deployment to {target_env} environment")
         
-        # Get current version and calculate new version FIRST
-        current_version = self.get_current_version()
-        new_version = self.bump_version(bump_type, current_version)
-        
-        # Parse target environment and create versioned branch names
-        if target_env.startswith("feature/"):
-            env_type = "feature"
-            feature_name = target_env.replace("feature/", "")
-            branch_name = f"feature/{feature_name}-{new_version}"
-        elif target_env == "dev":
-            env_type = "dev"
-            branch_name = f"dev/{new_version}"
-        elif target_env == "production":
-            env_type = "production"
-            branch_name = "prod"  # Single production branch
-        else:
-            self.log_error(f"Invalid target environment: {target_env}")
-            return False
-        
-        self.log_info(f"Target branch: {branch_name}")
-
         # Pre-deployment checks
         if not self.ensure_clean_working_directory():
             return False
@@ -342,9 +404,38 @@ class SmartDeployer:
         backup_path = self.backup_current_state()
 
         try:
-            # Sync with remote
+            # Sync with remote first to get latest remote branches
             self.sync_with_remote()
             
+            # Determine which version to use as base
+            if target_env.startswith("feature/") or target_env == "dev":
+                # For feature and dev branches, use highest remote version
+                current_version = self.get_highest_remote_version()
+                self.log_info(f"Using highest remote version as base: {current_version}")
+            else:
+                # For production, use local VERSION file
+                current_version = self.get_current_version()
+                self.log_info(f"Using local version as base: {current_version}")
+            
+            # Calculate new version
+            new_version = self.bump_version(bump_type, current_version)
+            
+            # Parse target environment and create versioned branch names
+            if target_env.startswith("feature/"):
+                env_type = "feature"
+                feature_name = target_env.replace("feature/", "")
+                branch_name = f"feature/{feature_name}-{new_version}"
+            elif target_env == "dev":
+                env_type = "dev"
+                branch_name = f"dev/{new_version}"
+            elif target_env == "production":
+                env_type = "production"
+                branch_name = "prod"  # Single production branch
+            else:
+                self.log_error(f"Invalid target environment: {target_env}")
+                return False
+            
+            self.log_info(f"Target branch: {branch_name}")
             self.log_info(f"Version: {current_version} -> {new_version}")
 
             # Create/checkout target branch
