@@ -72,7 +72,7 @@ class OrderListCreateAPIView(generics.ListCreateAPIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
-    search_fields = ['customer_name', 'customer_phone', 'order_number', 'delivery_location__name']
+    search_fields = ['customer_phone', 'order_number', 'delivery_location__name']
     ordering_fields = ['created_at', 'total_price', 'status']
     ordering = ['-created_at']
     

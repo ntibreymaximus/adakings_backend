@@ -2,6 +2,39 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.6] - 2025-07-02
+
+### 🔧 Feature Development
+
+**📋 Release Information:**
+- **Environment**: feature/orderviewsupdate
+- **Branch**: `feature/orderviewsupdate-1.0.6`
+- **Version**: `Unknown` → `1.0.6`
+- **Deployment Time**: 2025-07-02 21:10:54
+- **Description**: Feature branch for 'orderviewsupdate' development
+
+**📝 Changes Made:**
+Version: 1.0.6 feat: Deploy to feature/orderviewsupdate environment
+
+**📁 Files Modified:**
+  - Modified: `EPLOYMENT_SUMMARY.md`
+  - Modified: `README.md`
+  - Modified: `VERSION`
+  - Modified: `apps/orders/views.py`
+
+**🔄 Deployment Details:**
+- **Source Branch**: `feature/orderviewsupdate-1.0.6`
+- **Target Branch**: `feature/orderviewsupdate-1.0.6`
+- **Merge Strategy**: Automatic merge with main branch
+- **Version Bump Type**: Version update
+
+**🎯 Environment Specific Notes:**
+- This is a feature branch deployment for development and testing
+- Changes are isolated and will be merged after review
+- Not suitable for production use
+
+---
+
 ## [1.0.5] - 2025-07-02
 
 ### 🔧 Feature Development
