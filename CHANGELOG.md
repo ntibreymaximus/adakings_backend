@@ -1,62 +1,6 @@
 # Changelog
 
-## [4.0.0] - 2025-07-02
 
-### Feature/Codebaserefactoring Release
-- Version: 4.0.0 feat: Deploy to feature/codebaserefactoring environment
-- Version bump: 4.0.0 -> 4.0.0
-
-## [3.0.0] - 2025-07-02
-
-### Feature/Codebaserefactoring Release
-- Version: 3.0.0 feat: Deploy to feature/codebaserefactoring environment
-- Version bump: 3.0.0 -> 3.0.0
-
-## [2.0.0] - 2025-07-02
-
-### Feature/Codebaserefactoring Release
-- Version: 2.0.0 feat: Deploy to feature/codebaserefactoring environment
-- Version bump: 2.0.0 -> 2.0.0
-
-## 2.0.0 - 2025-07-01
-
-- Deployment to features environment
-
-## 1.0.1 - 2025-07-01
-
-- Deployment to features environment
-
-## 1.0.1 - 2025-07-01
-
-- Deployment to features environment
-
-## 0.9.2 - 2025-07-01
-
-- Deployment to features environment
-
-## 0.9.1 - 2025-07-01
-
-- Deployment to features environment
-
-## 1.0.3 - 2025-07-01
-
-- Deployment to features environment
-
-## 1.0.2 - 2025-07-01
-
-- Deployment to features environment
-
-## 1.0.1 - 2025-07-01
-
-- Deployment to features environment
-
-## 1.0.0 - 2025-07-01
-
-- Deployment to features environment
-
-## 1.1.0 - 2025-07-01
-
-- Deployment to features environment
 
 # Feature Environment Changelog
 

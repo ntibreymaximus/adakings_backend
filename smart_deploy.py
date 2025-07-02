@@ -192,45 +192,161 @@ class SmartDeployer:
         self.version_file.write_text(new_version, encoding='utf-8')
         self.log_success(f"Updated VERSION to {new_version}")
         
-        # Update CHANGELOG.md
+        # Generate comprehensive changelog entry
+        self.generate_comprehensive_changelog(new_version, target_env, commit_message)
+        self.log_success("Updated CHANGELOG.md")
+    
+    def generate_comprehensive_changelog(self, new_version, target_env, commit_message=""):
+        """Generate a comprehensive changelog entry with detailed deployment information."""
         changelog_file = self.base_dir / "CHANGELOG.md"
+        
+        # Read existing content
         if changelog_file.exists():
             try:
                 current_content = changelog_file.read_text(encoding='utf-8')
             except UnicodeDecodeError:
-                # Fallback for files with different encoding
                 current_content = changelog_file.read_text(encoding='latin-1')
-            
-            # Create new changelog entry
-            timestamp = datetime.now().strftime("%Y-%m-%d")
-            new_entry = f"""# Changelog
-
-## [{new_version}] - {timestamp}
-
-### {target_env.title()} Release
-- {commit_message if commit_message else f"Deployed to {target_env} environment"}
-- Version bump: {self.get_current_version()} -> {new_version}
-
-{current_content.replace('# Changelog', '').strip()}
-"""
-            
-            changelog_file.write_text(new_entry, encoding='utf-8')
-            self.log_success("Updated CHANGELOG.md")
-
-    def generate_commit_message_from_changes(self):
-        """Generate a descriptive commit message based on file changes."""
+        else:
+            current_content = "# Changelog\n\nAll notable changes to this project will be documented in this file.\n\n"
+        
+        # Get deployment details
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        date_only = datetime.now().strftime("%Y-%m-%d")
+        current_branch = self.get_current_branch()
+        
+        # Get file changes for this deployment
         try:
-            # Get status of changed files
+            # Get list of changed files
+            result = self.run_command("git status --porcelain", check=False)
+            changed_files = []
+            if result.stdout.strip():
+                for line in result.stdout.strip().split('\n'):
+                    if line.strip():
+                        status = line[:2]
+                        filename = line[3:].strip()
+                        action = "Modified" if 'M' in status else "Added" if 'A' in status else "Deleted" if 'D' in status else "Changed"
+                        changed_files.append(f"  - {action}: `{filename}`")
+        except Exception:
+            changed_files = ["  - Various files updated"]
+        
+        # Determine release type and description
+        if target_env.startswith("feature/"):
+            release_type = "🔧 Feature Development"
+            feature_name = target_env.replace("feature/", "")
+            release_description = f"Feature branch for '{feature_name}' development"
+            branch_info = f"feature/{feature_name}-{new_version}"
+        elif target_env == "dev":
+            release_type = "🚀 Development Release"
+            release_description = "Development environment deployment with latest features"
+            branch_info = f"dev/{new_version}"
+        elif target_env == "production":
+            release_type = "🎯 Production Release"
+            release_description = "Production deployment - stable release"
+            branch_info = "prod"
+        else:
+            release_type = "📦 Deployment"
+            release_description = f"Deployment to {target_env} environment"
+            branch_info = target_env
+        
+        # Get previous version for comparison
+        try:
+            if target_env.startswith("feature/") or target_env == "dev":
+                previous_version = self.get_highest_remote_version()
+            else:
+                previous_version = self.get_current_version()
+        except Exception:
+            previous_version = "Unknown"
+        
+        # Build comprehensive changelog entry
+        new_entry = f"""# Changelog
+
+All notable changes to this project will be documented in this file.
+
+## [{new_version}] - {date_only}
+
+### {release_type}
+
+**📋 Release Information:**
+- **Environment**: {target_env}
+- **Branch**: `{branch_info}`
+- **Version**: `{previous_version}` → `{new_version}`
+- **Deployment Time**: {timestamp}
+- **Description**: {release_description}
+
+**📝 Changes Made:**
+{commit_message if commit_message else f"- Automated deployment to {target_env} environment"}
+
+**📁 Files Modified:**
+{chr(10).join(changed_files) if changed_files else "- No file changes detected"}
+
+**🔄 Deployment Details:**
+- **Source Branch**: `{current_branch}`
+- **Target Branch**: `{branch_info}`
+- **Merge Strategy**: Automatic merge with main branch
+- **Version Bump Type**: {self.determine_bump_type(previous_version, new_version)}
+
+**🎯 Environment Specific Notes:**
+{self.get_environment_notes(target_env)}
+
+---
+
+{current_content.replace('# Changelog', '').replace('All notable changes to this project will be documented in this file.', '').strip()}
+"""
+        
+        # Write updated changelog
+        changelog_file.write_text(new_entry, encoding='utf-8')
+    
+    def determine_bump_type(self, old_version, new_version):
+        """Determine the type of version bump that occurred."""
+        try:
+            old_parts = list(map(int, old_version.split('.')))
+            new_parts = list(map(int, new_version.split('.')))
+            
+            if new_parts[0] > old_parts[0]:
+                return "Major (breaking changes)"
+            elif new_parts[1] > old_parts[1]:
+                return "Minor (new features)"
+            elif new_parts[2] > old_parts[2]:
+                return "Patch (bug fixes)"
+            else:
+                return "Unknown"
+        except Exception:
+            return "Version update"
+    
+    def get_environment_notes(self, target_env):
+        """Get environment-specific notes for the changelog."""
+        if target_env.startswith("feature/"):
+            return "- This is a feature branch deployment for development and testing\n- Changes are isolated and will be merged after review\n- Not suitable for production use"
+        elif target_env == "dev":
+            return "- Development environment deployment\n- Contains latest features and changes\n- Used for integration testing before production\n- May contain experimental features"
+        elif target_env == "production":
+            return "- Production environment deployment\n- Stable and tested release\n- Ready for end users\n- All features have been thoroughly tested"
+        else:
+            return f"- Deployment to {target_env} environment\n- See deployment documentation for environment details"
+
+    def generate_comprehensive_commit_message(self, target_env, version, commit_message=""):
+        """Generate a comprehensive commit message for deployment."""
+        try:
+            # Get git diff statistics
+            diff_stats = self.run_command("git diff --cached --stat").stdout.strip()
+            diff_summary = self.run_command("git diff --cached --shortstat").stdout.strip()
+            
+            # Get changed files with their status
             result = self.run_command("git status --porcelain")
             changes = result.stdout.strip().split('\n') if result.stdout.strip() else []
             
-            if not changes:
-                return "Auto-commit: Prepare for deployment"
+            # Categorize changes by type and file extension
+            file_categories = {
+                'backend': [],
+                'frontend': [],
+                'config': [],
+                'docs': [],
+                'tests': [],
+                'deployment': [],
+                'other': []
+            }
             
-            # Categorize changes
-            modified_files = []
-            added_files = []
-            deleted_files = []
+            action_counts = {'modified': 0, 'added': 0, 'deleted': 0, 'renamed': 0}
             
             for change in changes:
                 if not change.strip():
@@ -238,40 +354,97 @@ class SmartDeployer:
                 status = change[:2]
                 filename = change[3:].strip()
                 
+                # Count actions
                 if 'M' in status:
-                    modified_files.append(filename)
+                    action_counts['modified'] += 1
                 elif 'A' in status:
-                    added_files.append(filename)
+                    action_counts['added'] += 1
                 elif 'D' in status:
-                    deleted_files.append(filename)
+                    action_counts['deleted'] += 1
+                elif 'R' in status:
+                    action_counts['renamed'] += 1
+                
+                # Categorize by file type
+                if filename.endswith(('.py', '.pyc', '.pyo')):
+                    file_categories['backend'].append(filename)
+                elif filename.endswith(('.js', '.jsx', '.ts', '.tsx', '.vue', '.html', '.css', '.scss')):
+                    file_categories['frontend'].append(filename)
+                elif filename.endswith(('.env', '.ini', '.conf', '.config', '.yml', '.yaml', '.json', '.toml')):
+                    file_categories['config'].append(filename)
+                elif filename.endswith(('.md', '.rst', '.txt', '.pdf')):
+                    file_categories['docs'].append(filename)
+                elif 'test' in filename.lower() or filename.endswith(('.test.py', '.spec.py')):
+                    file_categories['tests'].append(filename)
+                elif filename in ['Dockerfile', 'docker-compose.yml', 'requirements.txt', 'setup.py', 'smart_deploy.py']:
+                    file_categories['deployment'].append(filename)
                 else:
-                    modified_files.append(filename)  # Default to modified
+                    file_categories['other'].append(filename)
             
-            # Generate descriptive message
-            message_parts = []
+            # Build comprehensive commit message
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             
-            if modified_files:
-                if len(modified_files) == 1:
-                    message_parts.append(f"Update {modified_files[0]}")
-                else:
-                    message_parts.append(f"Update {len(modified_files)} files: {', '.join(modified_files[:3])}{'...' if len(modified_files) > 3 else ''}")
+            # Header with conventional commit format
+            commit_type = "feat" if target_env.startswith("feature/") else "release" if target_env == "production" else "deploy"
+            header = f"{commit_type}({target_env}): Deploy version {version}"
             
-            if added_files:
-                if len(added_files) == 1:
-                    message_parts.append(f"Add {added_files[0]}")
-                else:
-                    message_parts.append(f"Add {len(added_files)} files")
+            if commit_message:
+                header += f" - {commit_message}"
             
-            if deleted_files:
-                if len(deleted_files) == 1:
-                    message_parts.append(f"Remove {deleted_files[0]}")
-                else:
-                    message_parts.append(f"Remove {len(deleted_files)} files")
+            # Build detailed body
+            body_parts = []
             
-            return " | ".join(message_parts) if message_parts else "Auto-commit: Prepare for deployment"
+            # Summary of changes
+            total_files = sum(action_counts.values())
+            if total_files > 0:
+                change_summary = []
+                if action_counts['modified'] > 0:
+                    change_summary.append(f"{action_counts['modified']} modified")
+                if action_counts['added'] > 0:
+                    change_summary.append(f"{action_counts['added']} added")
+                if action_counts['deleted'] > 0:
+                    change_summary.append(f"{action_counts['deleted']} deleted")
+                if action_counts['renamed'] > 0:
+                    change_summary.append(f"{action_counts['renamed']} renamed")
+                
+                body_parts.append(f"📊 Summary: {', '.join(change_summary)} files ({total_files} total)")
             
-        except Exception:
-            return "Auto-commit: Prepare for deployment"
+            # File categories
+            for category, files in file_categories.items():
+                if files:
+                    icon = {
+                        'backend': '🐍',
+                        'frontend': '🎨',
+                        'config': '⚙️',
+                        'docs': '📚',
+                        'tests': '🧪',
+                        'deployment': '🚀',
+                        'other': '📁'
+                    }[category]
+                    
+                    if len(files) <= 3:
+                        body_parts.append(f"{icon} {category.title()}: {', '.join(files)}")
+                    else:
+                        body_parts.append(f"{icon} {category.title()}: {', '.join(files[:3])} and {len(files)-3} more")
+            
+            # Deployment details
+            body_parts.append(f"🎯 Target: {target_env} environment")
+            body_parts.append(f"📦 Version: {version}")
+            body_parts.append(f"⏰ Deployed: {timestamp}")
+            
+            # Git statistics if available
+            if diff_summary:
+                body_parts.append(f"📈 Changes: {diff_summary}")
+            
+            # Combine header and body
+            full_message = header
+            if body_parts:
+                full_message += "\n\n" + "\n".join(body_parts)
+            
+            return full_message
+            
+        except Exception as e:
+            # Fallback to basic message
+            return f"deploy({target_env}): Deploy version {version} - {commit_message or 'Automated deployment'}"
     
     def ensure_clean_working_directory(self):
         """Ensure git working directory is clean by auto-committing pending changes."""
@@ -284,7 +457,7 @@ class SmartDeployer:
             self.log_info("Auto-committing pending changes before deployment...")
             
             # Generate descriptive commit message based on changes
-            commit_msg = self.generate_commit_message_from_changes()
+            commit_msg = self.generate_comprehensive_commit_message("auto-commit", "pending", "Prepare for deployment")
             
             # Add all changes
             self.run_command("git add .")
@@ -445,8 +618,11 @@ class SmartDeployer:
             final_commit_message = commit_message or f"Version: {new_version} feat: Deploy to {target_env} environment"
             self.update_version_and_changelog(new_version, target_env, final_commit_message)
 
+            # Generate comprehensive commit message
+            comprehensive_commit_msg = self.generate_comprehensive_commit_message(target_env, new_version, commit_message)
+            
             # Commit and push changes
-            self.push_to_branch(branch_name, final_commit_message)
+            self.push_to_branch(branch_name, comprehensive_commit_msg)
 
             # Merge with main if configured
             merge_target = self.git_config[env_type]["merge_with"]
