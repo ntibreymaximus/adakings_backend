@@ -73,10 +73,13 @@ python smart_deploy.py production major "Version 2.0 release"
 - **Single VERSION file**: Unified versioning across all environments
 - **Comprehensive Changelog**: Detailed deployment history with file changes and environment info
 
-### ✅ **Git Integration**
-- Automatic branch creation/checkout
-- Commit and push automation
-- Branch merging with main
+### ✅ **Git Integration & Workflow**
+- **Smart Uncommitted Changes Handling**: Includes uncommitted changes in deployment (no premature commits to main)
+- **Atomic Deployments**: All changes (code + VERSION + CHANGELOG) committed together on the new branch
+- **Automatic branch creation/checkout**: Creates new branches with user confirmation
+- **Comprehensive commit messages**: Detailed commit messages with file statistics and deployment info
+- **Automatic merging**: Merges feature/dev/prod branches with main after deployment
+- **Clean git history**: No unnecessary intermediate commits
 
 ### ✅ **Environment Adaptation**
 - Single Django configuration adapts based on environment variables
@@ -152,19 +155,23 @@ After the first deployment, the script will:
 ### Version Bump Examples
 ```bash
 # First deployment (no remote versions)
-python smart_deploy.py feature/auth patch
+python smart_deploy.py feature/auth patch "Add authentication system"
 # Result: feature/auth-1.0.0
 
 # Second deployment (1.0.0 exists)
-python smart_deploy.py feature/users patch
+python smart_deploy.py feature/users patch "Add user management"
 # Result: feature/users-1.0.1
 
+# Third deployment (1.0.1 exists) 
+python smart_deploy.py feature/workflowfix patch "Fix deployment workflow"
+# Result: feature/workflowfix-1.0.2
+
 # Minor version bump
-python smart_deploy.py dev minor
-# Result: dev/1.1.0
+python smart_deploy.py dev minor "New features for testing"
+# Result: dev/1.1.0 (if 1.0.2 was highest)
 
 # Major version bump
-python smart_deploy.py production major
+python smart_deploy.py production major "Breaking changes release"
 # Result: prod (with version 2.0.0)
 ```
 
@@ -177,6 +184,65 @@ python smart_deploy.py production major
 5. **Consistent Versioning**: Single VERSION file across all deployments
 6. **Intelligent Version Management**: Automatic detection of first deployments and smart version bumping
 
+## Workflow Improvements
+
+### 🔧 **Smart Commit Handling (Latest Update)**
+
+The smart deploy script now handles uncommitted changes intelligently:
+
+#### **Before (Problematic)**:
+1. Auto-commit uncommitted changes to main immediately
+2. Create feature branch from main (with changes already committed)
+3. Add VERSION and CHANGELOG changes
+4. Result: Multiple scattered commits
+
+#### **After (Fixed)**:
+1. **Detect uncommitted changes** without committing them
+2. **Create new branch** from clean main
+3. **Include all changes** in a single comprehensive commit:
+   - Original uncommitted changes
+   - VERSION file update
+   - CHANGELOG.md update
+4. **Result**: Clean, atomic deployment commits
+
+### Example of Improved Workflow:
+```bash
+# You have uncommitted changes in smart_deploy.py
+git status
+# M smart_deploy.py
+
+# Deploy with those changes
+python smart_deploy.py feature/workflowfix patch "Fix deployment workflow"
+
+# Result: Single commit on feature/workflowfix-1.0.2 containing:
+# - smart_deploy.py (your original changes)
+# - VERSION (updated to 1.0.2) 
+# - CHANGELOG.md (comprehensive deployment log)
+```
+
+### 📊 **Comprehensive Commit Messages**
+
+Each deployment now generates detailed commit messages:
+
+```
+feat(feature/workflowfix): Deploy version 1.0.2 - Fix deployment workflow
+
+📊 Summary: 3 modified files (3 total)
+🐍 Backend: smart_deploy.py
+📚 Docs: CHANGELOG.md
+📁 Other: VERSION
+🎯 Target: feature/workflowfix environment
+📦 Version: 1.0.2
+⏰ Deployed: 2025-07-02 15:24:15
+```
+
+### 🌿 **Branch Management**
+
+- **User Confirmation**: Asks before creating new branches
+- **Conflict Resolution**: Handles merge conflicts intelligently
+- **Clean History**: No unnecessary commits on main
+- **Atomic Operations**: Each deployment is a complete unit
+
 ## Migration from Old System
 
 If you were using the previous environment-specific system:
@@ -185,5 +251,6 @@ If you were using the previous environment-specific system:
 2. **Configuration**: Update your `.env` file with the necessary variables
 3. **Workflow**: Use the new simplified commands shown above
 4. **Git**: The new system will work with your existing git repository
+5. **Workflow Benefits**: Enjoy the new atomic commit handling and clean git history
 
-The unified system maintains all the functionality of the previous system while significantly reducing complexity!
+The unified system maintains all the functionality of the previous system while significantly reducing complexity and improving git workflow!

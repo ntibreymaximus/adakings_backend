@@ -2,6 +2,38 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.1] - 2025-07-02
+
+### 🔧 Feature Development
+
+**📋 Release Information:**
+- **Environment**: feature/docsupdate
+- **Branch**: `feature/docsupdate-2.0.1`
+- **Version**: `2.0.0` → `2.0.1`
+- **Deployment Time**: 2025-07-02 15:29:18
+- **Description**: Feature branch for 'docsupdate' development
+
+**📝 Changes Made:**
+Updated smart deploy documentation with workflow improvements and atomic commit handling
+
+**📁 Files Modified:**
+  - Modified: `NIFIED_DEPLOY_GUIDE.md`
+  - Modified: `VERSION`
+  - Modified: `smart_deploy.py`
+
+**🔄 Deployment Details:**
+- **Source Branch**: `feature/docsupdate-2.0.1`
+- **Target Branch**: `feature/docsupdate-2.0.1`
+- **Merge Strategy**: Automatic merge with main branch
+- **Version Bump Type**: Patch (bug fixes)
+
+**🎯 Environment Specific Notes:**
+- This is a feature branch deployment for development and testing
+- Changes are isolated and will be merged after review
+- Not suitable for production use
+
+---
+
 ## [2.0.0] - 2025-07-02
 
 ### 🚀 Development Release

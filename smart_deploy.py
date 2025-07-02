@@ -7,9 +7,10 @@ Features:
 - Smart First Deployment: Automatically uses 1.0.0 for first deployment
 - Remote Version Detection: Scans all remote branches for highest version
 - Intelligent Version Bumping: Automatic major.minor.patch increments
+- Atomic Commit Handling: Includes uncommitted changes in deployment commit (no premature commits)
 - Comprehensive Logging: Detailed deployment history and changelogs
-- Auto-commit: Handles uncommitted changes before deployment
-- Branch Management: Creates, merges, and manages git branches automatically
+- Clean Git Workflow: Creates new branches and commits all changes together
+- Branch Management: Creates, merges, and manages git branches with user confirmation
 
 Usage:
     python smart_deploy.py production [major|minor|patch] ["commit message"]
