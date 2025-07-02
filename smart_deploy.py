@@ -474,27 +474,14 @@ All notable changes to this project will be documented in this file.
             # Fallback to basic message
             return f"deploy({target_env}): Deploy version {version} - {commit_message or 'Automated deployment'}"
     
-    def ensure_clean_working_directory(self):
-        """Ensure git working directory is clean by auto-committing pending changes."""
+    def check_working_directory(self):
+        """Check if git working directory has uncommitted changes without committing them."""
         result = self.run_command("git status --porcelain")
         if result.stdout.strip():
-            self.log_warning("Working directory has uncommitted changes.")
-            self.log_info("Uncommitted changes:")
+            self.log_info("Working directory has uncommitted changes that will be included in deployment:")
             print(result.stdout)
-            
-            self.log_info("Auto-committing pending changes before deployment...")
-            
-            # Generate descriptive commit message based on changes
-            commit_msg = self.generate_comprehensive_commit_message("auto-commit", "pending", "Prepare for deployment")
-            
-            # Add all changes
-            self.run_command("git add .")
-            
-            # Commit changes to current branch (but don't push)
-            self.run_command(f'git commit -m "{commit_msg}"')
-            
-            self.log_success("Committed pending changes")
-        return True
+            return True  # Has changes
+        return False  # No changes
 
     def cleanup_deleted_remote_branches(self):
         """Remove local branches that no longer exist on remote."""
@@ -640,11 +627,25 @@ All notable changes to this project will be documented in this file.
 
     def push_to_branch(self, branch_name, commit_message):
         """Commit changes and push to branch."""
-        # Add all changes
-        self.run_command("git add .")
+        # Check if there are any changes to commit (including working directory changes)
+        current_branch = self.get_current_branch()
+        self.log_info(f"Currently on branch: {current_branch}")
         
-        # Commit changes
-        self.run_command(f'git commit -m "{commit_message}"')
+        # Check for any changes (staged, unstaged, or untracked)
+        status_result = self.run_command("git status --porcelain")
+        
+        if status_result.stdout.strip():
+            self.log_info("Uncommitted changes:")
+            print(status_result.stdout)
+            
+            # Add all changes (including uncommitted working directory changes)
+            self.run_command("git add .")
+            
+            # Commit all changes to the new branch
+            self.run_command(f'git commit -m "{commit_message}"')
+        else:
+            self.log_info("No changes to commit")
+            return
         
         # Push to remote
         self.run_command(f"git push origin {branch_name}")
@@ -678,9 +679,8 @@ All notable changes to this project will be documented in this file.
         """Main deployment function."""
         self.log_info(f"🚀 Starting deployment to {target_env} environment")
         
-        # Pre-deployment checks
-        if not self.ensure_clean_working_directory():
-            return False
+        # Pre-deployment checks - just check for changes, don't commit them yet
+        has_uncommitted_changes = self.check_working_directory()
 
         # Backup current state
         backup_path = self.backup_current_state()
