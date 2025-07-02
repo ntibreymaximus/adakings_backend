@@ -132,6 +132,8 @@ class SmartDeployer:
             
             versions = []
             
+            self.log_info(f"Scanning {len(branches)} remote branches for version numbers...")
+            
             # Extract version numbers from branch names
             for branch in branches:
                 # Look for patterns like feature/name-x.x.x or dev/x.x.x
@@ -140,20 +142,26 @@ class SmartDeployer:
                     version_part = branch.split('-')[-1]
                     if self.is_valid_version(version_part):
                         versions.append(version_part)
+                        self.log_info(f"  Found version {version_part} in {branch}")
                 elif branch.startswith('origin/dev/') and branch.count('/') == 2:
                     # Extract version from dev/x.x.x
                     version_part = branch.split('/')[-1]
                     if self.is_valid_version(version_part):
                         versions.append(version_part)
+                        self.log_info(f"  Found version {version_part} in {branch}")
             
             if not versions:
-                return "1.0.0"  # Default if no versions found
+                self.log_info("No versioned branches found on remote - starting from 1.0.0")
+                return "1.0.0"  # Start from 1.0.0 if no versions found
             
             # Sort versions and return the highest
             versions.sort(key=lambda v: tuple(map(int, v.split('.'))))
-            return versions[-1]
+            highest_version = versions[-1]
+            self.log_info(f"Highest remote version found: {highest_version}")
+            return highest_version
             
-        except Exception:
+        except Exception as e:
+            self.log_warning(f"Error scanning remote versions: {e}")
             return "1.0.0"  # Fallback to default
     
     def is_valid_version(self, version_str):
