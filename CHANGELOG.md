@@ -1,3 +1,11 @@
+# Changelog
+
+## [2.0.0] - 2025-07-02
+
+### Feature/Codebaserefactoring Release
+- Version: 2.0.0 feat: Deploy to feature/codebaserefactoring environment
+- Version bump: 2.0.0 -> 2.0.0
+
 ## 2.0.0 - 2025-07-01
 
 - Deployment to features environment
