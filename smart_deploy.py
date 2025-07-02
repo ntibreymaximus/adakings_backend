@@ -674,6 +674,7 @@ All notable changes to this project will be documented in this file.
             if not highest_remote_version or highest_remote_version == "1.0.0":
                 self.log_info("No valid remote version found. Using 1.0.0 as first version")
                 # For first deployment, use 1.0.0 directly instead of bumping
+                current_version = "1.0.0"
                 new_version = "1.0.0"
             else:
                 current_version = highest_remote_version
