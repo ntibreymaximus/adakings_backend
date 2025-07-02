@@ -2,7 +2,7 @@
 
 ## Overview
 
-The smart deploy script has been simplified to work with the unified Django environment. Since all environment-specific configurations have been consolidated, the deployment process now focuses on git workflow and version management.
+The smart deploy script has been optimized to work with the unified Django environment. Since all environment-specific configurations have been consolidated, the deployment process now focuses on git workflow and intelligent version management with automatic first-deployment detection.
 
 ## What Changed
 
@@ -66,10 +66,12 @@ python smart_deploy.py production major "Version 2.0 release"
 - Focus on git branching and version control
 - Automatic merging with main branch
 
-### ✅ **Version Management**
-- Automatic version bumping (major.minor.patch)
-- Single VERSION file for all environments
-- Changelog generation with deployment history
+### ✅ **Intelligent Version Management**
+- **Smart First Deployment**: Automatically uses 1.0.0 for first deployment when no remote versions exist
+- **Remote Version Detection**: Scans all remote branches to find the highest existing version
+- **Automatic Version Bumping**: Intelligent major.minor.patch increments based on existing versions
+- **Single VERSION file**: Unified versioning across all environments
+- **Comprehensive Changelog**: Detailed deployment history with file changes and environment info
 
 ### ✅ **Git Integration**
 - Automatic branch creation/checkout
@@ -125,6 +127,47 @@ DATABASE_ENGINE=postgresql
 # ... production settings
 ```
 
+## Version Management Details
+
+### Smart First Deployment
+When no remote versioned branches exist, the smart deploy script will:
+- Automatically detect this is the first deployment
+- Use `1.0.0` as the initial version (not bumped from 0.0.0)
+- Create the first versioned branch with `1.0.0`
+
+### Version Detection Logic
+```
+📍 Scanning remote branches for version numbers...
+📍 No versioned branches found on remote - starting from 1.0.0
+📍 No valid remote version found. Using 1.0.0 as first version
+📍 Target branch: feature/myfeature-1.0.0
+```
+
+### Subsequent Deployments
+After the first deployment, the script will:
+- Scan all remote branches for existing versions
+- Find the highest version across all branches
+- Bump according to the specified type (major/minor/patch)
+
+### Version Bump Examples
+```bash
+# First deployment (no remote versions)
+python smart_deploy.py feature/auth patch
+# Result: feature/auth-1.0.0
+
+# Second deployment (1.0.0 exists)
+python smart_deploy.py feature/users patch
+# Result: feature/users-1.0.1
+
+# Minor version bump
+python smart_deploy.py dev minor
+# Result: dev/1.1.0
+
+# Major version bump
+python smart_deploy.py production major
+# Result: prod (with version 2.0.0)
+```
+
 ## Benefits
 
 1. **Simplified Deployment**: No complex environment file management
@@ -132,6 +175,7 @@ DATABASE_ENGINE=postgresql
 3. **Unified Configuration**: Single source of truth for settings
 4. **Easier Maintenance**: Less files to manage and maintain
 5. **Consistent Versioning**: Single VERSION file across all deployments
+6. **Intelligent Version Management**: Automatic detection of first deployments and smart version bumping
 
 ## Migration from Old System
 

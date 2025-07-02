@@ -1,20 +1,40 @@
 #!/usr/bin/env python3
 """
 Smart Deployment Script for Adakings Backend API - Unified Environment
-Manages deployments and version management for the unified Django setup
+Manages deployments and intelligent version management for the unified Django setup
+
+Features:
+- Smart First Deployment: Automatically uses 1.0.0 for first deployment
+- Remote Version Detection: Scans all remote branches for highest version
+- Intelligent Version Bumping: Automatic major.minor.patch increments
+- Comprehensive Logging: Detailed deployment history and changelogs
+- Auto-commit: Handles uncommitted changes before deployment
+- Branch Management: Creates, merges, and manages git branches automatically
 
 Usage:
-    python smart_deploy.py production [major|minor|patch]    # Deploy to production branch with version bump
-    python smart_deploy.py dev [minor|patch]                 # Deploy to dev branch with version bump
-    python smart_deploy.py feature/name [patch]              # Deploy to feature branch with version bump
+    python smart_deploy.py production [major|minor|patch] ["commit message"]
+    python smart_deploy.py dev [minor|patch] ["commit message"]
+    python smart_deploy.py feature/name [patch] ["commit message"]
     
 Examples:
-    python smart_deploy.py production major                  # v1.0.0 -> v2.0.0
-    python smart_deploy.py dev minor                         # v1.0.0 -> v1.1.0
-    python smart_deploy.py feature/auth patch               # v1.0.0 -> v1.0.1
+    # First deployment (no remote versions) - uses 1.0.0
+    python smart_deploy.py feature/auth patch "Add authentication"
+    # Result: feature/auth-1.0.0
+    
+    # Subsequent deployments - bumps from highest remote version
+    python smart_deploy.py dev minor "New user features"
+    # Result: dev/1.1.0 (if 1.0.0 was highest)
+    
+    python smart_deploy.py production major "Breaking changes"
+    # Result: prod branch with version 2.0.0
 
-Note: Since environments are now unified, this script focuses on git workflow 
-and version management without environment-specific file copying.
+Version Management:
+- First deployment: Automatically uses 1.0.0 (no version bump)
+- Subsequent: Finds highest remote version and bumps accordingly
+- Branch naming: feature/name-x.x.x, dev/x.x.x, prod (no version suffix)
+
+Note: Unified environment means no environment-specific file copying.
+Focuses on git workflow and intelligent version management.
 """
 
 import os
