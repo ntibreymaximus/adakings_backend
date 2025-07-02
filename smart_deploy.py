@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """
-Smart Deployment Script for Adakings Backend API - Unified Environment
-Manages deployments and intelligent version management for the unified Django setup
+Smart Deployment Script for Adakings Backend API - Branch-Specific Versioning
+Manages deployments with independent version tracking for feature, dev, and production branches
 
 Features:
-- Smart First Deployment: Automatically uses 1.0.0 for first deployment
-- Remote Version Detection: Scans all remote branches for highest version
-- Intelligent Version Bumping: Automatic major.minor.patch increments
+- Branch-Specific Versioning: Independent version sequences for each branch type
+- Multi-Version Tracking: VERSION file maintains separate versions for feature/dev/production
+- Smart First Deployment: Automatically uses 1.0.0 for first deployment of each branch type
+- Remote Version Detection: Scans branch-specific remote versions for highest version
+- Intelligent Version Bumping: Automatic major.minor.patch increments per branch type
 - Atomic Commit Handling: Includes uncommitted changes in deployment commit (no premature commits)
 - Comprehensive Logging: Detailed deployment history and changelogs
 - Clean Git Workflow: Creates new branches and commits all changes together
@@ -14,28 +16,41 @@ Features:
 
 Usage:
     python smart_deploy.py production [major|minor|patch] ["commit message"]
-    python smart_deploy.py dev [minor|patch] ["commit message"]
-    python smart_deploy.py feature/name [patch] ["commit message"]
+    python smart_deploy.py dev [major|minor|patch] ["commit message"]
+    python smart_deploy.py feature/name [major|minor|patch] ["commit message"]
     
 Examples:
-    # First deployment (no remote versions) - uses 1.0.0
+    # Feature deployment - continuous versioning across all features
     python smart_deploy.py feature/auth patch "Add authentication"
-    # Result: feature/auth-1.0.0
+    # Result: feature/auth-1.0.0 (first feature)
     
-    # Subsequent deployments - bumps from highest remote version
+    python smart_deploy.py feature/payments patch "Add payment system"
+    # Result: feature/payments-1.0.1 (continues from previous feature version)
+    
+    # Dev deployment - independent dev versioning
     python smart_deploy.py dev minor "New user features"
-    # Result: dev/1.1.0 (if 1.0.0 was highest)
+    # Result: dev/1.1.0 (independent from feature versions)
     
+    # Production deployment - independent production versioning
     python smart_deploy.py production major "Breaking changes"
-    # Result: prod branch with version 2.0.0
+    # Result: prod/2.0.0 (independent from dev/feature versions)
 
 Version Management:
-- First deployment: Automatically uses 1.0.0 (no version bump)
-- Subsequent: Finds highest remote version and bumps accordingly
-- Branch naming: feature/name-x.x.x, dev/x.x.x, prod (no version suffix)
+- Branch-Specific Versioning: Each branch type maintains its own version sequence
+- Feature branches: Continuous versioning across all features (feature/name-x.x.x)
+- Dev branches: Independent dev versioning (dev/x.x.x)
+- Production branches: Independent production versioning (prod/x.x.x)
+- VERSION file format: feature=x.x.x\ndev=x.x.x\nproduction=x.x.x
+- First deployment per branch type: Automatically uses 1.0.0
+- Subsequent deployments: Bumps from highest version within that branch type
 
-Note: Unified environment means no environment-specific file copying.
-Focuses on git workflow and intelligent version management.
+VERSION File Example:
+    feature=1.0.5     # Latest feature version
+    dev=1.2.1         # Latest dev version  
+    production=1.1.0  # Latest production version
+
+Note: Each branch type deployment only updates its specific version in the VERSION file,
+leaving other branch type versions unchanged.
 """
 
 import os
@@ -139,13 +154,77 @@ class SmartDeployer:
         return current_backup
 
     def get_current_version(self):
-        """Get current version from VERSION file."""
+        """Get current version from VERSION file (legacy single version)."""
         if self.version_file.exists():
-            return self.version_file.read_text().strip()
+            content = self.version_file.read_text().strip()
+            # Check if it's the new format
+            if '\n' in content or 'feature=' in content:
+                return self.get_version_from_file('feature')  # Default to feature for legacy
+            return content
         return "1.0.0"
     
-    def get_highest_remote_version(self):
-        """Get the highest version number from all remote branches."""
+    def get_version_from_file(self, branch_type):
+        """Get version for specific branch type from VERSION file."""
+        if not self.version_file.exists():
+            return "1.0.0"
+        
+        try:
+            content = self.version_file.read_text().strip()
+            
+            # Handle legacy single version format
+            if '\n' not in content and 'feature=' not in content and 'dev=' not in content and 'production=' not in content:
+                # Legacy format - return the single version for any branch type
+                return content
+            
+            # Parse new multi-branch format
+            versions = {
+                'feature': '1.0.0',
+                'dev': '1.0.0', 
+                'production': '1.0.0'
+            }
+            
+            for line in content.split('\n'):
+                if '=' in line:
+                    key, value = line.split('=', 1)
+                    key = key.strip()
+                    value = value.strip()
+                    if key in versions:
+                        versions[key] = value
+            
+            return versions.get(branch_type, '1.0.0')
+            
+        except Exception as e:
+            self.log_warning(f"Error reading version file: {e}")
+            return "1.0.0"
+    
+    def update_version_in_file(self, branch_type, new_version):
+        """Update version for specific branch type in VERSION file."""
+        # Get current versions for all branch types
+        current_versions = {
+            'feature': self.get_version_from_file('feature'),
+            'dev': self.get_version_from_file('dev'),
+            'production': self.get_version_from_file('production')
+        }
+        
+        # Update the specific branch type
+        current_versions[branch_type] = new_version
+        
+        # Write the updated VERSION file
+        version_content = f"""feature={current_versions['feature']}
+dev={current_versions['dev']}
+production={current_versions['production']}"""
+        
+        self.version_file.write_text(version_content, encoding='utf-8')
+        self.log_success(f"Updated VERSION file - {branch_type}: {new_version}")
+        
+        # Also log the complete state
+        self.log_info(f"VERSION file now contains:")
+        self.log_info(f"  feature={current_versions['feature']}")
+        self.log_info(f"  dev={current_versions['dev']}")
+        self.log_info(f"  production={current_versions['production']}")
+    
+    def get_highest_branch_version(self, target_env, feature_name=None):
+        """Get the highest version number for a specific branch type."""
         try:
             # Get all remote branches
             remote_branches = self.run_command("git branch -r").stdout
@@ -153,36 +232,55 @@ class SmartDeployer:
             
             versions = []
             
-            self.log_info(f"Scanning {len(branches)} remote branches for version numbers...")
-            
-            # Extract version numbers from branch names
-            for branch in branches:
-                # Look for patterns like feature/name-x.x.x or dev/x.x.x
-                if '-' in branch and ('feature/' in branch or 'dev/' in branch):
-                    # Extract version from feature/name-x.x.x
-                    version_part = branch.split('-')[-1]
-                    if self.is_valid_version(version_part):
-                        versions.append(version_part)
-                        self.log_info(f"  Found version {version_part} in {branch}")
-                elif branch.startswith('origin/dev/') and branch.count('/') == 2:
-                    # Extract version from dev/x.x.x
-                    version_part = branch.split('/')[-1]
-                    if self.is_valid_version(version_part):
-                        versions.append(version_part)
-                        self.log_info(f"  Found version {version_part} in {branch}")
+            if target_env.startswith("feature/"):
+                # For feature branches, look for ALL feature branch versions (continuous across all features)
+                pattern = "origin/feature/"
+                self.log_info("Scanning for all feature branch versions...")
+                
+                for branch in branches:
+                    if branch.startswith(pattern) and '-' in branch:
+                        # Extract version from feature/name-x.x.x pattern
+                        version_part = branch.split('-')[-1]
+                        if self.is_valid_version(version_part):
+                            versions.append(version_part)
+                            self.log_info(f"  Found version {version_part} in {branch}")
+                            
+            elif target_env == "dev":
+                # For dev branches, look for dev/x.x.x pattern
+                pattern = "origin/dev/"
+                self.log_info("Scanning for dev branch versions...")
+                
+                for branch in branches:
+                    if branch.startswith(pattern) and branch.count('/') == 2:
+                        version_part = branch.replace(pattern, "")
+                        if self.is_valid_version(version_part):
+                            versions.append(version_part)
+                            self.log_info(f"  Found version {version_part} in {branch}")
+                            
+            elif target_env == "production":
+                # For production branches, look for prod/x.x.x pattern
+                pattern = "origin/prod/"
+                self.log_info("Scanning for production branch versions...")
+                
+                for branch in branches:
+                    if branch.startswith(pattern) and branch.count('/') == 2:
+                        version_part = branch.replace(pattern, "")
+                        if self.is_valid_version(version_part):
+                            versions.append(version_part)
+                            self.log_info(f"  Found version {version_part} in {branch}")
             
             if not versions:
-                self.log_info("No versioned branches found on remote - starting from 1.0.0")
+                self.log_info(f"No versioned branches found for {target_env} - starting from 1.0.0")
                 return "1.0.0"  # Start from 1.0.0 if no versions found
             
             # Sort versions and return the highest
             versions.sort(key=lambda v: tuple(map(int, v.split('.'))))
             highest_version = versions[-1]
-            self.log_info(f"Highest remote version found: {highest_version}")
+            self.log_info(f"Highest version found for {target_env}: {highest_version}")
             return highest_version
             
         except Exception as e:
-            self.log_warning(f"Error scanning remote versions: {e}")
+            self.log_warning(f"Error scanning versions for {target_env}: {e}")
             return "1.0.0"  # Fallback to default
     
     def is_valid_version(self, version_str):
@@ -690,23 +788,18 @@ All notable changes to this project will be documented in this file.
             # Sync with remote first to get latest remote branches
             self.sync_with_remote()
             
-            # Determine which version to use as base
-            highest_remote_version = self.get_highest_remote_version()
+            # Get the highest version for the specific branch type
+            current_version = self.get_highest_branch_version(target_env)
             
-            # Check if any versioned branches exist on remote
-            result = self.run_command("git branch -r")
-            remote_branches = result.stdout
-            has_versioned_branches = any(('-' in branch and any(char.isdigit() for char in branch.split('-')[-1])) for branch in remote_branches.split('\n'))
-            
-            if not has_versioned_branches:
-                # No versioned branches exist, this is the first deployment
-                self.log_info("No versioned branches found. Using 1.0.0 as first version")
-                current_version = "1.0.0"
+            # For first deployment of any branch type, use the found version as-is
+            # For subsequent deployments, bump the version
+            if current_version == "1.0.0":
+                # This is the first deployment for this branch type
+                self.log_info(f"First deployment for {target_env} - using version 1.0.0")
                 new_version = "1.0.0"
             else:
-                # Versioned branches exist, use highest version and bump it
-                current_version = highest_remote_version
-                self.log_info(f"Using highest remote version as base: {current_version}")
+                # Branch type has existing versions, bump from the highest
+                self.log_info(f"Using highest version for {target_env} as base: {current_version}")
                 new_version = self.bump_version(bump_type, current_version)
             
             # Parse target environment and create versioned branch names
@@ -719,7 +812,7 @@ All notable changes to this project will be documented in this file.
                 branch_name = f"dev/{new_version}"
             elif target_env == "production":
                 env_type = "production"
-                branch_name = "prod"  # Single production branch
+                branch_name = f"prod/{new_version}"  # Versioned production branch
             else:
                 self.log_error(f"Invalid target environment: {target_env}")
                 return False
@@ -731,9 +824,10 @@ All notable changes to this project will be documented in this file.
             if not self.create_or_checkout_branch(branch_name, target_env, new_version):
                 return False
 
-            # Update version and changelog
+            # Update version file for specific branch type and changelog
             final_commit_message = commit_message or f"Version: {new_version} feat: Deploy to {target_env} environment"
-            self.update_version_and_changelog(new_version, target_env, final_commit_message)
+            self.update_version_in_file(env_type, new_version)
+            self.generate_comprehensive_changelog(new_version, target_env, final_commit_message)
 
             # Generate comprehensive commit message
             comprehensive_commit_msg = self.generate_comprehensive_commit_message(target_env, new_version, commit_message)
