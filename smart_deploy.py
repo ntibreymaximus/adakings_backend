@@ -691,15 +691,21 @@ All notable changes to this project will be documented in this file.
             
             # Determine which version to use as base
             highest_remote_version = self.get_highest_remote_version()
-            if not highest_remote_version or highest_remote_version == "1.0.0":
-                self.log_info("No valid remote version found. Using 1.0.0 as first version")
-                # For first deployment, use 1.0.0 directly instead of bumping
+            
+            # Check if any versioned branches exist on remote
+            result = self.run_command("git branch -r")
+            remote_branches = result.stdout
+            has_versioned_branches = any(('-' in branch and any(char.isdigit() for char in branch.split('-')[-1])) for branch in remote_branches.split('\n'))
+            
+            if not has_versioned_branches:
+                # No versioned branches exist, this is the first deployment
+                self.log_info("No versioned branches found. Using 1.0.0 as first version")
                 current_version = "1.0.0"
                 new_version = "1.0.0"
             else:
+                # Versioned branches exist, use highest version and bump it
                 current_version = highest_remote_version
                 self.log_info(f"Using highest remote version as base: {current_version}")
-                # Calculate new version
                 new_version = self.bump_version(bump_type, current_version)
             
             # Parse target environment and create versioned branch names
