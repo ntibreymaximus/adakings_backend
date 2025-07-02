@@ -169,13 +169,22 @@ class SmartDeployer:
             self.log_success("Updated CHANGELOG.md")
 
     def ensure_clean_working_directory(self):
-        """Ensure git working directory is clean."""
+        """Ensure git working directory is clean by auto-committing pending changes."""
         result = self.run_command("git status --porcelain")
         if result.stdout.strip():
-            self.log_error("Working directory is not clean. Please commit or stash changes.")
+            self.log_warning("Working directory has uncommitted changes.")
             self.log_info("Uncommitted changes:")
             print(result.stdout)
-            return False
+            
+            self.log_info("Auto-committing pending changes before deployment...")
+            
+            # Add all changes
+            self.run_command("git add .")
+            
+            # Commit changes to current branch (but don't push)
+            self.run_command('git commit -m "Auto-commit: Prepare for deployment"')
+            
+            self.log_success("Committed pending changes")
         return True
 
     def sync_with_remote(self):
@@ -208,7 +217,7 @@ class SmartDeployer:
         self.log_success(f"Pushed changes to {branch_name}")
 
     def merge_with_main(self, source_branch):
-        """Merge the source branch with main."""
+        """Merge the source branch with main, taking all changes from source branch."""
         self.log_info(f"Merging {source_branch} with main...")
         
         # Checkout main
@@ -217,8 +226,14 @@ class SmartDeployer:
         # Pull latest main
         self.run_command("git pull origin main")
         
-        # Merge source branch
-        self.run_command(f"git merge {source_branch}")
+        # Merge source branch with strategy to favor incoming changes (theirs)
+        # This ensures that everything from the new branch overwrites main
+        try:
+            self.run_command(f"git merge {source_branch}")
+        except subprocess.CalledProcessError:
+            # If there are conflicts, resolve them by taking the source branch version
+            self.log_warning("Merge conflicts detected. Resolving by taking source branch changes...")
+            self.run_command(f"git merge -X theirs {source_branch}")
         
         # Push updated main
         self.run_command("git push origin main")
