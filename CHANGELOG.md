@@ -2,6 +2,36 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.1] - 2025-07-02
+
+### 🔧 Feature Development
+
+**📋 Release Information:**
+- **Environment**: feature/gitautomation
+- **Branch**: `feature/gitautomation-1.0.1`
+- **Version**: `1.0.0` → `1.0.1`
+- **Deployment Time**: 2025-07-02 15:16:55
+- **Description**: Feature branch for 'gitautomation' development
+
+**📝 Changes Made:**
+Updated smart deploy documentation and added intelligent version management features
+
+**📁 Files Modified:**
+  - Modified: `ERSION`
+
+**🔄 Deployment Details:**
+- **Source Branch**: `feature/gitautomation-1.0.1`
+- **Target Branch**: `feature/gitautomation-1.0.1`
+- **Merge Strategy**: Automatic merge with main branch
+- **Version Bump Type**: Patch (bug fixes)
+
+**🎯 Environment Specific Notes:**
+- This is a feature branch deployment for development and testing
+- Changes are isolated and will be merged after review
+- Not suitable for production use
+
+---
+
 ## [1.0.0] - 2025-07-02
 
 ### 🔧 Feature Development
