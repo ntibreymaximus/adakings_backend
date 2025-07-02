@@ -2,6 +2,36 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.0] - 2025-07-02
+
+### 🔧 Feature Development
+
+**📋 Release Information:**
+- **Environment**: feature/codebaserefactoring
+- **Branch**: `feature/codebaserefactoring-1.0.0`
+- **Version**: `1.0.0` → `1.0.0`
+- **Deployment Time**: 2025-07-02 15:10:40
+- **Description**: Feature branch for 'codebaserefactoring' development
+
+**📝 Changes Made:**
+refactored the entire codebase for feature, dev and production
+
+**📁 Files Modified:**
+  - Modified: `ERSION`
+
+**🔄 Deployment Details:**
+- **Source Branch**: `feature/codebaserefactoring-1.0.0`
+- **Target Branch**: `feature/codebaserefactoring-1.0.0`
+- **Merge Strategy**: Automatic merge with main branch
+- **Version Bump Type**: Unknown
+
+**🎯 Environment Specific Notes:**
+- This is a feature branch deployment for development and testing
+- Changes are isolated and will be merged after review
+- Not suitable for production use
+
+---
+
 ## [5.0.0] - 2025-07-02
 
 ### 🔧 Feature Development
