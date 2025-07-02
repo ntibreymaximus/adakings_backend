@@ -2,6 +2,37 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.0] - 2025-07-02
+
+### 🚀 Development Release
+
+**📋 Release Information:**
+- **Environment**: dev
+- **Branch**: `dev/2.0.0`
+- **Version**: `1.0.2` → `2.0.0`
+- **Deployment Time**: 2025-07-02 15:26:54
+- **Description**: Development environment deployment with latest features
+
+**📝 Changes Made:**
+Version: 2.0.0 feat: Deploy to dev environment
+
+**📁 Files Modified:**
+  - Modified: `ERSION`
+
+**🔄 Deployment Details:**
+- **Source Branch**: `dev/2.0.0`
+- **Target Branch**: `dev/2.0.0`
+- **Merge Strategy**: Automatic merge with main branch
+- **Version Bump Type**: Major (breaking changes)
+
+**🎯 Environment Specific Notes:**
+- Development environment deployment
+- Contains latest features and changes
+- Used for integration testing before production
+- May contain experimental features
+
+---
+
 ## [1.0.2] - 2025-07-02
 
 ### 🔧 Feature Development
