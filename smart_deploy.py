@@ -323,8 +323,54 @@ production={current_versions['production']}"""
         self.generate_comprehensive_changelog(new_version, target_env, commit_message)
         self.log_success("Updated CHANGELOG.md")
     
+    def update_documentation(self):
+        """Update documentation files with the latest environment and versioning details."""
+        readme_file = self.base_dir / "README.md"
+        deployment_summary_file = self.base_dir / "DEPLOYMENT_SUMMARY.md"
+
+        # Update README.md
+        latest_readme_content = '''
+# Adakings Backend API - Branch-Specific Versioning System
+
+## Overview
+This is the Adakings Backend API with a comprehensive **branch-specific versioning system**.
+
+## Current Version Status
+\n\n```
+feature={self.get_version_from_file('feature')}
+dev={self.get_version_from_file('dev')}
+production={self.get_version_from_file('production')}
+```
+
+## Unified File Structure
+\n\n```
+{self.run_command('tree /F', shell=True).stdout}
+```
+'''
+        readme_file.write_text(latest_readme_content, encoding='utf-8')
+
+        # Update DEPLOYMENT_SUMMARY.md
+        latest_deployment_summary_content = '''
+# Adakings Backend API - Branch-Specific Versioning Deployment System
+
+## Current Version Status
+\n\n```
+feature={self.get_version_from_file('feature')}
+dev={self.get_version_from_file('dev')}
+production={self.get_version_from_file('production')}
+```
+
+## Unified File Structure
+\n\n```
+{self.run_command('tree /F', shell=True).stdout}
+```
+'''
+        deployment_summary_file.write_text(latest_deployment_summary_content, encoding='utf-8')
+
     def generate_comprehensive_changelog(self, new_version, target_env, commit_message=""):
         """Generate a comprehensive changelog entry with detailed deployment information."""
+        self.update_documentation()
+
         changelog_file = self.base_dir / "CHANGELOG.md"
         
         # Read existing content
@@ -370,10 +416,6 @@ production={current_versions['production']}"""
             release_type = "🎯 Production Release"
             release_description = "Production deployment - stable release"
             branch_info = "prod"
-        else:
-            release_type = "📦 Deployment"
-            release_description = f"Deployment to {target_env} environment"
-            branch_info = target_env
         
         # Get previous version for comparison
         try:
