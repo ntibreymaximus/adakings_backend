@@ -328,43 +328,115 @@ production={current_versions['production']}"""
         readme_file = self.base_dir / "README.md"
         deployment_summary_file = self.base_dir / "DEPLOYMENT_SUMMARY.md"
 
+        # Get current versions
+        feature_version = self.get_version_from_file('feature')
+        dev_version = self.get_version_from_file('dev')
+        production_version = self.get_version_from_file('production')
+        
+        # Get file structure (simplified for documentation)
+        try:
+            structure_result = self.run_command('dir /B', shell=True)
+            main_files = structure_result.stdout.strip().split('\n')[:10]  # First 10 files
+            structure_summary = '\n'.join([f"├── {file.strip()}" for file in main_files if file.strip()])
+        except:
+            structure_summary = "├── adakings_backend/\n├── apps/\n├── smart_deploy.py\n├── VERSION\n├── README.md"
+
         # Update README.md
-        latest_readme_content = '''
-# Adakings Backend API - Branch-Specific Versioning System
+        latest_readme_content = f"""# Adakings Backend API - Branch-Specific Versioning System
 
 ## Overview
-This is the Adakings Backend API with a comprehensive **branch-specific versioning system**.
+This is the Adakings Backend API with a comprehensive **branch-specific versioning system** that maintains independent version sequences for feature, development, and production branches.
 
-## Current Version Status
-\n\n```
-feature={self.get_version_from_file('feature')}
-dev={self.get_version_from_file('dev')}
-production={self.get_version_from_file('production')}
+## 🚀 Current Version Status
+
+```
+feature={feature_version}
+dev={dev_version}
+production={production_version}
 ```
 
-## Unified File Structure
-\n\n```
-{self.run_command('tree /F', shell=True).stdout}
+## 📁 Project Structure
+
 ```
-'''
+adakings_backend/
+{structure_summary}
+```
+
+## 🔧 Branch-Specific Versioning
+
+### How It Works
+- **Feature branches**: Continuous versioning across all features (feature/name-x.x.x)
+- **Dev branches**: Independent dev versioning (dev/x.x.x)  
+- **Production branches**: Independent production versioning (prod/x.x.x)
+
+### Quick Deploy Commands
+
+```bash
+# Feature deployment
+python smart_deploy.py feature/auth patch "Add authentication"
+
+# Dev deployment
+python smart_deploy.py dev minor "New features"
+
+# Production deployment
+python smart_deploy.py production major "Major release"
+```
+
+### VERSION File
+The VERSION file tracks all three branch types independently:
+```
+feature={feature_version}      # Latest feature version
+dev={dev_version}          # Latest dev version
+production={production_version}   # Latest production version
+```
+"""
         readme_file.write_text(latest_readme_content, encoding='utf-8')
 
         # Update DEPLOYMENT_SUMMARY.md
-        latest_deployment_summary_content = '''
-# Adakings Backend API - Branch-Specific Versioning Deployment System
+        latest_deployment_summary_content = f"""# Adakings Backend API - Branch-Specific Versioning Deployment System
 
-## Current Version Status
-\n\n```
-feature={self.get_version_from_file('feature')}
-dev={self.get_version_from_file('dev')}
-production={self.get_version_from_file('production')}
+## 🎯 Current Deployment Status
+
+### Version Tracking
+```
+feature={feature_version}      # Continuous across all features
+dev={dev_version}          # Independent dev versioning
+production={production_version}   # Independent production versioning
 ```
 
-## Unified File Structure
-\n\n```
-{self.run_command('tree /F', shell=True).stdout}
+### 📁 Project Structure
 ```
-'''
+adakings_backend/
+{structure_summary}
+```
+
+## ✅ System Features
+
+- **Branch-Specific Versioning**: Each branch type maintains its own version sequence
+- **Automatic Documentation Updates**: README and deployment docs auto-update on deploy
+- **Comprehensive Logging**: Detailed changelog with deployment history
+- **Smart Git Workflow**: Automated branch creation, merging, and cleanup
+- **Backup System**: Automatic backups before each deployment
+
+## 🚀 Usage
+
+```bash
+# Deploy feature (continues from highest feature version)
+python smart_deploy.py feature/name patch "Description"
+
+# Deploy to dev (independent versioning)
+python smart_deploy.py dev minor "Dev release"
+
+# Deploy to production (independent versioning)
+python smart_deploy.py production major "Production release"
+```
+
+## 📊 Latest Deployment
+- **Feature Version**: {feature_version}
+- **Dev Version**: {dev_version}
+- **Production Version**: {production_version}
+- **Last Updated**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+"""
         deployment_summary_file.write_text(latest_deployment_summary_content, encoding='utf-8')
 
     def generate_comprehensive_changelog(self, new_version, target_env, commit_message=""):
