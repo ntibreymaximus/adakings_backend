@@ -144,13 +144,17 @@ class SmartDeployer:
     def update_version_and_changelog(self, new_version, target_env, commit_message=""):
         """Update version file and changelog."""
         # Update VERSION file
-        self.version_file.write_text(new_version)
+        self.version_file.write_text(new_version, encoding='utf-8')
         self.log_success(f"Updated VERSION to {new_version}")
         
         # Update CHANGELOG.md
         changelog_file = self.base_dir / "CHANGELOG.md"
         if changelog_file.exists():
-            current_content = changelog_file.read_text()
+            try:
+                current_content = changelog_file.read_text(encoding='utf-8')
+            except UnicodeDecodeError:
+                # Fallback for files with different encoding
+                current_content = changelog_file.read_text(encoding='latin-1')
             
             # Create new changelog entry
             timestamp = datetime.now().strftime("%Y-%m-%d")
@@ -165,7 +169,7 @@ class SmartDeployer:
 {current_content.replace('# Changelog', '').strip()}
 """
             
-            changelog_file.write_text(new_entry)
+            changelog_file.write_text(new_entry, encoding='utf-8')
             self.log_success("Updated CHANGELOG.md")
 
     def generate_commit_message_from_changes(self):
@@ -247,10 +251,16 @@ class SmartDeployer:
         return True
 
     def sync_with_remote(self):
-        """Sync local repository with remote."""
+        """Sync local repository with remote - fetch all branches."""
         self.log_info("Syncing with remote repository...")
-        self.run_command("git fetch origin")
-        self.run_command("git pull origin")
+        # Fetch all remote branches and tags
+        self.run_command("git fetch --all")
+        # Update current branch
+        current_branch = self.get_current_branch()
+        try:
+            self.run_command(f"git pull origin {current_branch}")
+        except subprocess.CalledProcessError:
+            self.log_warning(f"Could not pull from origin/{current_branch} - may be a new local branch")
 
     def create_or_checkout_branch(self, branch_name):
         """Create or checkout the target branch."""
@@ -303,16 +313,26 @@ class SmartDeployer:
         """Main deployment function."""
         self.log_info(f"🚀 Starting deployment to {target_env} environment")
         
-        # Parse target environment
+        # Get current version and calculate new version FIRST
+        current_version = self.get_current_version()
+        new_version = self.bump_version(bump_type, current_version)
+        
+        # Parse target environment and create versioned branch names
         if target_env.startswith("feature/"):
             env_type = "feature"
-            branch_name = target_env
+            feature_name = target_env.replace("feature/", "")
+            branch_name = f"feature/{feature_name}-{new_version}"
+        elif target_env == "dev":
+            env_type = "dev"
+            branch_name = f"dev/{new_version}"
+        elif target_env == "production":
+            env_type = "production"
+            branch_name = "prod"  # Single production branch
         else:
-            env_type = target_env
-            branch_name = self.git_config[env_type]["target_branch"]
-            if env_type == "feature":
-                self.log_error("Feature branches must be specified as 'feature/name'")
-                return False
+            self.log_error(f"Invalid target environment: {target_env}")
+            return False
+        
+        self.log_info(f"Target branch: {branch_name}")
 
         # Pre-deployment checks
         if not self.ensure_clean_working_directory():
@@ -324,18 +344,11 @@ class SmartDeployer:
         try:
             # Sync with remote
             self.sync_with_remote()
-
-            # Get current version and calculate new version
-            current_version = self.get_current_version()
-            new_version = self.bump_version(bump_type, current_version)
             
             self.log_info(f"Version: {current_version} -> {new_version}")
 
             # Create/checkout target branch
-            if env_type == "feature":
-                self.create_or_checkout_branch(branch_name)
-            else:
-                self.create_or_checkout_branch(branch_name)
+            self.create_or_checkout_branch(branch_name)
 
             # Update version and changelog
             final_commit_message = commit_message or f"Version: {new_version} feat: Deploy to {target_env} environment"
