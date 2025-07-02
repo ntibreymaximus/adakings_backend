@@ -468,11 +468,70 @@ All notable changes to this project will be documented in this file.
             self.log_success("Committed pending changes")
         return True
 
+    def cleanup_deleted_remote_branches(self):
+        """Remove local branches that no longer exist on remote."""
+        try:
+            self.log_info("Cleaning up deleted remote branches...")
+            
+            # Get current branch to avoid deleting it
+            current_branch = self.get_current_branch()
+            
+            # Get all local branches
+            local_result = self.run_command("git branch")
+            local_branches = []
+            for line in local_result.stdout.split('\n'):
+                if line.strip():
+                    branch = line.strip().replace('*', '').strip()
+                    if branch and branch not in ['main', 'master']:
+                        local_branches.append(branch)
+            
+            # Get all remote branches
+            remote_result = self.run_command("git branch -r")
+            remote_branches = []
+            for line in remote_result.stdout.split('\n'):
+                if line.strip() and not '->' in line:
+                    # Extract branch name from origin/branch-name
+                    branch = line.strip().replace('origin/', '')
+                    if branch:
+                        remote_branches.append(branch)
+            
+            # Find local branches that don't exist remotely
+            branches_to_delete = []
+            for local_branch in local_branches:
+                if local_branch not in remote_branches and local_branch != current_branch:
+                    branches_to_delete.append(local_branch)
+            
+            # Delete branches that no longer exist remotely
+            if branches_to_delete:
+                self.log_info(f"Found {len(branches_to_delete)} local branches to clean up:")
+                for branch in branches_to_delete:
+                    self.log_info(f"  - {branch}")
+                
+                for branch in branches_to_delete:
+                    try:
+                        # Force delete the branch
+                        self.run_command(f"git branch -D {branch}")
+                        self.log_success(f"Deleted local branch: {branch}")
+                    except subprocess.CalledProcessError:
+                        self.log_warning(f"Could not delete branch: {branch}")
+            else:
+                self.log_info("No stale local branches found to clean up")
+                
+        except Exception as e:
+            self.log_warning(f"Branch cleanup failed: {e}")
+    
     def sync_with_remote(self):
-        """Sync local repository with remote - fetch all branches."""
+        """Sync local repository with remote - fetch all branches and clean up deleted ones."""
         self.log_info("Syncing with remote repository...")
+        
         # Fetch all remote branches and tags
         self.run_command("git fetch --all")
+        
+        # Prune remote tracking branches that no longer exist
+        self.run_command("git remote prune origin")
+        
+        # Clean up local branches that no longer exist on remote
+        self.cleanup_deleted_remote_branches()
         
         # Update current branch only if it exists remotely
         current_branch = self.get_current_branch()
@@ -488,8 +547,17 @@ All notable changes to this project will be documented in this file.
         else:
             self.log_info(f"Branch {current_branch} doesn't exist remotely - skipping pull")
 
-    def create_or_checkout_branch(self, branch_name):
-        """Create or checkout the target branch, preserving current changes."""
+    def confirm_action(self, message):
+        """Ask user for confirmation before proceeding."""
+        try:
+            response = input(f"\n❓ {message} (y/N): ").strip().lower()
+            return response in ['y', 'yes']
+        except KeyboardInterrupt:
+            print("\n\n❌ Operation cancelled by user")
+            return False
+    
+    def create_or_checkout_branch(self, branch_name, target_env, new_version):
+        """Create or checkout the target branch, with user confirmation for new branches."""
         
         # Get current branch to know where we're coming from
         current_branch = self.get_current_branch()
@@ -525,9 +593,22 @@ All notable changes to this project will be documented in this file.
             self.run_command(f"git checkout -b {branch_name} origin/{branch_name}")
             self.log_info(f"Created local branch tracking origin/{branch_name}")
         else:
-            # Neither local nor remote branch exists - create new branch
+            # Neither local nor remote branch exists - ASK FOR CONFIRMATION
+            print(f"\n📋 Deployment Summary:")
+            print(f"   🎯 Target Environment: {target_env}")
+            print(f"   🌿 New Branch: {branch_name}")
+            print(f"   📦 Version: {new_version}")
+            print(f"   📍 Source Branch: {current_branch}")
+            
+            if not self.confirm_action(f"Create new branch '{branch_name}' and deploy version {new_version}?"):
+                self.log_warning("Deployment cancelled by user")
+                return False
+            
+            # Create new branch
             self.run_command(f"git checkout -b {branch_name}")
             self.log_success(f"Created new branch: {branch_name} from {current_branch}")
+        
+        return True
 
     def push_to_branch(self, branch_name, commit_message):
         """Commit changes and push to branch."""
@@ -611,8 +692,9 @@ All notable changes to this project will be documented in this file.
             self.log_info(f"Target branch: {branch_name}")
             self.log_info(f"Version: {current_version} -> {new_version}")
 
-            # Create/checkout target branch
-            self.create_or_checkout_branch(branch_name)
+            # Create/checkout target branch (with user confirmation for new branches)
+            if not self.create_or_checkout_branch(branch_name, target_env, new_version):
+                return False
 
             # Update version and changelog
             final_commit_message = commit_message or f"Version: {new_version} feat: Deploy to {target_env} environment"
