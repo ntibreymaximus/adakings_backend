@@ -168,6 +168,62 @@ class SmartDeployer:
             changelog_file.write_text(new_entry)
             self.log_success("Updated CHANGELOG.md")
 
+    def generate_commit_message_from_changes(self):
+        """Generate a descriptive commit message based on file changes."""
+        try:
+            # Get status of changed files
+            result = self.run_command("git status --porcelain")
+            changes = result.stdout.strip().split('\n') if result.stdout.strip() else []
+            
+            if not changes:
+                return "Auto-commit: Prepare for deployment"
+            
+            # Categorize changes
+            modified_files = []
+            added_files = []
+            deleted_files = []
+            
+            for change in changes:
+                if not change.strip():
+                    continue
+                status = change[:2]
+                filename = change[3:].strip()
+                
+                if 'M' in status:
+                    modified_files.append(filename)
+                elif 'A' in status:
+                    added_files.append(filename)
+                elif 'D' in status:
+                    deleted_files.append(filename)
+                else:
+                    modified_files.append(filename)  # Default to modified
+            
+            # Generate descriptive message
+            message_parts = []
+            
+            if modified_files:
+                if len(modified_files) == 1:
+                    message_parts.append(f"Update {modified_files[0]}")
+                else:
+                    message_parts.append(f"Update {len(modified_files)} files: {', '.join(modified_files[:3])}{'...' if len(modified_files) > 3 else ''}")
+            
+            if added_files:
+                if len(added_files) == 1:
+                    message_parts.append(f"Add {added_files[0]}")
+                else:
+                    message_parts.append(f"Add {len(added_files)} files")
+            
+            if deleted_files:
+                if len(deleted_files) == 1:
+                    message_parts.append(f"Remove {deleted_files[0]}")
+                else:
+                    message_parts.append(f"Remove {len(deleted_files)} files")
+            
+            return " | ".join(message_parts) if message_parts else "Auto-commit: Prepare for deployment"
+            
+        except Exception:
+            return "Auto-commit: Prepare for deployment"
+    
     def ensure_clean_working_directory(self):
         """Ensure git working directory is clean by auto-committing pending changes."""
         result = self.run_command("git status --porcelain")
@@ -178,11 +234,14 @@ class SmartDeployer:
             
             self.log_info("Auto-committing pending changes before deployment...")
             
+            # Generate descriptive commit message based on changes
+            commit_msg = self.generate_commit_message_from_changes()
+            
             # Add all changes
             self.run_command("git add .")
             
             # Commit changes to current branch (but don't push)
-            self.run_command('git commit -m "Auto-commit: Prepare for deployment"')
+            self.run_command(f'git commit -m "{commit_msg}"')
             
             self.log_success("Committed pending changes")
         return True
