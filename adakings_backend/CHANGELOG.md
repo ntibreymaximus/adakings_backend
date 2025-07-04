@@ -2,6 +2,40 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.0] - 2025-07-04
+
+### 🎯 Production Release
+
+**📋 Release Information:**
+- **Environment**: production
+- **Branch**: `prod`
+- **Version**: `1.0.0` → `1.2.0`
+- **Deployment Time**: 2025-07-04 18:10:04
+- **Description**: Production deployment - stable release
+
+**📝 Changes Made:**
+Minor release with new features
+
+**📁 Files Modified:**
+  - Modified: `dakings_backend/DEPLOYMENT_SUMMARY.md`
+  - Modified: `adakings_backend/README.md`
+  - Modified: `adakings_backend/VERSION`
+  - Modified: `smart_deploy.py`
+
+**🔄 Deployment Details:**
+- **Source Branch**: `prod`
+- **Target Branch**: `prod`
+- **Merge Strategy**: Automatic merge with main branch
+- **Version Bump Type**: Minor (new features)
+
+**🎯 Environment Specific Notes:**
+- Production environment deployment
+- Stable and tested release
+- Ready for end users
+- All features have been thoroughly tested
+
+---
+
 ## [1.0.0] - 2025-07-04
 
 ### 🎯 Production Release
