@@ -17,12 +17,14 @@ production=1.0.0
 adakings_backend/
 ├── .deploy_backup
 ├── asgi.py
+├── CHANGELOG.md
+├── DEPLOYMENT_SUMMARY.md
+├── README.md
 ├── settings
 ├── urls.py
 ├── VERSION
 ├── wsgi.py
 ├── __init__.py
-├── __pycache__
 ```
 
 ## 🔧 Branch-Specific Versioning

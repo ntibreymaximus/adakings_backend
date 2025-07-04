@@ -14,12 +14,14 @@ production=1.0.0   # Independent production versioning
 adakings_backend/
 ├── .deploy_backup
 ├── asgi.py
+├── CHANGELOG.md
+├── DEPLOYMENT_SUMMARY.md
+├── README.md
 ├── settings
 ├── urls.py
 ├── VERSION
 ├── wsgi.py
 ├── __init__.py
-├── __pycache__
 ```
 
 ## ✅ System Features
@@ -47,4 +49,4 @@ python smart_deploy.py production major "Production release"
 - **Feature Version**: 1.0.0
 - **Dev Version**: 1.0.0
 - **Production Version**: 1.0.0
-- **Last Updated**: 2025-07-04 17:43:26
+- **Last Updated**: 2025-07-04 17:45:04
