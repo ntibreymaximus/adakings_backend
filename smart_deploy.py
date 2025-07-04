@@ -1000,7 +1000,7 @@ All notable changes to this project will be documented in this file.
 
     def validate_production_version(self, new_version):
         """Validate that production version is being incremented properly."""
-        current_prod_version = self.get_version_from_file('production')
+        current_prod_version = self.get_highest_branch_version('production')
         
         # Compare versions to ensure new version is actually higher
         try:
@@ -1026,7 +1026,7 @@ All notable changes to this project will be documented in this file.
         if target_env != "production":
             return True  # Only enforce for production
         
-        current_prod_version = self.get_version_from_file('production')
+        current_prod_version = self.get_highest_branch_version('production')
         
         self.log_info(f"🔍 Production Version Check:")
         self.log_info(f"   Current: {current_prod_version}")
@@ -1086,27 +1086,50 @@ All notable changes to this project will be documented in this file.
             # Sync with remote first to get latest remote branches
             self.sync_with_remote()
             
-            # Get the current version for the specific branch type
+            # ALWAYS get current version by scanning remote branches for ALL environment types
+            # This ensures we have the true current state, not what's in VERSION file
             if target_env == "production":
-                # For production, always use the VERSION file as the source of truth
-                current_version = self.get_version_from_file('production')
-                # Always bump production versions (never start from 1.0.0 unless VERSION file says so)
-                new_version = self.bump_version(bump_type, current_version)
-                self.log_info(f"Production version from VERSION file: {current_version} → {new_version}")
+                current_version = self.get_highest_branch_version("production")
+                self.log_info(f"Production version from remote branches: {current_version}")
+            elif target_env == "dev":
+                current_version = self.get_highest_branch_version("dev")
+                self.log_info(f"Dev version from remote branches: {current_version}")
             else:
-                # For feature and dev, use branch scanning as before
+                # For feature branches
                 current_version = self.get_highest_branch_version(target_env)
-                
-                # For first deployment of any branch type, use the found version as-is
-                # For subsequent deployments, bump the version
-                if current_version == "1.0.0":
-                    # This is the first deployment for this branch type
-                    self.log_info(f"First deployment for {target_env} - using version 1.0.0")
+                self.log_info(f"Feature version from remote branches: {current_version}")
+            
+            # For first deployment of any branch type, use 1.0.0 as starting point
+            # For subsequent deployments, bump the version
+            if current_version == "1.0.0":
+                # Check if any branches actually exist for this environment type
+                try:
+                    remote_branches = self.run_command("git branch -r").stdout
+                    branches_exist = False
+                    
+                    if target_env.startswith("feature/"):
+                        branches_exist = any("origin/feature/" in branch for branch in remote_branches.split('\n') if branch.strip())
+                    elif target_env == "dev":
+                        branches_exist = any("origin/dev/" in branch for branch in remote_branches.split('\n') if branch.strip())
+                    elif target_env == "production":
+                        branches_exist = any("origin/prod" in branch for branch in remote_branches.split('\n') if branch.strip())
+                    
+                    if not branches_exist:
+                        # No branches exist for this environment type - start from 1.0.0
+                        self.log_info(f"No {target_env} branches found remotely - starting from version 1.0.0")
+                        new_version = "1.0.0"
+                    else:
+                        # Branches exist but highest version is 1.0.0 - bump it
+                        new_version = self.bump_version(bump_type, current_version)
+                        self.log_info(f"Found {target_env} branches, bumping from base version: {current_version} → {new_version}")
+                except Exception:
+                    # Error checking branches - start from 1.0.0
+                    self.log_info(f"Could not check existing branches - starting from version 1.0.0")
                     new_version = "1.0.0"
-                else:
-                    # Branch type has existing versions, bump from the highest
-                    self.log_info(f"Using highest version for {target_env} as base: {current_version}")
-                    new_version = self.bump_version(bump_type, current_version)
+            else:
+                # Branch type has existing versions, bump from the highest
+                new_version = self.bump_version(bump_type, current_version)
+                self.log_info(f"Using highest remote version for {target_env} as base: {current_version} → {new_version}")
             
             # PRODUCTION VERSION VALIDATION - Critical safeguard
             if not self.enforce_production_version_increment(target_env, new_version):
@@ -1233,9 +1256,11 @@ All notable changes to this project will be documented in this file.
 
     def show_version_status(self):
         """Show current version status for all environments."""
-        feature_version = self.get_version_from_file('feature')
-        dev_version = self.get_version_from_file('dev')
-        production_version = self.get_version_from_file('production')
+        # Always check remote branches for accurate version status
+        self.log_info("Checking remote branches for current versions...")
+        feature_version = self.get_highest_branch_version('feature/dummy')  # Use dummy feature name to scan all features
+        dev_version = self.get_highest_branch_version('dev')
+        production_version = self.get_highest_branch_version('production')
         
         print(f"")
         print(f"📊 CURRENT VERSION STATUS")
