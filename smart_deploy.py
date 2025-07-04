@@ -965,13 +965,25 @@ All notable changes to this project will be documented in this file.
         except subprocess.CalledProcessError:
             self.log_warning(f"Could not pull from origin/{dev_branch_name} - continuing...")
         
-        # Merge prod branch into dev
+        # Check if prod branch exists before trying to merge
         try:
-            self.run_command("git merge prod")
-        except subprocess.CalledProcessError:
-            # If there are conflicts, resolve them by taking the prod version
-            self.log_warning("Merge conflicts detected. Resolving by taking prod changes...")
-            self.run_command("git merge -X theirs prod")
+            remote_branches = self.run_command("git branch -r").stdout
+            prod_branch_exists = any("origin/prod" in branch and "origin/prod/" not in branch for branch in remote_branches.split('\n') if branch.strip())
+            
+            if prod_branch_exists:
+                # Merge existing prod branch into dev
+                try:
+                    self.run_command("git merge prod")
+                except subprocess.CalledProcessError:
+                    # If there are conflicts, resolve them by taking the prod version
+                    self.log_warning("Merge conflicts detected. Resolving by taking prod changes...")
+                    self.run_command("git merge -X theirs prod")
+            else:
+                # No prod branch exists yet - this is the first production deployment
+                # Just continue with current branch state (no merge needed)
+                self.log_info("No existing prod branch found - first production deployment, skipping merge")
+        except Exception as e:
+            self.log_warning(f"Error checking for prod branch: {e} - continuing without merge")
         
         # Create production tag on dev to mark this as a production version
         production_tag = f"prod-{version}"
@@ -1002,6 +1014,17 @@ All notable changes to this project will be documented in this file.
         """Validate that production version is being incremented properly."""
         current_prod_version = self.get_highest_branch_version('production')
         
+        # Special case: If no production branches exist, allow 1.0.0 as first version
+        try:
+            remote_branches = self.run_command("git branch -r").stdout
+            prod_branches_exist = any("origin/prod" in branch for branch in remote_branches.split('\n') if branch.strip())
+            
+            if not prod_branches_exist and new_version == "1.0.0":
+                self.log_info("First production deployment - allowing version 1.0.0")
+                return True
+        except Exception:
+            pass
+        
         # Compare versions to ensure new version is actually higher
         try:
             current_parts = list(map(int, current_prod_version.split('.')))
@@ -1014,7 +1037,7 @@ All notable changes to this project will be documented in this file.
                 elif new_parts[i] < current_parts[i]:
                     return False
             
-            # Versions are equal - not allowed for production
+            # Versions are equal - not allowed for production (except first deployment)
             return False
             
         except Exception as e:
