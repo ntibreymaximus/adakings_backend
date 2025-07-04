@@ -270,16 +270,30 @@ production={current_versions['production']}"""
                             self.log_info(f"  Found version {version_part} in {branch}")
                             
             elif target_env == "production":
-                # For production branches, look for prod/x.x.x pattern
-                pattern = "origin/prod/"
+                # For production, check if origin/prod branch exists and get version from its VERSION file
                 self.log_info("Scanning for production branch versions...")
                 
-                for branch in branches:
-                    if branch.startswith(pattern) and branch.count('/') == 2:
-                        version_part = branch.replace(pattern, "")
-                        if self.is_valid_version(version_part):
-                            versions.append(version_part)
-                            self.log_info(f"  Found version {version_part} in {branch}")
+                # Check if origin/prod branch exists
+                prod_branch_exists = any(branch == "origin/prod" for branch in branches)
+                
+                if prod_branch_exists:
+                    try:
+                        # Fetch the VERSION file from the prod branch
+                        result = self.run_command("git show origin/prod:VERSION", check=False)
+                        if result.returncode == 0:
+                            version_content = result.stdout.strip()
+                            # Parse the production version from the VERSION file
+                            for line in version_content.split('\n'):
+                                if line.startswith('production='):
+                                    prod_version = line.split('=')[1].strip()
+                                    if self.is_valid_version(prod_version):
+                                        versions.append(prod_version)
+                                        self.log_info(f"  Found production version {prod_version} from origin/prod branch")
+                                    break
+                    except Exception as e:
+                        self.log_warning(f"Could not read VERSION from origin/prod: {e}")
+                else:
+                    self.log_info("  No origin/prod branch found")
             
             if not versions:
                 self.log_info(f"No versioned branches found for {target_env} - starting from 1.0.0")
@@ -1233,7 +1247,27 @@ All notable changes to this project will be documented in this file.
 
             # Update version file for specific branch type and changelog
             final_commit_message = commit_message or f"Version: {new_version} feat: Deploy to {target_env} environment"
-            self.update_version_in_file(env_type, new_version)
+            
+            # For production, ensure we don't overwrite the dev version that was just set
+            if target_env == "production":
+                # Get the current dev version from remote branches (not VERSION file)
+                actual_dev_version = self.get_highest_branch_version("dev")
+                # Update only production version, preserving the actual dev version
+                current_versions = {
+                    'feature': self.get_highest_branch_version('feature/dummy'),
+                    'dev': actual_dev_version,
+                    'production': new_version
+                }
+                # Write the corrected VERSION file
+                version_content = f"""feature={current_versions['feature']}
+dev={current_versions['dev']}
+production={current_versions['production']}"""
+                self.version_file.write_text(version_content, encoding='utf-8')
+                self.log_success(f"Updated VERSION file - preserving actual dev version {actual_dev_version}")
+            else:
+                # For non-production deployments, update normally
+                self.update_version_in_file(env_type, new_version)
+            
             self.generate_comprehensive_changelog(new_version, target_env, final_commit_message)
 
             # Generate comprehensive commit message
