@@ -2,6 +2,64 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.0] - 2025-07-04
+
+### 🔧 Feature Development
+
+**📋 Release Information:**
+- **Environment**: feature/test-workflow
+- **Branch**: `feature/test-workflow-1.1.0`
+- **Version**: `Unknown` → `1.1.0`
+- **Deployment Time**: 2025-07-04 17:37:47
+- **Description**: Feature branch for 'test-workflow' development
+
+**📝 Changes Made:**
+Test new git workflow implementation
+
+**📁 Files Modified:**
+  - Modified: `EPLOYMENT_SUMMARY.md`
+  - Modified: `README.md`
+  - Modified: `VERSION`
+  - Modified: `adakings_backend/asgi.py`
+  - Modified: `adakings_backend/settings/__init__.py`
+  - Modified: `adakings_backend/settings/settings.py`
+  - Deleted: `apps/__init__.py`
+  - Modified: `apps/orders/models.py`
+  - Modified: `apps/orders/signals.py`
+  - Modified: `apps/orders/views.py`
+  - Modified: `apps/payments/models.py`
+  - Modified: `gunicorn.conf.py`
+  - Modified: `requirements.txt`
+  - Modified: `smart_deploy.py`
+  - Changed: `BROKEN_PIPE_FIXES.md`
+  - Changed: `apps/orders/consumers.py`
+  - Changed: `apps/orders/middleware.py`
+  - Changed: `apps/orders/migrations/0015_order_orders_orde_created_f0ce29_idx_and_more.py`
+  - Changed: `apps/orders/routing.py`
+  - Changed: `apps/payments/migrations/0004_payment_payments_pa_created_3147e3_idx_and_more.py`
+  - Changed: `enable_websockets.bat`
+  - Changed: `node_modules/`
+  - Changed: `optimize_db.py`
+  - Changed: `package-lock.json`
+  - Changed: `package.json`
+  - Changed: `requirements-channels.txt`
+  - Changed: `start_server.py`
+  - Changed: `start_server_robust.bat`
+  - Changed: `sw.js`
+
+**🔄 Deployment Details:**
+- **Source Branch**: `feature/test-workflow-1.1.0`
+- **Target Branch**: `feature/test-workflow-1.1.0`
+- **Merge Strategy**: Automatic merge with main branch
+- **Version Bump Type**: Version update
+
+**🎯 Environment Specific Notes:**
+- This is a feature branch deployment for development and testing
+- Changes are isolated and will be merged after review
+- Not suitable for production use
+
+---
+
 ## [1.0.6] - 2025-07-02
 
 ### 🔧 Feature Development

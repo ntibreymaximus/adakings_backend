@@ -19,7 +19,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 env_path = BASE_DIR / '.env'
 if env_path.exists():
     load_dotenv(env_path)
-    print(f"📁 Loaded environment variables from: {env_path}")
+    print(f"Loaded environment variables from: {env_path}")
 else:
     logging.warning(
         "No .env file found. Environment variables must be set manually. "
@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt.token_blacklist',
     'drf_spectacular',
     'corsheaders',
+    'channels',
 ]
 
 # Enable development tools if available and in debug mode
@@ -81,6 +82,8 @@ AUTH_USER_MODEL = 'users.CustomUser'
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'corsheaders.middleware.CorsMiddleware',
+    'apps.orders.middleware.BrokenPipeMiddleware',  # Handle broken pipe errors
+    'apps.orders.middleware.WebSocketConnectionMiddleware',  # Handle WebSocket connections
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -107,6 +110,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'adakings_backend.wsgi.application'
+ASGI_APPLICATION = 'adakings_backend.asgi.application'
 
 # Database configuration
 database_engine = os.environ.get('DATABASE_ENGINE', 'sqlite3').lower()
@@ -123,11 +127,25 @@ if database_engine == 'postgresql':
         }
     }
 else:
-    # Default to SQLite for development
+# Default to SQLite for development with optimizations
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
             'NAME': BASE_DIR / os.environ.get('DATABASE_NAME', 'db.sqlite3'),
+            'OPTIONS': {
+                'timeout': 5,  # Reduced timeout for faster responses
+                'check_same_thread': False,
+                # SQLite optimizations for speed
+                'init_command': (
+                    "PRAGMA foreign_keys=ON;"
+                    "PRAGMA journal_mode=WAL;"
+                    "PRAGMA synchronous=NORMAL;"
+                    "PRAGMA cache_size=10000;"
+                    "PRAGMA temp_store=MEMORY;"
+                    "PRAGMA mmap_size=134217728;"
+                ),
+            },
+            'CONN_MAX_AGE': 300,  # Keep connections alive for 5 minutes for better performance
         }
     }
 
@@ -231,6 +249,33 @@ else:
 # Session cache
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 
+# Channels layer configuration
+redis_url = os.environ.get('REDIS_URL')
+if redis_url and not DEBUG:
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {
+                'hosts': [redis_url],
+                'capacity': 1500,  # Default 100
+                'expiry': 60,      # Default 60 seconds
+                'prefix': 'adakings:',
+                'symmetric_encryption_keys': [SECRET_KEY],
+            },
+        },
+    }
+else:
+    # Use in-memory channel layer for development
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels.layers.InMemoryChannelLayer',
+            'CONFIG': {
+                'capacity': 500,   # Reduced for development
+                'expiry': 30,      # Shorter expiry for development
+            },
+        },
+    }
+
 # Django REST Framework settings
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
@@ -243,12 +288,27 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 20,
+    'PAGE_SIZE': 100,  # Increased page size for fewer API calls and instant loading
     'DEFAULT_FILTER_BACKENDS': [
         'django_filters.rest_framework.DjangoFilterBackend',
         'rest_framework.filters.SearchFilter',
         'rest_framework.filters.OrderingFilter',
     ],
+    'DEFAULT_RENDERER_CLASSES': [
+        'rest_framework.renderers.JSONRenderer',
+        'rest_framework.renderers.BrowsableAPIRenderer' if DEBUG else 'rest_framework.renderers.JSONRenderer',
+    ],
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle'
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '600/hour',  # Even higher rate for instant responsiveness
+        'user': '2000/hour'  # Much higher rate for authenticated users
+    },
+    'EXCEPTION_HANDLER': 'rest_framework.views.exception_handler',
+    'UNAUTHENTICATED_USER': 'django.contrib.auth.models.AnonymousUser',
+    'UNAUTHENTICATED_TOKEN': None,
 }
 
 # drf-spectacular settings
@@ -315,10 +375,73 @@ CORS_ALLOW_HEADERS = [
     'x-requested-with',
 ]
 
+# WebSocket and Connection Settings - Optimized for faster responsiveness
+WEBSOCKET_TIMEOUT = int(os.environ.get('WEBSOCKET_TIMEOUT', '120'))  # 2 minutes for faster resource management
+WEBSOCKET_HEARTBEAT_INTERVAL = int(os.environ.get('WEBSOCKET_HEARTBEAT_INTERVAL', '15'))  # 15 seconds for faster detection
+CONNECTION_MAX_AGE = int(os.environ.get('CONNECTION_MAX_AGE', '120'))  # 2 minutes for faster cleanup
+WEBSOCKET_CLOSE_TIMEOUT = int(os.environ.get('WEBSOCKET_CLOSE_TIMEOUT', '5'))  # 5 seconds for graceful close
+WEBSOCKET_PING_INTERVAL = int(os.environ.get('WEBSOCKET_PING_INTERVAL', '10'))  # 10 seconds server-side ping
+WEBSOCKET_PING_TIMEOUT = int(os.environ.get('WEBSOCKET_PING_TIMEOUT', '5'))  # 5 seconds pong timeout
+
+# Add connection settings to database
+for db_config in DATABASES.values():
+    if 'postgresql' in db_config.get('ENGINE', ''):
+        db_config['CONN_MAX_AGE'] = CONNECTION_MAX_AGE
+        db_config['OPTIONS'] = db_config.get('OPTIONS', {})
+        db_config['OPTIONS']['connect_timeout'] = 10
+        db_config['OPTIONS']['tcp_keepalives_idle'] = 600
+        db_config['OPTIONS']['tcp_keepalives_interval'] = 30
+        db_config['OPTIONS']['tcp_keepalives_count'] = 3
+
+# Custom logging filter to suppress broken pipe messages
+class BrokenPipeFilter(logging.Filter):
+    """Filter to suppress broken pipe and similar connection error messages."""
+    
+    def filter(self, record):
+        # Only suppress broken pipe messages in production (not in DEBUG mode)
+        if DEBUG:
+            return True  # Show all messages in debug mode
+            
+        # Suppress broken pipe messages in production only
+        message = record.getMessage().lower()
+        suppressed_messages = [
+            'broken pipe',
+            'connection reset',
+            'connection aborted',
+            'client disconnected',
+            'wsgi application',  # Some WSGI broken pipe messages
+        ]
+        
+        for suppressed in suppressed_messages:
+            if suppressed in message:
+                return False
+        
+        return True
+
+# Request logging filter to show HTTP request details
+class RequestLoggingFilter(logging.Filter):
+    """Filter to add request information to log records."""
+    
+    def filter(self, record):
+        # Add request info if available
+        import threading
+        try:
+            # Try to get current request from thread-local storage
+            from django.utils.log import request_logger
+            record.request_info = getattr(threading.current_thread(), 'request_info', '')
+        except:
+            record.request_info = ''
+        return True
+
 # Logging configuration
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
+    'filters': {
+        'broken_pipe_filter': {
+            '()': BrokenPipeFilter,
+        },
+    },
     'formatters': {
         'verbose': {
             'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
@@ -328,34 +451,70 @@ LOGGING = {
             'format': '{levelname} {message}',
             'style': '{',
         },
+        'websocket': {
+            'format': 'WS {levelname} {asctime} {message}',
+            'style': '{',
+        },
     },
     'handlers': {
         'console': {
             'level': 'DEBUG' if DEBUG else 'INFO',
             'class': 'logging.StreamHandler',
             'formatter': 'simple',
+            'filters': ['broken_pipe_filter'],
         },
         'file': {
             'level': 'DEBUG' if DEBUG else 'INFO',
             'class': 'logging.FileHandler',
             'filename': os.path.join(BASE_DIR, 'logs', 'django.log'),
             'formatter': 'verbose',
+            'filters': ['broken_pipe_filter'],
+        },
+        'websocket_file': {
+            'level': 'DEBUG' if DEBUG else 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'websocket.log'),
+            'formatter': 'websocket',
         },
     },
     'root': {
         'handlers': ['console'],
         'level': 'INFO',
+        'filters': ['broken_pipe_filter'],
     },
     'loggers': {
         'django': {
             'handlers': ['console'],
             'level': 'INFO',
             'propagate': False,
+            'filters': ['broken_pipe_filter'],
+        },
+        'django.server': {
+            'handlers': ['console'],
+            'level': 'WARNING',  # Reduce server logging level
+            'propagate': False,
+            'filters': ['broken_pipe_filter'],
         },
         'apps': {
             'handlers': ['console', 'file'] if not DEBUG else ['console'],
             'level': 'DEBUG',
             'propagate': False,
+        },
+        'apps.orders.consumers': {
+            'handlers': ['console', 'websocket_file'] if not DEBUG else ['console'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'channels': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'daphne': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+            'filters': ['broken_pipe_filter'],
         },
     },
 }
@@ -363,9 +522,48 @@ LOGGING = {
 # Ensure logs directory exists
 os.makedirs(os.path.join(BASE_DIR, 'logs'), exist_ok=True)
 
-# Performance settings
-DATA_UPLOAD_MAX_MEMORY_SIZE = int(os.environ.get('MAX_UPLOAD_SIZE', '10485760'))  # 10MB
-FILE_UPLOAD_MAX_MEMORY_SIZE = int(os.environ.get('MAX_UPLOAD_SIZE', '10485760'))  # 10MB
+# Performance settings - Optimized for faster responses
+DATA_UPLOAD_MAX_MEMORY_SIZE = int(os.environ.get('MAX_UPLOAD_SIZE', '5242880'))  # 5MB for faster processing
+FILE_UPLOAD_MAX_MEMORY_SIZE = int(os.environ.get('MAX_UPLOAD_SIZE', '5242880'))  # 5MB for faster processing
+
+# Database connection optimization
+DATABASE_CONN_MAX_AGE = 60  # Keep connections alive for better performance
+DATABASE_QUERY_TIMEOUT = 10  # Faster query timeout
+
+# Auto-reloader optimization for development
+if DEBUG:
+    # Reduce file watching intensity to prevent high CPU usage
+    USE_TZ = True
+    
+    # Optimize auto-reload settings for stability
+    import django.utils.autoreload
+    
+    # Disable inotify on Windows to prevent file watching issues
+    django.utils.autoreload.USE_INOTIFY = False
+    
+    # Set reasonable polling interval (default is 1 second, increase to 2 seconds)
+    os.environ.setdefault('DJANGO_AUTORELOAD_POLL_INTERVAL', '2')
+    
+    # Prevent excessive bytecode generation
+    os.environ.setdefault('PYTHONDONTWRITEBYTECODE', '1')
+    
+    # Disable auto-reload if environment variable is set
+    if os.environ.get('DISABLE_AUTO_RELOAD', 'False').lower() == 'true':
+        django.utils.autoreload.USE_INOTIFY = False
+        
+    # Limit the number of file watchers and exclude certain directories
+    import sys
+    if hasattr(sys, '_getframe'):
+        # Add directories to ignore for file watching
+        AUTORELOAD_IGNORE_PATHS = [
+            os.path.join(BASE_DIR, '__pycache__'),
+            os.path.join(BASE_DIR, '*.pyc'),
+            os.path.join(BASE_DIR, 'logs'),
+            os.path.join(BASE_DIR, '.git'),
+            os.path.join(BASE_DIR, 'node_modules'),
+            os.path.join(BASE_DIR, 'static'),
+            os.path.join(BASE_DIR, 'media'),
+        ]
 
 # API rate limiting
 RATELIMIT_ENABLE = os.environ.get('RATE_LIMIT_ENABLE', 'False').lower() == 'true'
@@ -377,10 +575,10 @@ if DEBUG:
 # Print configuration info (only once)
 if not os.environ.get('DJANGO_SETTINGS_LOADED'):
     os.environ['DJANGO_SETTINGS_LOADED'] = 'unified'
-    print("🔧 Unified Django settings loaded successfully!")
-    print(f"📍 Debug mode: {DEBUG}")
-    print(f"🏠 Allowed hosts: {ALLOWED_HOSTS}")
-    print(f"💾 Database: {'PostgreSQL' if database_engine == 'postgresql' else 'SQLite'}")
-    print(f"📧 Email backend: {EMAIL_BACKEND}")
-    print(f"🔐 Paystack configured: {is_paystack_configured()}")
-    print("🚀 Ready for development and production!")
+    print("Unified Django settings loaded successfully!")
+    print(f"Debug mode: {DEBUG}")
+    print(f"Allowed hosts: {ALLOWED_HOSTS}")
+    print(f"Database: {'PostgreSQL' if database_engine == 'postgresql' else 'SQLite'}")
+    print(f"Email backend: {EMAIL_BACKEND}")
+    print(f"Paystack configured: {is_paystack_configured()}")
+    print("Ready for development and production!")

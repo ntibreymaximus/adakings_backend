@@ -4,7 +4,7 @@
 
 ### Version Tracking
 ```
-feature=1.0.6      # Continuous across all features
+feature=1.1.0      # Continuous across all features
 dev=1.0.0          # Independent dev versioning
 production=1.0.0   # Independent production versioning
 ```
@@ -18,10 +18,10 @@ adakings_backend/
 ├── .gitignore
 ├── adakings_backend
 ├── apps
+├── BROKEN_PIPE_FIXES.md
 ├── CHANGELOG.md
 ├── db.sqlite3
 ├── DEPLOYMENT_SUMMARY.md
-├── docker-compose.yml
 ```
 
 ## ✅ System Features
@@ -46,7 +46,7 @@ python smart_deploy.py production major "Production release"
 ```
 
 ## 📊 Latest Deployment
-- **Feature Version**: 1.0.6
+- **Feature Version**: 1.1.0
 - **Dev Version**: 1.0.0
 - **Production Version**: 1.0.0
-- **Last Updated**: 2025-07-02 21:10:54
+- **Last Updated**: 2025-07-04 17:37:47

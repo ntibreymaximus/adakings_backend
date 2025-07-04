@@ -314,6 +314,15 @@ class Order(models.Model):
         verbose_name = "Order"
         verbose_name_plural = "Orders"
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=['-created_at']),
+            models.Index(fields=['-updated_at']),
+            models.Index(fields=['order_number']),
+            models.Index(fields=['status']),
+            models.Index(fields=['delivery_type']),
+            models.Index(fields=['customer_phone']),
+            models.Index(fields=['created_at', 'status']),  # Composite index for filtering
+        ]
 
 class OrderItem(models.Model):
     """Model for individual items within an order"""
@@ -374,4 +383,54 @@ class OrderItem(models.Model):
         verbose_name = "Order Item"
         verbose_name_plural = "Order Items"
         ordering = ["created_at"]
+        indexes = [
+            models.Index(fields=['order']),
+            models.Index(fields=['menu_item']),
+            models.Index(fields=['created_at']),
+        ]
+
+
+# Signal handlers for WebSocket broadcasts
+from django.db.models.signals import post_save, post_delete
+from django.dispatch import receiver
+
+@receiver(post_save, sender=Order)
+def order_saved(sender, instance, created, **kwargs):
+    """Broadcast order creation or update via WebSocket."""
+    # Don't broadcast if this is an update_fields save (like from OrderItem signals)
+    # to prevent double broadcasting and potential recursion
+    update_fields = kwargs.get('update_fields')
+    if update_fields and set(update_fields).issubset({'total_price', 'updated_at', 'delivery_fee'}):
+        return  # Skip broadcasting for partial updates from signals
+    
+    try:
+        from .consumers import broadcast_order_created, broadcast_order_updated
+        if created:
+            broadcast_order_created(instance)
+        else:
+            broadcast_order_updated(instance)
+    except ImportError:
+        # Gracefully handle if consumers module is not available
+        pass
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error broadcasting order change: {e}")
+
+@receiver(post_delete, sender=Order)
+def order_deleted(sender, instance, **kwargs):
+    """Broadcast order deletion via WebSocket."""
+    try:
+        from .consumers import broadcast_order_deleted
+        broadcast_order_deleted(instance.id)
+    except ImportError:
+        # Gracefully handle if consumers module is not available
+        pass
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error broadcasting order deletion: {e}")
+
+# OrderItem signals are handled in signals.py to avoid recursion
+# Removed duplicate signals that were causing infinite save loops
 

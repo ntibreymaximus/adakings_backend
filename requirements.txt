@@ -52,5 +52,6 @@ click>=8.1.0  # For custom management commands
 whitenoise>=6.4.0
 
 # Production dependencies (for testing production-like scenarios)
-gunicorn>=20.1.0
+gunicorn>=21.2.0
+gevent>=23.9.0
 sentry-sdk[django]>=1.25.0

@@ -188,6 +188,17 @@ class Payment(models.Model):
         verbose_name = _('Payment')
         verbose_name_plural = _('Payments')
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['-created_at']),
+            models.Index(fields=['-updated_at']),
+            models.Index(fields=['order']),
+            models.Index(fields=['status']),
+            models.Index(fields=['payment_method']),
+            models.Index(fields=['payment_type']),
+            models.Index(fields=['reference']),
+            models.Index(fields=['paystack_reference']),
+            models.Index(fields=['order', 'status']),  # Composite index
+        ]
 
 
 class PaymentTransaction(models.Model):
@@ -257,6 +268,13 @@ class PaymentTransaction(models.Model):
         verbose_name = _('Payment Transaction')
         verbose_name_plural = _('Payment Transactions')
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['-created_at']),
+            models.Index(fields=['payment']),
+            models.Index(fields=['transaction_id']),
+            models.Index(fields=['status']),
+            models.Index(fields=['is_verified']),
+        ]
         
     def mark_as_verified(self):
         """Mark transaction as verified"""

@@ -6,7 +6,7 @@ This is the Adakings Backend API with a comprehensive **branch-specific versioni
 ## 🚀 Current Version Status
 
 ```
-feature=1.0.6
+feature=1.1.0
 dev=1.0.0
 production=1.0.0
 ```
@@ -21,10 +21,10 @@ adakings_backend/
 ├── .gitignore
 ├── adakings_backend
 ├── apps
+├── BROKEN_PIPE_FIXES.md
 ├── CHANGELOG.md
 ├── db.sqlite3
 ├── DEPLOYMENT_SUMMARY.md
-├── docker-compose.yml
 ```
 
 ## 🔧 Branch-Specific Versioning
@@ -50,7 +50,7 @@ python smart_deploy.py production major "Major release"
 ### VERSION File
 The VERSION file tracks all three branch types independently:
 ```
-feature=1.0.6      # Latest feature version
+feature=1.1.0      # Latest feature version
 dev=1.0.0          # Latest dev version
 production=1.0.0   # Latest production version
 ```

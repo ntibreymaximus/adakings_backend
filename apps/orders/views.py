@@ -1,4 +1,5 @@
 from rest_framework.permissions import AllowAny
+from rest_framework.pagination import PageNumberPagination
 
 from django.db.models import Q
 from django.utils import timezone
@@ -11,6 +12,16 @@ from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes,
 from apps.users.permissions import IsAdminOrFrontdesk, IsAdminOrFrontdeskNoDelete
 from .models import Order, OrderItem, DeliveryLocation
 from .serializers import OrderSerializer, OrderStatusUpdateSerializer, DeliveryLocationSerializer
+
+
+class OrderListPagination(PageNumberPagination):
+    """
+    Custom pagination class for orders that shows all results by default.
+    Can be overridden with query parameter page_size.
+    """
+    page_size = None  # No limit by default - show all results
+    page_size_query_param = 'page_size'
+    max_page_size = 1000  # Set a reasonable upper limit for performance
 
 
 @extend_schema(
@@ -71,6 +82,7 @@ class OrderListCreateAPIView(generics.ListCreateAPIView):
     serializer_class = OrderSerializer
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
+    pagination_class = OrderListPagination  # Use custom pagination to show all orders
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['customer_phone', 'order_number', 'delivery_location__name']
     ordering_fields = ['created_at', 'total_price', 'status']
@@ -80,7 +92,13 @@ class OrderListCreateAPIView(generics.ListCreateAPIView):
 
     # @extend_schema decorator was here, moved to class level
     def get_queryset(self):
-        queryset = Order.objects.all()
+        # Optimize queryset with select_related and prefetch_related for instant loading
+        queryset = Order.objects.select_related(
+            'delivery_location'
+        ).prefetch_related(
+            'items__menu_item',
+            'payments'
+        )
 
         # Date filtering
         date_filter = self.request.query_params.get('date')
@@ -99,7 +117,12 @@ class OrderListCreateAPIView(generics.ListCreateAPIView):
     tags=['Orders']
 )
 class OrderRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = Order.objects.all()
+    queryset = Order.objects.select_related(
+        'delivery_location'
+    ).prefetch_related(
+        'items__menu_item',
+        'payments'
+    )
     serializer_class = OrderSerializer
     permission_classes = [IsAdminOrFrontdeskNoDelete]  # Admin can do everything, frontdesk can view/update but not delete
     lookup_field = 'order_number'
@@ -143,7 +166,7 @@ class OrderRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
     tags=['Orders']
 )
 class OrderStatusUpdateAPIView(generics.UpdateAPIView):
-    queryset = Order.objects.all()
+    queryset = Order.objects.select_related('delivery_location')
     serializer_class = OrderStatusUpdateSerializer
     permission_classes = [IsAdminOrFrontdesk]  # Admin and frontdesk staff can update order status
     lookup_field = 'order_number'

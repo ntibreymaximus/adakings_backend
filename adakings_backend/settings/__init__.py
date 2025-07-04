@@ -14,4 +14,4 @@ import os
 ENVIRONMENT = os.environ.get('DJANGO_ENVIRONMENT', 'development')
 
 from .settings import *
-print("🔧 Unified environment loaded") # Now a single settings file is used
+print("Unified environment loaded") # Now a single settings file is used

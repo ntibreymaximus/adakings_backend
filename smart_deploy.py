@@ -6,7 +6,8 @@ Manages deployments with independent version tracking for feature, dev, and prod
 Features:
 - Branch-Specific Versioning: Independent version sequences for each branch type
 - Multi-Version Tracking: VERSION file maintains separate versions for feature/dev/production
-- Smart First Deployment: Automatically uses 1.0.0 for first deployment of each branch type
+- Smart Git Workflow: Feature→main merge, dev→dev only, production→dev+prod with tags
+- Production Tagging: Tags production versions on dev branch for tracking
 - Remote Version Detection: Scans branch-specific remote versions for highest version
 - Intelligent Version Bumping: Automatic major.minor.patch increments per branch type
 - Atomic Commit Handling: Includes uncommitted changes in deployment commit (no premature commits)
@@ -33,13 +34,13 @@ Examples:
     
     # Production deployment - independent production versioning
     python smart_deploy.py production major "Breaking changes"
-    # Result: prod/2.0.0 (independent from dev/feature versions)
+    # Result: pushes to dev with prod-x.x.x tag, then pushes to prod branch
 
 Version Management:
 - Branch-Specific Versioning: Each branch type maintains its own version sequence
 - Feature branches: Continuous versioning across all features (feature/name-x.x.x)
 - Dev branches: Independent dev versioning (dev/x.x.x)
-- Production branches: Independent production versioning (prod/x.x.x)
+- Production branches: Independent production versioning (pushes to prod branch only)
 - VERSION file format: feature=x.x.x\ndev=x.x.x\nproduction=x.x.x
 - First deployment per branch type: Automatically uses 1.0.0
 - Subsequent deployments: Bumps from highest version within that branch type
@@ -48,6 +49,15 @@ VERSION File Example:
     feature=1.0.5     # Latest feature version
     dev=1.2.1         # Latest dev version  
     production=1.1.0  # Latest production version
+
+Git Workflow:
+- Feature deployments: Push to feature/name-x.x.x, then merge with main
+- Dev deployments: Push to dev/x.x.x only (no merge)
+- Production deployments: Push to dev with prod-x.x.x tag, then push to prod
+
+Production Tagging Strategy:
+Production versions are tagged on the dev branch (prod-x.x.x) to track which
+dev version corresponds to the current production deployment.
 
 Note: Each branch type deployment only updates its specific version in the VERSION file,
 leaving other branch type versions unchanged.
@@ -78,17 +88,18 @@ class SmartDeployer:
         self.git_config = {
             "production": {
                 "target_branch": "prod",
-                "merge_with": "main",  # Production goes to prod branch then merges with main
+                "merge_with": None,  # Production pushes to dev with tag, then to prod
+                "push_to_dev": True,  # Special case: also push to dev with production tag
                 "description": "Production release"
             },
             "dev": {
                 "target_branch": "dev",
-                "merge_with": "main",  # Dev merges with main after deployment
+                "merge_with": None,  # Dev only pushes to dev branch
                 "description": "Development release"
             },
             "feature": {
                 "target_branch": None,  # Will be set dynamically
-                "merge_with": "main",  # Feature branches merge with main
+                "merge_with": "main",  # Feature branches merge with main after push
                 "description": "Feature branch"
             }
         }
@@ -888,6 +899,45 @@ All notable changes to this project will be documented in this file.
         
         self.log_success(f"Successfully merged {source_branch} with main")
 
+    def push_production_to_dev(self, version):
+        """Push production changes to dev branch with production tag."""
+        self.log_info(f"Pushing production version {version} to dev branch with tag...")
+        
+        # Checkout dev branch
+        self.run_command("git checkout dev")
+        
+        # Pull latest dev to avoid conflicts
+        try:
+            self.run_command("git pull origin dev")
+        except subprocess.CalledProcessError:
+            self.log_warning("Could not pull from origin/dev - continuing...")
+        
+        # Merge prod branch into dev
+        try:
+            self.run_command("git merge prod")
+        except subprocess.CalledProcessError:
+            # If there are conflicts, resolve them by taking the prod version
+            self.log_warning("Merge conflicts detected. Resolving by taking prod changes...")
+            self.run_command("git merge -X theirs prod")
+        
+        # Create production tag on dev to mark this as a production version
+        production_tag = f"prod-{version}"
+        try:
+            # Delete tag if it already exists
+            self.run_command(f"git tag -d {production_tag}", check=False)
+            self.run_command(f"git push origin --delete {production_tag}", check=False)
+        except subprocess.CalledProcessError:
+            pass  # Tag might not exist, that's fine
+        
+        # Create new production tag
+        self.run_command(f"git tag -a {production_tag} -m 'Production version {version} deployed to dev'")
+        
+        # Push dev branch and tag
+        self.run_command("git push origin dev")
+        self.run_command(f"git push origin {production_tag}")
+        
+        self.log_success(f"Pushed production version {version} to dev branch with tag {production_tag}")
+
     def deploy(self, target_env, bump_type, commit_message=""):
         """Main deployment function."""
         self.log_info(f"🚀 Starting deployment to {target_env} environment")
@@ -926,7 +976,7 @@ All notable changes to this project will be documented in this file.
                 branch_name = f"dev/{new_version}"
             elif target_env == "production":
                 env_type = "production"
-                branch_name = f"prod/{new_version}"  # Versioned production branch
+                branch_name = "prod"  # Direct push to prod branch (not versioned)
             else:
                 self.log_error(f"Invalid target environment: {target_env}")
                 return False
@@ -949,7 +999,13 @@ All notable changes to this project will be documented in this file.
             # Commit and push changes
             self.push_to_branch(branch_name, comprehensive_commit_msg)
 
-            # Merge with main if configured
+            # Handle special production workflow
+            if target_env == "production":
+                # Push production to dev with tag, then continue with prod
+                self.push_production_to_dev(new_version)
+                self.log_success(f"🏷️  Tagged production version {new_version} on dev branch")
+            
+            # Merge with main if configured (only for features now)
             merge_target = self.git_config[env_type]["merge_with"]
             if merge_target:
                 self.merge_with_main(branch_name)
@@ -960,6 +1016,9 @@ All notable changes to this project will be documented in this file.
             
             if merge_target:
                 self.log_success(f"🔀 Merged with {merge_target}")
+            
+            if target_env == "production":
+                self.log_success(f"🚀 Production deployed to both dev (with tag prod-{new_version}) and prod branches")
 
             return True
 
