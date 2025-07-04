@@ -73,7 +73,8 @@ from datetime import datetime
 
 class SmartDeployer:
     def __init__(self):
-        self.base_dir = Path.cwd()
+        # Use the directory where the smart_deploy.py script is located
+        self.base_dir = Path(__file__).parent.absolute()
         self.backup_dir = self.base_dir / ".deploy_backup"
         self.version_file = self.base_dir / "VERSION"
         
@@ -900,17 +901,69 @@ All notable changes to this project will be documented in this file.
         self.log_success(f"Successfully merged {source_branch} with main")
 
     def push_production_to_dev(self, version):
-        """Push production changes to dev branch with production tag."""
+        """Push production changes to new versioned dev branch with production tag."""
         self.log_info(f"Pushing production version {version} to dev branch with tag...")
         
-        # Checkout dev branch
-        self.run_command("git checkout dev")
+        # Get the highest dev version and ALWAYS do a MAJOR version bump for production deployments
+        current_dev_version = self.get_highest_branch_version("dev")
+        
+        # Check if this is the first dev deployment (no versioned dev branches exist)
+        if current_dev_version == "1.0.0":
+            # Check if there are actually any dev branches in remote
+            try:
+                remote_branches = self.run_command("git branch -r").stdout
+                dev_branches_exist = any("origin/dev/" in branch for branch in remote_branches.split('\n') if branch.strip())
+                
+                if not dev_branches_exist:
+                    # No dev branches exist - start from 1.0.0
+                    new_dev_version = "1.0.0"
+                    self.log_info(f"No existing dev branches found - starting dev versioning from {new_dev_version}")
+                else:
+                    # Dev branches exist but we got 1.0.0 as highest - do major bump
+                    new_dev_version = self.bump_version("major", current_dev_version)
+                    self.log_info(f"Production deployment: MAJOR dev version bump {current_dev_version} → {new_dev_version}")
+            except Exception:
+                # Error checking branches - start from 1.0.0
+                new_dev_version = "1.0.0"
+                self.log_info(f"Could not check existing dev branches - starting from {new_dev_version}")
+        else:
+            # Always do MAJOR version bump for production deployments to dev
+            new_dev_version = self.bump_version("major", current_dev_version)
+            self.log_info(f"Production deployment: MAJOR dev version bump {current_dev_version} → {new_dev_version}")
+        
+        dev_branch_name = f"dev/{new_dev_version}"
+        
+        self.log_success(f"🎯 Production → Dev: Always performing MAJOR version upgrade")
+        self.log_info(f"Creating new dev branch: {dev_branch_name}")
+        
+        # Check if the versioned dev branch exists
+        local_branches = self.run_command("git branch").stdout
+        clean_local_branches = [branch.strip().replace('*', '').strip() for branch in local_branches.split('\n') if branch.strip()]
+        local_dev_exists = dev_branch_name in clean_local_branches
+        
+        # Check remote branches
+        remote_branches = self.run_command("git branch -r").stdout
+        clean_remote_branches = [branch.strip() for branch in remote_branches.split('\n') if branch.strip() and not '-e' in branch]
+        remote_dev_exists = f"origin/{dev_branch_name}" in clean_remote_branches
+        
+        if local_dev_exists:
+            # Local versioned dev branch exists, just checkout
+            self.run_command(f"git checkout {dev_branch_name}")
+        elif remote_dev_exists:
+            # Remote versioned dev branch exists but not locally - create local tracking branch
+            self.run_command(f"git checkout -b {dev_branch_name} origin/{dev_branch_name}")
+            self.log_info(f"Created local dev branch tracking origin/{dev_branch_name}")
+        else:
+            # No versioned dev branch exists - create new dev branch from current branch
+            current_branch = self.get_current_branch()
+            self.run_command(f"git checkout -b {dev_branch_name}")
+            self.log_info(f"Created new versioned dev branch {dev_branch_name} from {current_branch}")
         
         # Pull latest dev to avoid conflicts
         try:
-            self.run_command("git pull origin dev")
+            self.run_command(f"git pull origin {dev_branch_name}")
         except subprocess.CalledProcessError:
-            self.log_warning("Could not pull from origin/dev - continuing...")
+            self.log_warning(f"Could not pull from origin/{dev_branch_name} - continuing...")
         
         # Merge prod branch into dev
         try:
@@ -930,13 +983,94 @@ All notable changes to this project will be documented in this file.
             pass  # Tag might not exist, that's fine
         
         # Create new production tag
-        self.run_command(f"git tag -a {production_tag} -m 'Production version {version} deployed to dev'")
+        self.run_command(f'git tag -a {production_tag} -m "Production version {version} deployed to dev"')
+        
+        # Update VERSION file with the new dev version
+        self.update_version_in_file("dev", new_dev_version)
+        
+        # Commit the version update
+        self.run_command("git add .")
+        self.run_command(f'git commit -m "update(dev): Bump dev version to {new_dev_version} for production {version}"')
         
         # Push dev branch and tag
-        self.run_command("git push origin dev")
+        self.run_command(f"git push origin {dev_branch_name}")
         self.run_command(f"git push origin {production_tag}")
         
-        self.log_success(f"Pushed production version {version} to dev branch with tag {production_tag}")
+        self.log_success(f"Pushed production version {version} to {dev_branch_name} branch with tag {production_tag}")
+
+    def validate_production_version(self, new_version):
+        """Validate that production version is being incremented properly."""
+        current_prod_version = self.get_version_from_file('production')
+        
+        # Compare versions to ensure new version is actually higher
+        try:
+            current_parts = list(map(int, current_prod_version.split('.')))
+            new_parts = list(map(int, new_version.split('.')))
+            
+            # Check if new version is greater than current
+            for i in range(3):
+                if new_parts[i] > current_parts[i]:
+                    return True
+                elif new_parts[i] < current_parts[i]:
+                    return False
+            
+            # Versions are equal - not allowed for production
+            return False
+            
+        except Exception as e:
+            self.log_warning(f"Error comparing versions: {e}")
+            return False
+    
+    def enforce_production_version_increment(self, target_env, new_version):
+        """Enforce that production versions are always incremented."""
+        if target_env != "production":
+            return True  # Only enforce for production
+        
+        current_prod_version = self.get_version_from_file('production')
+        
+        self.log_info(f"🔍 Production Version Check:")
+        self.log_info(f"   Current: {current_prod_version}")
+        self.log_info(f"   Proposed: {new_version}")
+        
+        if not self.validate_production_version(new_version):
+            self.log_error(f"❌ PRODUCTION VERSION ERROR!")
+            self.log_error(f"   Production version must be incremented for deployment.")
+            self.log_error(f"   Current production version: {current_prod_version}")
+            self.log_error(f"   Proposed version: {new_version}")
+            self.log_error(f"   ")
+            self.log_error(f"   📋 To fix this issue:")
+            self.log_error(f"   1. Use 'major', 'minor', or 'patch' bump type")
+            self.log_error(f"   2. Ensure the new version is higher than {current_prod_version}")
+            self.log_error(f"   ")
+            self.log_error(f"   Examples:")
+            self.log_error(f"   python smart_deploy.py production patch \"Bug fixes\"")
+            self.log_error(f"   python smart_deploy.py production minor \"New features\"")
+            self.log_error(f"   python smart_deploy.py production major \"Breaking changes\"")
+            return False
+        
+        self.log_success(f"✅ Production version validation passed: {current_prod_version} → {new_version}")
+        return True
+    
+    def show_version_summary(self, target_env, current_version, new_version):
+        """Show a comprehensive version summary before deployment."""
+        self.log_info(f"")
+        self.log_info(f"📊 Version Summary for {target_env.upper()} deployment:")
+        self.log_info(f"   ╭─────────────────────────────────────╮")
+        self.log_info(f"   │  Current: {current_version:<20} │")
+        self.log_info(f"   │  New:     {new_version:<20} │")
+        self.log_info(f"   ╰─────────────────────────────────────╯")
+        
+        # Show all current versions for context
+        feature_version = self.get_version_from_file('feature')
+        dev_version = self.get_version_from_file('dev')
+        production_version = self.get_version_from_file('production')
+        
+        self.log_info(f"")
+        self.log_info(f"📋 All Environment Versions:")
+        self.log_info(f"   Feature:    {feature_version}")
+        self.log_info(f"   Dev:        {dev_version}")
+        self.log_info(f"   Production: {production_version} {'→ ' + new_version if target_env == 'production' else ''}")
+        self.log_info(f"")
 
     def deploy(self, target_env, bump_type, commit_message=""):
         """Main deployment function."""
@@ -952,19 +1086,35 @@ All notable changes to this project will be documented in this file.
             # Sync with remote first to get latest remote branches
             self.sync_with_remote()
             
-            # Get the highest version for the specific branch type
-            current_version = self.get_highest_branch_version(target_env)
-            
-            # For first deployment of any branch type, use the found version as-is
-            # For subsequent deployments, bump the version
-            if current_version == "1.0.0":
-                # This is the first deployment for this branch type
-                self.log_info(f"First deployment for {target_env} - using version 1.0.0")
-                new_version = "1.0.0"
-            else:
-                # Branch type has existing versions, bump from the highest
-                self.log_info(f"Using highest version for {target_env} as base: {current_version}")
+            # Get the current version for the specific branch type
+            if target_env == "production":
+                # For production, always use the VERSION file as the source of truth
+                current_version = self.get_version_from_file('production')
+                # Always bump production versions (never start from 1.0.0 unless VERSION file says so)
                 new_version = self.bump_version(bump_type, current_version)
+                self.log_info(f"Production version from VERSION file: {current_version} → {new_version}")
+            else:
+                # For feature and dev, use branch scanning as before
+                current_version = self.get_highest_branch_version(target_env)
+                
+                # For first deployment of any branch type, use the found version as-is
+                # For subsequent deployments, bump the version
+                if current_version == "1.0.0":
+                    # This is the first deployment for this branch type
+                    self.log_info(f"First deployment for {target_env} - using version 1.0.0")
+                    new_version = "1.0.0"
+                else:
+                    # Branch type has existing versions, bump from the highest
+                    self.log_info(f"Using highest version for {target_env} as base: {current_version}")
+                    new_version = self.bump_version(bump_type, current_version)
+            
+            # PRODUCTION VERSION VALIDATION - Critical safeguard
+            if not self.enforce_production_version_increment(target_env, new_version):
+                self.log_error("🚫 Production deployment blocked due to version validation failure!")
+                return False
+            
+            # Show comprehensive version summary
+            self.show_version_summary(target_env, current_version, new_version)
             
             # Parse target environment and create versioned branch names
             if target_env.startswith("feature/"):
@@ -982,8 +1132,55 @@ All notable changes to this project will be documented in this file.
                 return False
             
             self.log_info(f"Target branch: {branch_name}")
-            self.log_info(f"Version: {current_version} -> {new_version}")
+            self.log_info(f"Version: {current_version} → {new_version}")
 
+            # Special handling for production deployments - two-step process
+            if target_env == "production":
+                # Calculate what the dev version will be
+                current_dev_version = self.get_highest_branch_version("dev")
+                try:
+                    remote_branches = self.run_command("git branch -r").stdout
+                    dev_branches_exist = any("origin/dev/" in branch for branch in remote_branches.split('\n') if branch.strip())
+                    
+                    if current_dev_version == "1.0.0" and not dev_branches_exist:
+                        next_dev_version = "1.0.0"
+                    else:
+                        next_dev_version = self.bump_version("major", current_dev_version)
+                except Exception:
+                    next_dev_version = "1.0.0"
+                
+                print(f"\n🎯 PRODUCTION DEPLOYMENT - TWO-STEP PROCESS:")
+                print(f"   📦 Production Version: {current_version} → {new_version}")
+                print(f"   🚀 Dev Version: {current_dev_version} → {next_dev_version} (MAJOR BUMP)")
+                print(f"   📝 Message: {commit_message or 'Automated production deployment'}")
+                print(f"")
+                print(f"   🔄 Process:")
+                print(f"   1️⃣  Create dev/{next_dev_version} branch first")
+                print(f"   2️⃣  Then create prod branch")
+                print(f"")
+                
+                # STEP 1: Create dev branch first
+                print(f"\n🚀 STEP 1: DEV BRANCH CREATION")
+                print(f"   Creating dev/{next_dev_version} with production tag prod-{new_version}")
+                
+                if not self.confirm_action(f"Create dev/{next_dev_version} branch first?"):
+                    self.log_warning("Production deployment cancelled by user")
+                    return False
+                
+                # Execute dev branch creation
+                self.push_production_to_dev(new_version)
+                self.log_success(f"✅ Step 1 completed: dev/{next_dev_version} created with tag prod-{new_version}")
+                
+                # STEP 2: Confirm production branch creation
+                print(f"\n🎯 STEP 2: PRODUCTION BRANCH CREATION")
+                print(f"   Now creating production branch: {branch_name}")
+                print(f"   ⚠️  This is the FINAL step for PRODUCTION deployment!")
+                
+                if not self.confirm_action(f"Proceed with PRODUCTION branch creation?"):
+                    self.log_warning("Production branch creation cancelled by user")
+                    self.log_info("Note: Dev branch was already created and pushed")
+                    return False
+            
             # Create/checkout target branch (with user confirmation for new branches)
             if not self.create_or_checkout_branch(branch_name, target_env, new_version):
                 return False
@@ -1001,9 +1198,8 @@ All notable changes to this project will be documented in this file.
 
             # Handle special production workflow
             if target_env == "production":
-                # Push production to dev with tag, then continue with prod
-                self.push_production_to_dev(new_version)
-                self.log_success(f"🏷️  Tagged production version {new_version} on dev branch")
+                # Dev branch was already created in the two-step confirmation process above
+                self.log_success(f"🏷️  Production version {new_version} tagged on dev branch (completed in step 1)")
             
             # Merge with main if configured (only for features now)
             merge_target = self.git_config[env_type]["merge_with"]
@@ -1018,7 +1214,14 @@ All notable changes to this project will be documented in this file.
                 self.log_success(f"🔀 Merged with {merge_target}")
             
             if target_env == "production":
-                self.log_success(f"🚀 Production deployed to both dev (with tag prod-{new_version}) and prod branches")
+                # Get the actual dev version that was created
+                current_dev_version = self.get_version_from_file('dev')
+                self.log_success(f"")
+                self.log_success(f"🎆 PRODUCTION DEPLOYMENT COMPLETED - TWO-STEP PROCESS:")
+                self.log_success(f"   ✅ Step 1: Dev branch created with MAJOR version bump ({current_dev_version})")
+                self.log_success(f"   ✅ Step 2: Production branch created ({new_version})")
+                self.log_success(f"   🏷️  Tagged: prod-{new_version} on dev branch")
+                self.log_success(f"🚀 Both dev and prod branches successfully deployed!")
 
             return True
 
@@ -1028,11 +1231,54 @@ All notable changes to this project will be documented in this file.
             self.log_info(f"Backup location: {backup_path}")
             return False
 
+    def show_version_status(self):
+        """Show current version status for all environments."""
+        feature_version = self.get_version_from_file('feature')
+        dev_version = self.get_version_from_file('dev')
+        production_version = self.get_version_from_file('production')
+        
+        print(f"")
+        print(f"📊 CURRENT VERSION STATUS")
+        print(f"╭─────────────────────────────────────╮")
+        print(f"│                                     │")
+        print(f"│  🔧 Feature:    {feature_version:<16}     │")
+        print(f"│  🚀 Dev:        {dev_version:<16}     │")
+        print(f"│  🎯 Production: {production_version:<16}     │")
+        print(f"│                                     │")
+        print(f"╰─────────────────────────────────────╯")
+        print(f"")
+        
+        # Show what the next versions would be for each bump type
+        print(f"🔮 NEXT PRODUCTION VERSIONS:")
+        try:
+            next_patch = self.bump_version("patch", production_version)
+            next_minor = self.bump_version("minor", production_version)
+            next_major = self.bump_version("major", production_version)
+            
+            print(f"   📌 Patch:  {production_version} → {next_patch}")
+            print(f"   🆕 Minor:  {production_version} → {next_minor}")
+            print(f"   💥 Major:  {production_version} → {next_major}")
+        except Exception as e:
+            print(f"   ❌ Error calculating next versions: {e}")
+        
+        print(f"")
+        print(f"💡 PRODUCTION DEPLOYMENT EXAMPLES:")
+        print(f"   python smart_deploy.py production patch \"Bug fixes\"")
+        print(f"   python smart_deploy.py production minor \"New features\"")
+        print(f"   python smart_deploy.py production major \"Breaking changes\"")
+        print(f"")
+
 def main():
     """Main entry point."""
     if len(sys.argv) < 2:
         print(__doc__)
         sys.exit(1)
+
+    # Check for special commands
+    if sys.argv[1] in ['status', 'version', '--status', '--version']:
+        deployer = SmartDeployer()
+        deployer.show_version_status()
+        sys.exit(0)
 
     target_env = sys.argv[1]
     bump_type = sys.argv[2] if len(sys.argv) > 2 else "patch"
