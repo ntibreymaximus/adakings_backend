@@ -56,7 +56,6 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt.token_blacklist',
     'drf_spectacular',
     'corsheaders',
-    'channels',
 ]
 
 # Enable development tools if available and in debug mode
@@ -82,8 +81,6 @@ AUTH_USER_MODEL = 'users.CustomUser'
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'corsheaders.middleware.CorsMiddleware',
-    'apps.orders.middleware.BrokenPipeMiddleware',  # Handle broken pipe errors
-    'apps.orders.middleware.WebSocketConnectionMiddleware',  # Handle WebSocket connections
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -110,7 +107,6 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'adakings_backend.wsgi.application'
-ASGI_APPLICATION = 'adakings_backend.asgi.application'
 
 # Database configuration
 database_engine = os.environ.get('DATABASE_ENGINE', 'sqlite3').lower()
@@ -236,45 +232,33 @@ if redis_url and not DEBUG:
         'default': {
             'BACKEND': 'django.core.cache.backends.redis.RedisCache',
             'LOCATION': redis_url,
+            'TIMEOUT': 300,  # 5 minutes default timeout
+            'OPTIONS': {
+                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+                'CONNECTION_POOL_KWARGS': {
+                    'max_connections': 50,
+                    'retry_on_timeout': True,
+                }
+            }
         }
     }
 else:
-    # Use dummy cache for development
+    # Use local memory cache for development (faster than dummy cache)
     CACHES = {
         'default': {
-            'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'unique-snowflake',
+            'TIMEOUT': 300,  # 5 minutes
+            'OPTIONS': {
+                'MAX_ENTRIES': 1000,
+                'CULL_FREQUENCY': 3,
+            }
         }
     }
 
 # Session cache
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 
-# Channels layer configuration
-redis_url = os.environ.get('REDIS_URL')
-if redis_url and not DEBUG:
-    CHANNEL_LAYERS = {
-        'default': {
-            'BACKEND': 'channels_redis.core.RedisChannelLayer',
-            'CONFIG': {
-                'hosts': [redis_url],
-                'capacity': 1500,  # Default 100
-                'expiry': 60,      # Default 60 seconds
-                'prefix': 'adakings:',
-                'symmetric_encryption_keys': [SECRET_KEY],
-            },
-        },
-    }
-else:
-    # Use in-memory channel layer for development
-    CHANNEL_LAYERS = {
-        'default': {
-            'BACKEND': 'channels.layers.InMemoryChannelLayer',
-            'CONFIG': {
-                'capacity': 500,   # Reduced for development
-                'expiry': 30,      # Shorter expiry for development
-            },
-        },
-    }
 
 # Django REST Framework settings
 REST_FRAMEWORK = {
@@ -303,8 +287,8 @@ REST_FRAMEWORK = {
         'rest_framework.throttling.UserRateThrottle'
     ],
     'DEFAULT_THROTTLE_RATES': {
-        'anon': '600/hour',  # Even higher rate for instant responsiveness
-        'user': '2000/hour'  # Much higher rate for authenticated users
+        'anon': '1000/minute' if DEBUG else '600/hour',  # Very high rate for development
+        'user': '3000/minute' if DEBUG else '2000/hour'  # Very high rate for development
     },
     'EXCEPTION_HANDLER': 'rest_framework.views.exception_handler',
     'UNAUTHENTICATED_USER': 'django.contrib.auth.models.AnonymousUser',
@@ -370,28 +354,13 @@ CORS_ALLOW_HEADERS = [
     'content-type',
     'dnt',
     'origin',
+    'pragma',
     'user-agent',
     'x-csrftoken',
     'x-requested-with',
 ]
 
-# WebSocket and Connection Settings - Optimized for faster responsiveness
-WEBSOCKET_TIMEOUT = int(os.environ.get('WEBSOCKET_TIMEOUT', '120'))  # 2 minutes for faster resource management
-WEBSOCKET_HEARTBEAT_INTERVAL = int(os.environ.get('WEBSOCKET_HEARTBEAT_INTERVAL', '15'))  # 15 seconds for faster detection
-CONNECTION_MAX_AGE = int(os.environ.get('CONNECTION_MAX_AGE', '120'))  # 2 minutes for faster cleanup
-WEBSOCKET_CLOSE_TIMEOUT = int(os.environ.get('WEBSOCKET_CLOSE_TIMEOUT', '5'))  # 5 seconds for graceful close
-WEBSOCKET_PING_INTERVAL = int(os.environ.get('WEBSOCKET_PING_INTERVAL', '10'))  # 10 seconds server-side ping
-WEBSOCKET_PING_TIMEOUT = int(os.environ.get('WEBSOCKET_PING_TIMEOUT', '5'))  # 5 seconds pong timeout
 
-# Add connection settings to database
-for db_config in DATABASES.values():
-    if 'postgresql' in db_config.get('ENGINE', ''):
-        db_config['CONN_MAX_AGE'] = CONNECTION_MAX_AGE
-        db_config['OPTIONS'] = db_config.get('OPTIONS', {})
-        db_config['OPTIONS']['connect_timeout'] = 10
-        db_config['OPTIONS']['tcp_keepalives_idle'] = 600
-        db_config['OPTIONS']['tcp_keepalives_interval'] = 30
-        db_config['OPTIONS']['tcp_keepalives_count'] = 3
 
 # Custom logging filter to suppress broken pipe messages
 class BrokenPipeFilter(logging.Filter):
@@ -451,10 +420,6 @@ LOGGING = {
             'format': '{levelname} {message}',
             'style': '{',
         },
-        'websocket': {
-            'format': 'WS {levelname} {asctime} {message}',
-            'style': '{',
-        },
     },
     'handlers': {
         'console': {
@@ -469,12 +434,6 @@ LOGGING = {
             'filename': os.path.join(BASE_DIR, 'logs', 'django.log'),
             'formatter': 'verbose',
             'filters': ['broken_pipe_filter'],
-        },
-        'websocket_file': {
-            'level': 'DEBUG' if DEBUG else 'INFO',
-            'class': 'logging.FileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs', 'websocket.log'),
-            'formatter': 'websocket',
         },
     },
     'root': {
@@ -500,22 +459,6 @@ LOGGING = {
             'level': 'DEBUG',
             'propagate': False,
         },
-        'apps.orders.consumers': {
-            'handlers': ['console', 'websocket_file'] if not DEBUG else ['console'],
-            'level': 'DEBUG',
-            'propagate': False,
-        },
-        'channels': {
-            'handlers': ['console'],
-            'level': 'INFO',
-            'propagate': False,
-        },
-        'daphne': {
-            'handlers': ['console'],
-            'level': 'INFO',
-            'propagate': False,
-            'filters': ['broken_pipe_filter'],
-        },
     },
 }
 
@@ -526,9 +469,6 @@ os.makedirs(os.path.join(BASE_DIR, 'logs'), exist_ok=True)
 DATA_UPLOAD_MAX_MEMORY_SIZE = int(os.environ.get('MAX_UPLOAD_SIZE', '5242880'))  # 5MB for faster processing
 FILE_UPLOAD_MAX_MEMORY_SIZE = int(os.environ.get('MAX_UPLOAD_SIZE', '5242880'))  # 5MB for faster processing
 
-# Database connection optimization
-DATABASE_CONN_MAX_AGE = 60  # Keep connections alive for better performance
-DATABASE_QUERY_TIMEOUT = 10  # Faster query timeout
 
 # Auto-reloader optimization for development
 if DEBUG:

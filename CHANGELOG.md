@@ -2,6 +2,163 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.0] - 2025-07-05
+
+### 🔧 Feature Development
+
+**📋 Release Information:**
+- **Environment**: feature/api-first
+- **Branch**: `feature/api-first-2.0.0`
+- **Version**: `Unknown` → `2.0.0`
+- **Deployment Time**: 2025-07-05 19:24:42
+- **Description**: Feature branch for 'api-first' development
+
+**📝 Changes Made:**
+Implement API-first approach with selective caching
+
+**📁 Files Modified:**
+  - Deleted: `ROKEN_PIPE_FIXES.md`
+  - Modified: `DEPLOYMENT_SUMMARY.md`
+  - Modified: `README.md`
+  - Deleted: `UNIFIED_DEPLOY_GUIDE.md`
+  - Modified: `VERSION`
+  - Modified: `adakings_backend/asgi.py`
+  - Modified: `adakings_backend/settings/settings.py`
+  - Modified: `adakings_backend/urls.py`
+  - Modified: `apps/menu/models.py`
+  - Modified: `apps/menu/views.py`
+  - Deleted: `apps/orders/consumers.py`
+  - Deleted: `apps/orders/middleware.py`
+  - Modified: `apps/orders/models.py`
+  - Deleted: `apps/orders/routing.py`
+  - Modified: `apps/orders/serializers.py`
+  - Modified: `apps/orders/signals.py`
+  - Modified: `apps/orders/urls.py`
+  - Modified: `apps/orders/views.py`
+  - Deleted: `enable_websockets.bat`
+  - Deleted: `node_modules/.package-lock.json`
+  - Deleted: `node_modules/cookie/LICENSE`
+  - Deleted: `node_modules/cookie/README.md`
+  - Deleted: `node_modules/cookie/package.json`
+  - Deleted: `node_modules/react-dom/LICENSE`
+  - Deleted: `node_modules/react-dom/README.md`
+  - Deleted: `node_modules/react-dom/cjs/react-dom-client.development.js`
+  - Deleted: `node_modules/react-dom/cjs/react-dom-client.production.js`
+  - Deleted: `node_modules/react-dom/cjs/react-dom-profiling.development.js`
+  - Deleted: `node_modules/react-dom/cjs/react-dom-profiling.profiling.js`
+  - Deleted: `node_modules/react-dom/cjs/react-dom-server-legacy.browser.development.js`
+  - Deleted: `node_modules/react-dom/cjs/react-dom-server-legacy.browser.production.js`
+  - Deleted: `node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js`
+  - Deleted: `node_modules/react-dom/cjs/react-dom-server-legacy.node.production.js`
+  - Deleted: `node_modules/react-dom/cjs/react-dom-server.browser.development.js`
+  - Deleted: `node_modules/react-dom/cjs/react-dom-server.browser.production.js`
+  - Deleted: `node_modules/react-dom/cjs/react-dom-server.bun.development.js`
+  - Deleted: `node_modules/react-dom/cjs/react-dom-server.bun.production.js`
+  - Deleted: `node_modules/react-dom/cjs/react-dom-server.edge.development.js`
+  - Deleted: `node_modules/react-dom/cjs/react-dom-server.edge.production.js`
+  - Deleted: `node_modules/react-dom/cjs/react-dom-server.node.development.js`
+  - Deleted: `node_modules/react-dom/cjs/react-dom-server.node.production.js`
+  - Deleted: `node_modules/react-dom/cjs/react-dom-test-utils.development.js`
+  - Deleted: `node_modules/react-dom/cjs/react-dom-test-utils.production.js`
+  - Deleted: `node_modules/react-dom/cjs/react-dom.development.js`
+  - Deleted: `node_modules/react-dom/cjs/react-dom.production.js`
+  - Deleted: `node_modules/react-dom/cjs/react-dom.react-server.development.js`
+  - Deleted: `node_modules/react-dom/cjs/react-dom.react-server.production.js`
+  - Deleted: `node_modules/react-dom/client.js`
+  - Deleted: `node_modules/react-dom/client.react-server.js`
+  - Deleted: `node_modules/react-dom/index.js`
+  - Deleted: `node_modules/react-dom/package.json`
+  - Deleted: `node_modules/react-dom/profiling.js`
+  - Deleted: `node_modules/react-dom/profiling.react-server.js`
+  - Deleted: `node_modules/react-dom/react-dom.react-server.js`
+  - Deleted: `node_modules/react-dom/server.browser.js`
+  - Deleted: `node_modules/react-dom/server.bun.js`
+  - Deleted: `node_modules/react-dom/server.edge.js`
+  - Deleted: `node_modules/react-dom/server.js`
+  - Deleted: `node_modules/react-dom/server.node.js`
+  - Deleted: `node_modules/react-dom/server.react-server.js`
+  - Deleted: `node_modules/react-dom/static.browser.js`
+  - Deleted: `node_modules/react-dom/static.edge.js`
+  - Deleted: `node_modules/react-dom/static.js`
+  - Deleted: `node_modules/react-dom/static.node.js`
+  - Deleted: `node_modules/react-dom/static.react-server.js`
+  - Deleted: `node_modules/react-dom/test-utils.js`
+  - Deleted: `node_modules/react-router-dom/LICENSE.md`
+  - Deleted: `node_modules/react-router-dom/README.md`
+  - Deleted: `node_modules/react-router-dom/package.json`
+  - Deleted: `node_modules/react-router/CHANGELOG.md`
+  - Deleted: `node_modules/react-router/LICENSE.md`
+  - Deleted: `node_modules/react-router/README.md`
+  - Deleted: `node_modules/react-router/package.json`
+  - Deleted: `node_modules/react/LICENSE`
+  - Deleted: `node_modules/react/README.md`
+  - Deleted: `node_modules/react/cjs/react-compiler-runtime.development.js`
+  - Deleted: `node_modules/react/cjs/react-compiler-runtime.production.js`
+  - Deleted: `node_modules/react/cjs/react-compiler-runtime.profiling.js`
+  - Deleted: `node_modules/react/cjs/react-jsx-dev-runtime.development.js`
+  - Deleted: `node_modules/react/cjs/react-jsx-dev-runtime.production.js`
+  - Deleted: `node_modules/react/cjs/react-jsx-dev-runtime.profiling.js`
+  - Deleted: `node_modules/react/cjs/react-jsx-dev-runtime.react-server.development.js`
+  - Deleted: `node_modules/react/cjs/react-jsx-dev-runtime.react-server.production.js`
+  - Deleted: `node_modules/react/cjs/react-jsx-runtime.development.js`
+  - Deleted: `node_modules/react/cjs/react-jsx-runtime.production.js`
+  - Deleted: `node_modules/react/cjs/react-jsx-runtime.profiling.js`
+  - Deleted: `node_modules/react/cjs/react-jsx-runtime.react-server.development.js`
+  - Deleted: `node_modules/react/cjs/react-jsx-runtime.react-server.production.js`
+  - Deleted: `node_modules/react/cjs/react.development.js`
+  - Deleted: `node_modules/react/cjs/react.production.js`
+  - Deleted: `node_modules/react/cjs/react.react-server.development.js`
+  - Deleted: `node_modules/react/cjs/react.react-server.production.js`
+  - Deleted: `node_modules/react/compiler-runtime.js`
+  - Deleted: `node_modules/react/index.js`
+  - Deleted: `node_modules/react/jsx-dev-runtime.js`
+  - Deleted: `node_modules/react/jsx-dev-runtime.react-server.js`
+  - Deleted: `node_modules/react/jsx-runtime.js`
+  - Deleted: `node_modules/react/jsx-runtime.react-server.js`
+  - Deleted: `node_modules/react/package.json`
+  - Deleted: `node_modules/react/react.react-server.js`
+  - Deleted: `node_modules/scheduler/LICENSE`
+  - Deleted: `node_modules/scheduler/README.md`
+  - Deleted: `node_modules/scheduler/cjs/scheduler-unstable_mock.development.js`
+  - Deleted: `node_modules/scheduler/cjs/scheduler-unstable_mock.production.js`
+  - Deleted: `node_modules/scheduler/cjs/scheduler-unstable_post_task.development.js`
+  - Deleted: `node_modules/scheduler/cjs/scheduler-unstable_post_task.production.js`
+  - Deleted: `node_modules/scheduler/cjs/scheduler.development.js`
+  - Deleted: `node_modules/scheduler/cjs/scheduler.native.development.js`
+  - Deleted: `node_modules/scheduler/cjs/scheduler.native.production.js`
+  - Deleted: `node_modules/scheduler/cjs/scheduler.production.js`
+  - Deleted: `node_modules/scheduler/index.js`
+  - Deleted: `node_modules/scheduler/index.native.js`
+  - Deleted: `node_modules/scheduler/package.json`
+  - Deleted: `node_modules/scheduler/unstable_mock.js`
+  - Deleted: `node_modules/scheduler/unstable_post_task.js`
+  - Deleted: `node_modules/set-cookie-parser/LICENSE`
+  - Deleted: `node_modules/set-cookie-parser/README.md`
+  - Deleted: `node_modules/set-cookie-parser/package.json`
+  - Deleted: `package-lock.json`
+  - Deleted: `package.json`
+  - Deleted: `requirements-channels.txt`
+  - Deleted: `sw.js`
+  - Changed: `CUSTOM_LOCATION_IMPLEMENTATION.md`
+  - Changed: `apps/menu/migrations/0003_add_menu_indexes.py`
+  - Changed: `apps/orders/migrations/0016_order_custom_delivery_fee_and_more.py`
+  - Changed: `clear_throttle_cache.py`
+  - Changed: `db.sqlite3-shm`
+  - Changed: `db.sqlite3-wal`
+
+**🔄 Deployment Details:**
+- **Source Branch**: `feature/api-first-2.0.0`
+- **Target Branch**: `feature/api-first-2.0.0`
+- **Merge Strategy**: Automatic merge with main branch
+- **Version Bump Type**: Version update
+
+**🎯 Environment Specific Notes:**
+- This is a feature branch deployment for development and testing
+- Changes are isolated and will be merged after review
+- Not suitable for production use
+
+---
+
 ## [1.4.0] - 2025-07-05
 
 ### 🔧 Feature Development

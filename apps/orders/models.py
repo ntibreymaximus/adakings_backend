@@ -82,7 +82,23 @@ class Order(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        help_text="Select delivery location (Required for delivery orders)."
+        help_text="Select delivery location (Required for delivery orders unless custom location is provided)."
+    )
+    
+    # Custom location fields for "Other" delivery locations
+    custom_delivery_location = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="Custom delivery location name (used when delivery_location is not set)"
+    )
+    custom_delivery_fee = models.DecimalField(
+        max_digits=6,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0.00"))],
+        help_text="Custom delivery fee (used when delivery_location is not set)"
     )
     
     # Status constants
@@ -192,12 +208,21 @@ class Order(models.Model):
         
         # Validation for delivery orders
         if self.delivery_type == "Delivery":
-            # Location is required for delivery orders
-            if not self.delivery_location:
-                errors["delivery_location"] = "Location is required for delivery orders."
-            # Check if the delivery location is active
-            elif not self.delivery_location.is_active:
+            # Either a delivery location OR custom location details must be provided
+            if not self.delivery_location and not self.custom_delivery_location:
+                errors["delivery_location"] = "Either a delivery location or custom location name is required for delivery orders."
+            
+            # If delivery location is set, check if it's active
+            if self.delivery_location and not self.delivery_location.is_active:
                 errors["delivery_location"] = f"Delivery to '{self.delivery_location.name}' is not currently available."
+            
+            # If custom location is provided, ensure custom fee is also provided
+            if self.custom_delivery_location and self.custom_delivery_fee is None:
+                errors["custom_delivery_fee"] = "Custom delivery fee is required when using a custom delivery location."
+            
+            # If both delivery_location and custom fields are provided, that's invalid
+            if self.delivery_location and self.custom_delivery_location:
+                errors["custom_delivery_location"] = "Cannot specify both a delivery location and custom location. Choose one."
             
             # Customer phone is required for delivery orders
             if not self.customer_phone or self.customer_phone.strip() == '':
@@ -212,12 +237,24 @@ class Order(models.Model):
         if self.delivery_type == "Pickup":
             return Decimal("0.00")
         elif self.delivery_type == "Delivery":
+            # Use delivery location fee if available
             if self.delivery_location:
                 return self.delivery_location.fee
+            # Use custom delivery fee if available
+            elif self.custom_delivery_fee is not None:
+                return self.custom_delivery_fee
             else:
-                # This case should ideally be caught by clean() method if location is invalid
+                # No location or custom fee set
                 return Decimal("0.00") 
         return Decimal("0.00")
+    
+    def get_effective_delivery_location_name(self):
+        """Get the display name for the delivery location (either from DeliveryLocation or custom)"""
+        if self.delivery_location:
+            return self.delivery_location.name
+        elif self.custom_delivery_location:
+            return self.custom_delivery_location
+        return None
 
     def calculate_total(self):
         """Calculate total price based on all order items and delivery fee"""
@@ -271,11 +308,16 @@ class Order(models.Model):
         if not self.order_number:
             self.order_number = self.generate_order_number()
         
-        # Set appropriate default status based on delivery type for new orders
+        # Set appropriate default status based on delivery type for new orders only
+        # Only set default status for truly new orders (not during updates)
         if not self.pk and self.status == self.STATUS_PENDING:
             if self.delivery_type == 'Delivery':
                 self.status = self.STATUS_ACCEPTED  # Delivery orders start as Accepted
             # Pickup orders keep the default STATUS_PENDING
+        elif self.pk and hasattr(self, '_state') and self._state.adding is False:
+            # This is an existing order being updated - preserve status unless explicitly changed
+            # Only apply automatic status changes during payment processing, not during order editing
+            pass
         
         # Calculate total price (this will use the self.delivery_fee set above)
         # This needs to happen for both new and existing orders if items might be involved or delivery fee changed.
@@ -390,47 +432,4 @@ class OrderItem(models.Model):
         ]
 
 
-# Signal handlers for WebSocket broadcasts
-from django.db.models.signals import post_save, post_delete
-from django.dispatch import receiver
-
-@receiver(post_save, sender=Order)
-def order_saved(sender, instance, created, **kwargs):
-    """Broadcast order creation or update via WebSocket."""
-    # Don't broadcast if this is an update_fields save (like from OrderItem signals)
-    # to prevent double broadcasting and potential recursion
-    update_fields = kwargs.get('update_fields')
-    if update_fields and set(update_fields).issubset({'total_price', 'updated_at', 'delivery_fee'}):
-        return  # Skip broadcasting for partial updates from signals
-    
-    try:
-        from .consumers import broadcast_order_created, broadcast_order_updated
-        if created:
-            broadcast_order_created(instance)
-        else:
-            broadcast_order_updated(instance)
-    except ImportError:
-        # Gracefully handle if consumers module is not available
-        pass
-    except Exception as e:
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.error(f"Error broadcasting order change: {e}")
-
-@receiver(post_delete, sender=Order)
-def order_deleted(sender, instance, **kwargs):
-    """Broadcast order deletion via WebSocket."""
-    try:
-        from .consumers import broadcast_order_deleted
-        broadcast_order_deleted(instance.id)
-    except ImportError:
-        # Gracefully handle if consumers module is not available
-        pass
-    except Exception as e:
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.error(f"Error broadcasting order deletion: {e}")
-
-# OrderItem signals are handled in signals.py to avoid recursion
-# Removed duplicate signals that were causing infinite save loops
 

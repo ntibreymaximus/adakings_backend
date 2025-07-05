@@ -12,7 +12,6 @@ _signal_processing = set()
 def update_order_total_on_item_save(sender, instance, **kwargs):
     """
     Recalculate and save the order's total price when an OrderItem is saved.
-    Also broadcast the update via WebSocket.
     """
     # Use unique identifier to prevent recursion
     signal_key = f"orderitem_save_{instance.id}_{instance.order.id}"
@@ -30,15 +29,6 @@ def update_order_total_on_item_save(sender, instance, **kwargs):
         # Use update_fields to prevent triggering the Order post_save signal
         order.save(update_fields=['total_price', 'updated_at'])
         
-        # Broadcast order update via WebSocket
-        try:
-            from .consumers import broadcast_order_updated
-            broadcast_order_updated(order)
-        except ImportError:
-            # Gracefully handle if consumers module is not available
-            pass
-        except Exception as e:
-            logger.error(f"Error broadcasting order item change: {e}")
             
     finally:
         _signal_processing.discard(signal_key)
@@ -47,7 +37,6 @@ def update_order_total_on_item_save(sender, instance, **kwargs):
 def update_order_total_on_item_delete(sender, instance, **kwargs):
     """
     Recalculate and save the order's total price when an OrderItem is deleted.
-    Also broadcast the update via WebSocket.
     """
     # Use unique identifier to prevent recursion
     signal_key = f"orderitem_delete_{instance.order.id}"
@@ -64,15 +53,6 @@ def update_order_total_on_item_delete(sender, instance, **kwargs):
         # Save only the total_price and updated_at to avoid triggering full save logic
         order.save(update_fields=['total_price', 'updated_at'])
         
-        # Broadcast order update via WebSocket
-        try:
-            from .consumers import broadcast_order_updated
-            broadcast_order_updated(order)
-        except ImportError:
-            # Gracefully handle if consumers module is not available
-            pass
-        except Exception as e:
-            logger.error(f"Error broadcasting order item deletion: {e}")
             
     finally:
         _signal_processing.discard(signal_key)

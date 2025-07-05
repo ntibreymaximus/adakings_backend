@@ -16,12 +16,11 @@ from .serializers import OrderSerializer, OrderStatusUpdateSerializer, DeliveryL
 
 class OrderListPagination(PageNumberPagination):
     """
-    Custom pagination class for orders that shows all results by default.
-    Can be overridden with query parameter page_size.
+    Optimized pagination for fast loading.
     """
-    page_size = None  # No limit by default - show all results
+    page_size = 100  # Default page size for fast loading
     page_size_query_param = 'page_size'
-    max_page_size = 1000  # Set a reasonable upper limit for performance
+    max_page_size = 500  # Reduced for better performance
 
 
 @extend_schema(
@@ -52,6 +51,34 @@ def next_order_number(request):
             next_number = (Order.objects.count() + 1)
 
     return Response({'next_order_number': f'ADA-{next_number:04d}'})
+
+@extend_schema(
+    summary="Get Today's Orders",
+    description="Returns all orders for today. Optimized for instant loading.",
+    tags=['Orders']
+)
+@api_view(['GET'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+def todays_orders(request):
+    """Fast endpoint for today's orders only"""
+    from django.utils import timezone
+    from .serializers import OrderSerializer
+    
+    today = timezone.now().date()
+    
+    # Get today's orders with optimized query
+    orders = Order.objects.filter(
+        created_at__date=today
+    ).select_related(
+        'delivery_location'
+    ).prefetch_related(
+        'items__menu_item',
+        'payments'
+    ).order_by('-created_at')
+    
+    serializer = OrderSerializer(orders, many=True)
+    return Response(serializer.data)
 
 @extend_schema( # Moved from get_queryset to class level
     summary="List and Create Orders",
@@ -253,7 +280,7 @@ class OrderStatusHistoryAPIView(generics.ListAPIView):
                 'customer_phone': order.customer_phone,
                 'current_status': order.status,
                 'delivery_type': order.delivery_type,
-                'delivery_location': order.delivery_location.name if order.delivery_location else None,
+                'delivery_location': order.get_effective_delivery_location_name(),
                 'total_price': float(order.total_price),
                 'payment_status': order.get_payment_status(),
                 'amount_paid': float(order.amount_paid()),

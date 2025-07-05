@@ -6,7 +6,8 @@ from .views import (
     OrderStatusUpdateAPIView,
     DeliveryLocationListAPIView,
     OrderStatusHistoryAPIView,
-    next_order_number
+    next_order_number,
+    todays_orders
 )
 
 app_name = 'orders_api'
@@ -18,6 +19,7 @@ app_name = 'orders_api'
 urlpatterns = [
     # path('', include(router.urls)),
     path('', OrderListCreateAPIView.as_view(), name='order-list-create'),
+    path('today/', todays_orders, name='todays-orders'),
     path('next-order-number/', next_order_number, name='next-order-number'),
     path('delivery-locations/', DeliveryLocationListAPIView.as_view(), name='delivery-locations'),
     path('status-history/', OrderStatusHistoryAPIView.as_view(), name='order-status-history'),

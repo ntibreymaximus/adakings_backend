@@ -96,6 +96,7 @@ class OrderSerializer(serializers.ModelSerializer):
     delivery_location = DeliveryLocationField(allow_null=True, required=False)
     delivery_location_name = serializers.CharField(source='delivery_location.name', read_only=True)
     delivery_location_fee = serializers.DecimalField(source='delivery_location.fee', max_digits=6, decimal_places=2, read_only=True)
+    effective_delivery_location_name = serializers.SerializerMethodField()
     time_ago = serializers.SerializerMethodField()
 
     class Meta:
@@ -103,6 +104,7 @@ class OrderSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'order_number', 'customer_phone',
             'delivery_type', 'delivery_location', 'delivery_location_name', 'delivery_location_fee',
+            'custom_delivery_location', 'custom_delivery_fee', 'effective_delivery_location_name',
             'status', 'total_price', 'delivery_fee', 'notes', 'created_at', 'updated_at',
             'items', 'amount_paid', 'balance_due', 'amount_overpaid', 
             'payment_status', 'payment_mode', 'payments', 'time_ago'
@@ -113,13 +115,19 @@ class OrderSerializer(serializers.ModelSerializer):
         }
 
     
+    def get_effective_delivery_location_name(self, obj):
+        """Get the effective delivery location name (from DeliveryLocation or custom)"""
+        return obj.get_effective_delivery_location_name()
+    
     def validate(self, data):
         """
-        Validate that customer phone is provided when delivery is selected.
+        Validate that customer phone and location are provided when delivery is selected.
         """
         delivery_type = data.get('delivery_type', self.instance.delivery_type if self.instance else 'Pickup')
         customer_phone = data.get('customer_phone', self.instance.customer_phone if self.instance else None)
         delivery_location = data.get('delivery_location', self.instance.delivery_location if self.instance else None)
+        custom_delivery_location = data.get('custom_delivery_location', self.instance.custom_delivery_location if self.instance else None)
+        custom_delivery_fee = data.get('custom_delivery_fee', self.instance.custom_delivery_fee if self.instance else None)
         
         if delivery_type == 'Delivery':
             errors = {}
@@ -128,9 +136,17 @@ class OrderSerializer(serializers.ModelSerializer):
             if not customer_phone or customer_phone.strip() == '':
                 errors['customer_phone'] = ['Customer phone number is required for delivery orders.']
             
-            # Check delivery location
-            if not delivery_location:
-                errors['delivery_location'] = ['Delivery location is required for delivery orders.']
+            # Check that either delivery_location OR custom_delivery_location is provided
+            if not delivery_location and not custom_delivery_location:
+                errors['delivery_location'] = ['Either a delivery location or custom location name is required for delivery orders.']
+            
+            # If custom location is provided, custom fee must also be provided
+            if custom_delivery_location and custom_delivery_fee is None:
+                errors['custom_delivery_fee'] = ['Custom delivery fee is required when using a custom delivery location.']
+            
+            # Cannot specify both delivery_location and custom fields
+            if delivery_location and custom_delivery_location:
+                errors['custom_delivery_location'] = ['Cannot specify both a delivery location and custom location. Choose one.']
             
             if errors:
                 raise serializers.ValidationError(errors)
@@ -186,12 +202,20 @@ class OrderSerializer(serializers.ModelSerializer):
         return order
 
     def update(self, instance, validated_data):
+        # Prevent editing of fulfilled and paid orders
+        if instance.status == 'Fulfilled' and instance.is_paid():
+            raise serializers.ValidationError(
+                "Cannot edit orders that are both fulfilled and fully paid."
+            )
+        
         items_data = validated_data.pop('items', None)
 
         # Update Order instance fields
         instance.customer_phone = validated_data.get('customer_phone', instance.customer_phone)
         instance.delivery_type = validated_data.get('delivery_type', instance.delivery_type)
         instance.delivery_location = validated_data.get('delivery_location', instance.delivery_location)
+        instance.custom_delivery_location = validated_data.get('custom_delivery_location', instance.custom_delivery_location)
+        instance.custom_delivery_fee = validated_data.get('custom_delivery_fee', instance.custom_delivery_fee)
         instance.status = validated_data.get('status', instance.status)
         instance.notes = validated_data.get('notes', instance.notes)
         # delivery_fee and total_price are recalculated, not directly set from validated_data
