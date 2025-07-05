@@ -57,7 +57,7 @@ class APIRootSerializer(serializers.Serializer):
 def api_root(request, format=None):
     return Response({
         'users': reverse('users_api:user-list', request=request, format=format),
-        'menu': reverse('menu_api:menuitem-list-create', request=request, format=format), # Added
+        'menu': reverse('menu_api:menu-root', request=request, format=format), # Added
         'orders': reverse('orders_api:order-list-create', request=request, format=format), # Added
         'payments': reverse('payments_api:payment-list', request=request, format=format), # Added
         'schema': reverse('schema', request=request, format=format),

@@ -38,7 +38,7 @@ class UserViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAdminUser]
 
     def get_queryset(self):
-        return CustomUser.objects.all()
+        return CustomUser.objects.all().order_by('id')
 
     def get_permissions(self):
         if self.action in ['create']:
@@ -226,13 +226,13 @@ class StaffManagementViewSet(viewsets.ModelViewSet):
         
         # Superadmins can see all users except themselves
         if user.is_superuser and hasattr(user, 'role') and user.role == 'superadmin':
-            return CustomUser.objects.all().exclude(pk=user.pk)
+            return CustomUser.objects.all().exclude(pk=user.pk).order_by('id')
         
         # Admins can only see frontdesk, kitchen, and delivery staff (not other admins or superadmins)
         elif hasattr(user, 'role') and user.role == 'admin':
             return CustomUser.objects.filter(
                 role__in=['frontdesk', 'kitchen', 'delivery']
-            ).exclude(pk=user.pk)
+            ).exclude(pk=user.pk).order_by('id')
         
         # If somehow they got through permission but don't have proper role, return empty
         return CustomUser.objects.none()

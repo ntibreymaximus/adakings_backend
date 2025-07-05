@@ -11,7 +11,7 @@ from rest_framework.decorators import api_view, permission_classes, authenticati
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes, inline_serializer
 from apps.users.permissions import IsAdminOrFrontdesk, IsAdminOrFrontdeskNoDelete
 from .models import Order, OrderItem, DeliveryLocation
-from .serializers import OrderSerializer, OrderStatusUpdateSerializer, DeliveryLocationSerializer
+from .serializers import OrderSerializer, OrderStatusUpdateSerializer, DeliveryLocationSerializer, OrderStatusHistorySerializer
 
 
 class OrderListPagination(PageNumberPagination):
@@ -222,6 +222,7 @@ class DeliveryLocationListAPIView(generics.ListAPIView):
 class OrderStatusHistoryAPIView(generics.ListAPIView):
     permission_classes = [IsAdminOrFrontdesk]
     authentication_classes = [JWTAuthentication]
+    serializer_class = OrderStatusHistorySerializer
     
     def get_queryset(self):
         queryset = Order.objects.select_related('delivery_location').order_by('-updated_at')

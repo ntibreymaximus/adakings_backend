@@ -137,11 +137,11 @@ class OrderSerializer(serializers.ModelSerializer):
         
         return data
     
-    def get_payment_status(self, obj):
+    def get_payment_status(self, obj) -> str:
         """Get the payment status based on related payments"""
         return obj.get_payment_status()
     
-    def get_payment_mode(self, obj):
+    def get_payment_mode(self, obj) -> str:
         """Get the most recent payment method used"""
         latest_payment = obj.payments.filter(
             status='completed',
@@ -152,7 +152,7 @@ class OrderSerializer(serializers.ModelSerializer):
             return latest_payment.payment_method
         return None
     
-    def get_payments(self, obj):
+    def get_payments(self, obj) -> list:
         """Get all payments for this order with basic details"""
         payments = obj.payments.all().order_by('-created_at')
         return [
@@ -172,7 +172,7 @@ class OrderSerializer(serializers.ModelSerializer):
             for payment in payments
         ]
     
-    def get_time_ago(self, obj):
+    def get_time_ago(self, obj) -> str:
         """Get the time since the order was last updated"""
         return obj.time_ago()
 
@@ -260,3 +260,21 @@ class DeliveryLocationSerializer(serializers.ModelSerializer):
         model = DeliveryLocation
         fields = ['id', 'name', 'fee', 'is_active', 'created_at', 'updated_at']
         read_only_fields = ['created_at', 'updated_at']
+
+class OrderStatusHistorySerializer(serializers.Serializer):
+    """Serializer for order status history response"""
+    order_number = serializers.CharField()
+    customer_phone = serializers.CharField()
+    current_status = serializers.CharField()
+    delivery_type = serializers.CharField()
+    delivery_location = serializers.CharField(allow_null=True)
+    total_price = serializers.DecimalField(max_digits=10, decimal_places=2)
+    payment_status = serializers.CharField()
+    amount_paid = serializers.DecimalField(max_digits=10, decimal_places=2)
+    balance_due = serializers.DecimalField(max_digits=10, decimal_places=2)
+    created_at = serializers.DateTimeField()
+    last_updated = serializers.DateTimeField()
+    time_ago = serializers.CharField()
+    status_changes = serializers.ListField(
+        child=serializers.DictField()
+    )

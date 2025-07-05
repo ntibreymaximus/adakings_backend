@@ -55,7 +55,7 @@ class PaymentTransactionSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ('created_at', 'updated_at')
     
-    def get_time_ago(self, obj):
+    def get_time_ago(self, obj) -> str:
         """Get the time since the transaction was last updated"""
         return obj.time_ago()
 
@@ -115,19 +115,19 @@ class PaymentSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ('reference', 'paystack_reference', 'response_data', 'created_at', 'updated_at')
     
-    def get_order_amount_paid(self, obj):
+    def get_order_amount_paid(self, obj) -> float:
         """Get the total amount paid for the order"""
         return obj.order.amount_paid()
     
-    def get_order_balance_due(self, obj):
+    def get_order_balance_due(self, obj) -> float:
         """Get the balance due for the order"""
         return obj.order.balance_due()
     
-    def get_order_payment_status(self, obj):
+    def get_order_payment_status(self, obj) -> str:
         """Get the payment status of the order"""
         return obj.order.get_payment_status()
     
-    def get_time_ago(self, obj):
+    def get_time_ago(self, obj) -> str:
         """Get the time since the payment was last updated"""
         return obj.time_ago()
 
@@ -208,4 +208,31 @@ class PaymentInitiateSerializer(serializers.Serializer):
 class PaystackWebhookSerializer(serializers.Serializer):
     event = serializers.CharField()
     data = serializers.JSONField() # Can be further nested if structure is known and fixed
+
+class PaymentHistorySerializer(serializers.Serializer):
+    """Serializer for payment history response"""
+    payment_id = serializers.IntegerField()
+    payment_reference = serializers.CharField()
+    order_number = serializers.CharField()
+    customer_phone = serializers.CharField()
+    payment_method = serializers.CharField()
+    payment_type = serializers.CharField()
+    status = serializers.CharField()
+    amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+    order_total = serializers.DecimalField(max_digits=10, decimal_places=2)
+    delivery_type = serializers.CharField()
+    delivery_location = serializers.CharField(allow_null=True)
+    paystack_reference = serializers.CharField(allow_null=True)
+    mobile_number = serializers.CharField(allow_null=True)
+    notes = serializers.CharField(allow_null=True)
+    created_at = serializers.DateTimeField()
+    updated_at = serializers.DateTimeField()
+    time_ago = serializers.CharField()
+    transactions = serializers.ListField(
+        child=serializers.DictField()
+    )
+    transaction_count = serializers.IntegerField()
+    payment_timeline = serializers.ListField(
+        child=serializers.DictField()
+    )
 

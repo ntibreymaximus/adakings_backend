@@ -22,7 +22,8 @@ from .serializers import (
     PaymentSerializer,
     PaymentInitiateSerializer,
     PaystackWebhookSerializer,
-    PaymentTransactionSerializer
+    PaymentTransactionSerializer,
+    PaymentHistorySerializer
 )
 
 @extend_schema(
@@ -698,6 +699,7 @@ class PaymentModesAPIView(views.APIView):
 )
 class PaymentHistoryAPIView(views.APIView):
     permission_classes = [IsAdminOrFrontdesk]
+    serializer_class = PaymentHistorySerializer
     
     def get(self, request, *args, **kwargs):
         """

@@ -2,6 +2,48 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.0] - 2025-07-05
+
+### 🔧 Feature Development
+
+**📋 Release Information:**
+- **Environment**: feature/minor-push
+- **Branch**: `feature/minor-push-1.3.0`
+- **Version**: `Unknown` → `1.3.0`
+- **Deployment Time**: 2025-07-05 00:49:00
+- **Description**: Feature branch for 'minor-push' development
+
+**📝 Changes Made:**
+Minor feature updates
+
+**📁 Files Modified:**
+  - Modified: `EPLOYMENT_SUMMARY.md`
+  - Modified: `README.md`
+  - Modified: `VERSION`
+  - Modified: `adakings_backend/settings/settings.py`
+  - Modified: `adakings_backend/urls.py`
+  - Modified: `apps/menu/urls.py`
+  - Modified: `apps/orders/serializers.py`
+  - Modified: `apps/orders/views.py`
+  - Modified: `apps/payments/serializers.py`
+  - Modified: `apps/payments/views.py`
+  - Modified: `apps/users/views.py`
+  - Changed: `db.sqlite3-shm`
+  - Changed: `db.sqlite3-wal`
+
+**🔄 Deployment Details:**
+- **Source Branch**: `feature/minor-push-1.3.0`
+- **Target Branch**: `feature/minor-push-1.3.0`
+- **Merge Strategy**: Automatic merge with main branch
+- **Version Bump Type**: Version update
+
+**🎯 Environment Specific Notes:**
+- This is a feature branch deployment for development and testing
+- Changes are isolated and will be merged after review
+- Not suitable for production use
+
+---
+
 ## [1.2.1] - 2025-07-04
 
 ### 🔧 Feature Development

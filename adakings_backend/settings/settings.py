@@ -33,7 +33,11 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-dev-secret-key-change-i
 DEBUG = os.environ.get('DJANGO_DEBUG', 'True').lower() in ('true', '1', 'on', 'yes')
 
 # Allowed hosts
-ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', '127.0.0.1,localhost').split(',')
+ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', '127.0.0.1,localhost,*.localhost,0.0.0.0').split(',')
+
+# Allow all hosts in development for network access
+if DEBUG:
+    ALLOWED_HOSTS += ['*']
 
 # Application definition
 INSTALLED_APPS = [
