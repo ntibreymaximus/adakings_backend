@@ -2,6 +2,43 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.0] - 2025-07-05
+
+### 🔧 Feature Development
+
+**📋 Release Information:**
+- **Environment**: feature/api-first
+- **Branch**: `feature/api-first-2.0.0`
+- **Version**: `Unknown` → `2.0.0`
+- **Deployment Time**: 2025-07-05 19:32:01
+- **Description**: Feature branch for 'api-first' development
+
+**📝 Changes Made:**
+Implement API-first approach with selective caching
+
+**📁 Files Modified:**
+  - Modified: `gitignore`
+  - Modified: `DEPLOYMENT_SUMMARY.md`
+  - Modified: `README.md`
+  - Modified: `VERSION`
+  - Modified: `adakings_backend/settings/settings.py`
+  - Deleted: `db.sqlite3-shm`
+  - Deleted: `db.sqlite3-wal`
+  - Changed: `apps/menu/management/`
+
+**🔄 Deployment Details:**
+- **Source Branch**: `feature/api-first-2.0.0`
+- **Target Branch**: `feature/api-first-2.0.0`
+- **Merge Strategy**: Automatic merge with main branch
+- **Version Bump Type**: Version update
+
+**🎯 Environment Specific Notes:**
+- This is a feature branch deployment for development and testing
+- Changes are isolated and will be merged after review
+- Not suitable for production use
+
+---
+
 ## [3.0.0] - 2025-07-05
 
 ### 🔧 Feature Development

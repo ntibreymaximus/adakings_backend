@@ -62,7 +62,13 @@ coverage.xml
 *.pot
 *.log
 local_settings.py
+# SQLite database files (exclude all SQLite files from version control)
 db.sqlite3
+db.sqlite3-shm
+db.sqlite3-wal
+*.sqlite3
+*.sqlite3-shm
+*.sqlite3-wal
 instance/
 .webassets-cache
 # Environment files (exclude actual .env files, keep templates)

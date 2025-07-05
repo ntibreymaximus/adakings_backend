@@ -139,6 +139,8 @@ else:
                     "PRAGMA cache_size=10000;"
                     "PRAGMA temp_store=MEMORY;"
                     "PRAGMA mmap_size=134217728;"
+                    "PRAGMA wal_autocheckpoint=1000;"
+                    "PRAGMA wal_checkpoint(TRUNCATE);"
                 ),
             },
             'CONN_MAX_AGE': 300,  # Keep connections alive for 5 minutes for better performance
