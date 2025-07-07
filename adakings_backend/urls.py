@@ -15,7 +15,7 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path, include, re_path
 from django.shortcuts import redirect
 from django.conf import settings
 from django.conf.urls.static import static
@@ -46,10 +46,12 @@ def home_redirect(request):
 
 # Health check endpoint for Railway
 def health_check(request):
+    print(f"Health check accessed: {request.path} - Method: {request.method}")
     health_status = {
         'status': 'healthy',
         'timestamp': str(timezone.now()),
-        'django': 'running'
+        'django': 'running',
+        'path': request.path
     }
     
     # Try database connection but don't fail if it's not ready
@@ -89,9 +91,8 @@ def api_root(request, format=None):
     })
 
 urlpatterns = [
-    # Health check endpoint (both with and without trailing slash)
-    path('health/', health_check, name='health-check'),
-    path('health', health_check, name='health-check-no-slash'),
+    # Health check endpoint (handles both /health and /health/)
+    re_path(r'^health/?$', health_check, name='health-check'),
     
     # Admin URLs
     path('admin/', admin.site.urls),
