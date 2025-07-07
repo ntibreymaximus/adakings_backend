@@ -13,18 +13,12 @@ from datetime import timedelta
 from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
+BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Load environment variables from .env file
 env_path = BASE_DIR / '.env'
 if env_path.exists():
     load_dotenv(env_path)
-    print(f"Loaded environment variables from: {env_path}")
-else:
-    logging.warning(
-        "No .env file found. Environment variables must be set manually. "
-        "See .env.example for required variables."
-    )
 
 # SECURITY WARNING: Secret key
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-dev-secret-key-change-in-production')
@@ -137,7 +131,6 @@ WSGI_APPLICATION = 'adakings_backend.wsgi.application'
 # Database configuration
 database_engine = os.environ.get('DATABASE_ENGINE', 'sqlite3').lower()
 
-print(f"🔧 Database engine set to: {database_engine}")
 
 if database_engine == 'postgresql':
     # Get database configuration with fallbacks
@@ -147,7 +140,6 @@ if database_engine == 'postgresql':
     db_host = os.environ.get('PGHOST') or os.environ.get('DB_HOST') or 'localhost'
     db_port = os.environ.get('PGPORT') or os.environ.get('DB_PORT') or '5432'
     
-    print(f"PostgreSQL Config: {db_user}@{db_host}:{db_port}/{db_name}")
     
     DATABASES = {
         'default': {
@@ -572,16 +564,3 @@ RATELIMIT_ENABLE = os.environ.get('RATE_LIMIT_ENABLE', 'False').lower() == 'true
 if DEBUG:
     INTERNAL_IPS = ['127.0.0.1', 'localhost']
 
-# Print configuration info (only once)
-if not os.environ.get('DJANGO_SETTINGS_LOADED'):
-    os.environ['DJANGO_SETTINGS_LOADED'] = 'unified'
-    print("Unified Django settings loaded successfully!")
-    print(f"Debug mode: {DEBUG}")
-    print(f"Allowed hosts: {ALLOWED_HOSTS}")
-    print(f"Database: {'PostgreSQL' if database_engine == 'postgresql' else 'SQLite'}")
-    if database_engine == 'postgresql':
-        print(f"PostgreSQL Host: {os.environ.get('PGHOST', 'Not set')}")
-        print(f"PostgreSQL Database: {os.environ.get('PGDATABASE', 'Not set')}")
-    print(f"Email backend: {EMAIL_BACKEND}")
-    print(f"Paystack configured: {is_paystack_configured()}")
-    print("Ready for development and production!")
