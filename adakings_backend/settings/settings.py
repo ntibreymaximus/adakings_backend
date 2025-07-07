@@ -236,7 +236,9 @@ if DEBUG:
     CORS_ALLOW_ALL_ORIGINS = True
     CORS_ALLOW_CREDENTIALS = True
 else:
-    CORS_ALLOWED_ORIGINS = os.environ.get('CORS_ALLOWED_ORIGINS', '').split(',')
+    cors_origins = os.environ.get('CORS_ALLOWED_ORIGINS', '').split(',')
+    # Clean up origins - remove trailing slashes and empty strings
+    CORS_ALLOWED_ORIGINS = [origin.strip().rstrip('/') for origin in cors_origins if origin.strip()]
     CORS_ALLOW_CREDENTIALS = False
 
 # Session settings

@@ -89,8 +89,9 @@ def api_root(request, format=None):
     })
 
 urlpatterns = [
-    # Health check endpoint
+    # Health check endpoint (both with and without trailing slash)
     path('health/', health_check, name='health-check'),
+    path('health', health_check, name='health-check-no-slash'),
     
     # Admin URLs
     path('admin/', admin.site.urls),
