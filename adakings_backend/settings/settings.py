@@ -134,20 +134,27 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'adakings_backend.wsgi.application'
 
-# Database configuration
+# Database configuration - Enhanced PostgreSQL detection
 database_engine = os.environ.get('DATABASE_ENGINE', 'sqlite3').lower()
 
-# Auto-detect PostgreSQL if Railway DATABASE_URL is present
-if 'DATABASE_URL' in os.environ or 'PGDATABASE' in os.environ:
-    database_engine = 'postgresql'
-    print(f"PostgreSQL detected! PGDATABASE: {os.environ.get('PGDATABASE', 'Not found')}")
-    print(f"DATABASE_URL present: {'DATABASE_URL' in os.environ}")
+# Multiple ways to detect PostgreSQL in Railway
+pg_indicators = [
+    'DATABASE_URL' in os.environ,
+    'PGDATABASE' in os.environ,
+    'PGHOST' in os.environ,
+    'PGUSER' in os.environ,
+    any(key.startswith('PG') for key in os.environ.keys())
+]
 
-# Force PostgreSQL in Railway environment (Railway always uses PostgreSQL)
-if 'RAILWAY_ENVIRONMENT' in os.environ or 'PORT' in os.environ:
-    if any(key.startswith('PG') for key in os.environ.keys()):
-        database_engine = 'postgresql'
-        print("Railway PostgreSQL environment detected!")
+if any(pg_indicators):
+    database_engine = 'postgresql'
+    print(f"✅ PostgreSQL detected! Indicators: {[i for i, v in enumerate(pg_indicators) if v]}")
+    print(f"PGDATABASE: {os.environ.get('PGDATABASE', 'Not set')}")
+    print(f"PGHOST: {os.environ.get('PGHOST', 'Not set')}")
+    print(f"DATABASE_URL present: {'DATABASE_URL' in os.environ}")
+else:
+    print("❌ No PostgreSQL indicators found, using SQLite")
+    print(f"Available env vars: {list(os.environ.keys())[:10]}...")  # Show first 10 env vars
 
 if database_engine == 'postgresql':
     DATABASES = {
