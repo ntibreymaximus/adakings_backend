@@ -9,8 +9,7 @@ cmds = [
 
 [phases.build]
 cmds = [
-    "python manage.py collectstatic --noinput --clear",
-    "python manage.py migrate --noinput"
+    "echo 'Build phase complete - static files and migrations will run at startup'"
 ]
 
 [start]
