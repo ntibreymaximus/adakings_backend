@@ -12,7 +12,7 @@ if exist "venv\Scripts\activate.bat" (
 
 REM Set environment variables for better error handling
 set PYTHONUNBUFFERED=1
-set DJANGO_SETTINGS_MODULE=adakings_backend.settings.settings
+set DJANGO_SETTINGS_MODULE=adakings_backend.settings
 
 REM Create logs directory if it doesn't exist
 if not exist "logs" mkdir logs

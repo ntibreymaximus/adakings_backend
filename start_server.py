@@ -87,14 +87,14 @@ def start_django_server(port=8000, use_daphne=False):
                 sys.executable, 'manage.py', 'runserver',
                 f'0.0.0.0:{port}',
                 '--nothreading',  # Disable threading for better auto-reload stability
-                '--noreload' if os.environ.get('DISABLE_AUTO_RELOAD', 'False').lower() == 'true' else '--settings=adakings_backend.settings.settings'
+                '--noreload' if os.environ.get('DISABLE_AUTO_RELOAD', 'False').lower() == 'true' else '--settings=adakings_backend.settings'
             ]
         
         # Set environment variables to handle broken pipes and optimize auto-reload
         env = os.environ.copy()
         env['PYTHONUNBUFFERED'] = '1'
         env['PYTHONDONTWRITEBYTECODE'] = '1'  # Prevent .pyc files
-        env['DJANGO_SETTINGS_MODULE'] = 'adakings_backend.settings.settings'
+        env['DJANGO_SETTINGS_MODULE'] = 'adakings_backend.settings'
         env['DJANGO_AUTORELOAD_POLL_INTERVAL'] = '2'  # Slower polling for stability
         
         # Add Windows-specific optimizations
@@ -169,7 +169,7 @@ def start_gunicorn_server(port=8001):
         # Set environment variables
         env = os.environ.copy()
         env['PYTHONUNBUFFERED'] = '1'
-        env['DJANGO_SETTINGS_MODULE'] = 'adakings_backend.settings.settings'
+        env['DJANGO_SETTINGS_MODULE'] = 'adakings_backend.settings'
         
         # Start Gunicorn
         subprocess.run(cmd, env=env)
