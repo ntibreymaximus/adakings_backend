@@ -33,7 +33,26 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-dev-secret-key-change-i
 DEBUG = os.environ.get('DJANGO_DEBUG', 'True').lower() in ('true', '1', 'on', 'yes')
 
 # Allowed hosts
-ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', '127.0.0.1,localhost').split(',')
+allowed_hosts_env = os.environ.get('DJANGO_ALLOWED_HOSTS', '127.0.0.1,localhost')
+ALLOWED_HOSTS = [host.strip() for host in allowed_hosts_env.split(',') if host.strip()]
+
+# Add Railway-specific hosts automatically
+if 'RAILWAY_ENVIRONMENT' in os.environ:
+    # Add Railway's public domain if available
+    railway_public_domain = os.environ.get('RAILWAY_PUBLIC_DOMAIN')
+    railway_private_domain = os.environ.get('RAILWAY_PRIVATE_DOMAIN')
+    
+    if railway_public_domain:
+        ALLOWED_HOSTS.append(railway_public_domain)
+    if railway_private_domain:
+        ALLOWED_HOSTS.append(railway_private_domain)
+    
+    # Add Railway's health check domain
+    ALLOWED_HOSTS.extend([
+        'healthcheck.railway.app',
+        '.railway.app',
+        '.railway.internal'
+    ])
 
 # Application definition
 INSTALLED_APPS = [
@@ -208,7 +227,18 @@ SESSION_COOKIE_SAMESITE = 'Lax'
 CSRF_COOKIE_SAMESITE = 'Lax'
 
 # Trusted origins for CSRF
-CSRF_TRUSTED_ORIGINS = os.environ.get('CSRF_TRUSTED_ORIGINS', 'http://localhost:8000,http://127.0.0.1:8000').split(',')
+csrf_origins_env = os.environ.get('CSRF_TRUSTED_ORIGINS', 'http://localhost:8000,http://127.0.0.1:8000')
+CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in csrf_origins_env.split(',') if origin.strip()]
+
+# Add Railway HTTPS domains automatically
+if 'RAILWAY_ENVIRONMENT' in os.environ:
+    railway_public_domain = os.environ.get('RAILWAY_PUBLIC_DOMAIN')
+    railway_private_domain = os.environ.get('RAILWAY_PRIVATE_DOMAIN')
+    
+    if railway_public_domain:
+        CSRF_TRUSTED_ORIGINS.append(f'https://{railway_public_domain}')
+    if railway_private_domain:
+        CSRF_TRUSTED_ORIGINS.append(f'https://{railway_private_domain}')
 
 # Email settings
 EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
