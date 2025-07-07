@@ -9,8 +9,9 @@ cmds = [
 
 [phases.build]
 cmds = [
-    "python manage.py collectstatic --noinput --clear"
+    "python manage.py collectstatic --noinput --clear",
+    "python manage.py migrate --noinput"
 ]
 
 [start]
-cmd = "python manage.py migrate && gunicorn adakings_backend.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --max-requests 1000 --max-requests-jitter 100"
+cmd = "bash railway_start.sh"

@@ -37,7 +37,7 @@ allowed_hosts_env = os.environ.get('DJANGO_ALLOWED_HOSTS', '127.0.0.1,localhost'
 ALLOWED_HOSTS = [host.strip() for host in allowed_hosts_env.split(',') if host.strip()]
 
 # Add Railway-specific hosts automatically
-if 'RAILWAY_ENVIRONMENT' in os.environ:
+if 'RAILWAY_ENVIRONMENT' in os.environ or 'PORT' in os.environ:
     # Add Railway's public domain if available
     railway_public_domain = os.environ.get('RAILWAY_PUBLIC_DOMAIN')
     railway_private_domain = os.environ.get('RAILWAY_PRIVATE_DOMAIN')
@@ -47,12 +47,18 @@ if 'RAILWAY_ENVIRONMENT' in os.environ:
     if railway_private_domain:
         ALLOWED_HOSTS.append(railway_private_domain)
     
-    # Add Railway's health check domain
+    # Add Railway's health check domains and wildcards
     ALLOWED_HOSTS.extend([
         'healthcheck.railway.app',
         '.railway.app',
-        '.railway.internal'
+        '.railway.internal',
+        '*.up.railway.app',
+        '*.railway.app'
     ])
+    
+    # If still no specific hosts, allow all for Railway
+    if not railway_public_domain and not railway_private_domain:
+        ALLOWED_HOSTS.append('*')
 
 # Application definition
 INSTALLED_APPS = [

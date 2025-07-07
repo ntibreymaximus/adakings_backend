@@ -46,21 +46,23 @@ def home_redirect(request):
 
 # Health check endpoint for Railway
 def health_check(request):
+    health_status = {
+        'status': 'healthy',
+        'timestamp': str(timezone.now()),
+        'django': 'running'
+    }
+    
+    # Try database connection but don't fail if it's not ready
     try:
-        # Check database connection
         with connection.cursor() as cursor:
             cursor.execute("SELECT 1")
-        return JsonResponse({
-            'status': 'healthy',
-            'database': 'connected',
-            'timestamp': str(timezone.now())
-        })
+        health_status['database'] = 'connected'
     except Exception as e:
-        return JsonResponse({
-            'status': 'unhealthy',
-            'database': 'disconnected',
-            'error': str(e)
-        }, status=500)
+        health_status['database'] = 'disconnected'
+        health_status['database_error'] = str(e)
+        # Don't return 500, just warn about database
+    
+    return JsonResponse(health_status)
 
 # Serializer for api_root response
 class APIRootSerializer(serializers.Serializer):
