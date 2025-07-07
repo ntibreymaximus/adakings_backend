@@ -64,9 +64,9 @@ EMAIL_HOST_USER=your-email@gmail.com
 EMAIL_HOST_PASSWORD=your-app-password
 DEFAULT_FROM_EMAIL=noreply@adakings.com
 
-# Paystack Payment Gateway (Production keys)
-PAYSTACK_PUBLIC_KEY_LIVE=pk_live_your_public_key
-PAYSTACK_SECRET_KEY_LIVE=sk_live_your_secret_key
+# Paystack Payment Gateway (NOT CONFIGURED YET - COMMENTED OUT)
+# PAYSTACK_PUBLIC_KEY_LIVE=pk_live_your_public_key
+# PAYSTACK_SECRET_KEY_LIVE=sk_live_your_secret_key
 
 # Monitoring (Optional - sign up at sentry.io)
 SENTRY_DSN=your-sentry-dsn-here
@@ -123,8 +123,8 @@ python manage.py shell -c "from django.core.cache import cache; cache.clear()"
 ### Must Be Set Manually:
 - `DJANGO_SECRET_KEY` - Django secret key (generate a new one)
 - `CORS_ALLOWED_ORIGINS` - Your frontend domain(s)
-- Payment gateway credentials
-- Email service credentials
+- Email service credentials (optional)
+- Payment gateway credentials (when Paystack integration is completed)
 
 ## Monitoring and Debugging
 

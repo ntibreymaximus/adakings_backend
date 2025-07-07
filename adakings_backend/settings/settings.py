@@ -248,18 +248,23 @@ EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@adakings.local')
 
-# Paystack settings
-PAYSTACK_BASE_URL = 'https://api.paystack.co'
-PAYMENT_CURRENCY = 'GHS'  # Ghana Cedis
-PAYSTACK_PUBLIC_KEY = os.environ.get('PAYSTACK_PUBLIC_KEY_TEST', 'pk_test_placeholder_public_key')
-PAYSTACK_SECRET_KEY = os.environ.get('PAYSTACK_SECRET_KEY_TEST', 'sk_test_placeholder_secret_key')
+# Paystack settings (COMMENTED OUT - NOT PROPERLY INTEGRATED YET)
+# PAYSTACK_BASE_URL = 'https://api.paystack.co'
+# PAYMENT_CURRENCY = 'GHS'  # Ghana Cedis
+# PAYSTACK_PUBLIC_KEY = os.environ.get('PAYSTACK_PUBLIC_KEY_TEST', 'pk_test_placeholder_public_key')
+# PAYSTACK_SECRET_KEY = os.environ.get('PAYSTACK_SECRET_KEY_TEST', 'sk_test_placeholder_secret_key')
 
-# Function to check if Paystack is properly configured
+# Function to check if Paystack is properly configured (COMMENTED OUT)
+# def is_paystack_configured():
+#     """Check if Paystack API keys are properly configured."""
+#     return (PAYSTACK_PUBLIC_KEY and PAYSTACK_SECRET_KEY and 
+#             not PAYSTACK_PUBLIC_KEY.endswith('_placeholder_public_key') and
+#             not PAYSTACK_SECRET_KEY.endswith('_placeholder_secret_key'))
+
+# Temporary placeholder function
 def is_paystack_configured():
-    """Check if Paystack API keys are properly configured."""
-    return (PAYSTACK_PUBLIC_KEY and PAYSTACK_SECRET_KEY and 
-            not PAYSTACK_PUBLIC_KEY.endswith('_placeholder_public_key') and
-            not PAYSTACK_SECRET_KEY.endswith('_placeholder_secret_key'))
+    """Paystack is not configured yet."""
+    return False
 
 # Cache configuration
 redis_url = os.environ.get('REDIS_URL')
