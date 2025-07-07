@@ -700,10 +700,8 @@ class PaymentHistoryAPIView(generics.ListAPIView):
     serializer_class = PaymentSerializer
     permission_classes = [IsAdminOrFrontdesk]
     
-    def get(self, request, *args, **kwargs):
-        """
-        Returns comprehensive payment history with filtering options.
-        """
+    def get_queryset(self):
+        """Get filtered queryset for payment history"""
         # Start with all payments
         queryset = Payment.objects.select_related(
             'order', 
@@ -711,20 +709,20 @@ class PaymentHistoryAPIView(generics.ListAPIView):
         ).prefetch_related('transactions').order_by('-created_at')
         
         # Apply filters
-        order_number = request.query_params.get('order_number')
+        order_number = self.request.query_params.get('order_number')
         if order_number:
             queryset = queryset.filter(order__order_number__icontains=order_number)
         
-        payment_method = request.query_params.get('payment_method')
+        payment_method = self.request.query_params.get('payment_method')
         if payment_method:
             queryset = queryset.filter(payment_method__icontains=payment_method)
         
-        payment_status = request.query_params.get('status')
+        payment_status = self.request.query_params.get('status')
         if payment_status:
             queryset = queryset.filter(status__icontains=payment_status)
         
         # Filter by days (default to 30 days)
-        days = request.query_params.get('days', '30')
+        days = self.request.query_params.get('days', '30')
         try:
             days_int = int(days)
             from django.utils import timezone
@@ -732,6 +730,14 @@ class PaymentHistoryAPIView(generics.ListAPIView):
             queryset = queryset.filter(created_at__gte=cutoff_date)
         except ValueError:
             pass  # Invalid days parameter, ignore filter
+        
+        return queryset
+    
+    def list(self, request, *args, **kwargs):
+        """
+        Override list method to provide custom payment history format.
+        """
+        queryset = self.get_queryset()
         
         payment_history = []
         for payment in queryset:
