@@ -134,35 +134,10 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'adakings_backend.wsgi.application'
 
-# Database configuration - Force PostgreSQL in production environments
+# Database configuration
 database_engine = os.environ.get('DATABASE_ENGINE', 'sqlite3').lower()
 
-# Force PostgreSQL in Railway environment (Railway always provides a database)
-if 'PORT' in os.environ:
-    # Railway always sets PORT environment variable
-    database_engine = 'postgresql'
-    print("🚀 Railway environment detected - forcing PostgreSQL")
-    print(f"PORT: {os.environ.get('PORT')}")
-    print(f"Environment keys: {sorted([k for k in os.environ.keys() if 'PG' in k or 'DB' in k.upper()])}")
-else:
-    # Multiple ways to detect PostgreSQL in other environments
-    pg_indicators = [
-        'DATABASE_URL' in os.environ,
-        'PGDATABASE' in os.environ,
-        'PGHOST' in os.environ,
-        'PGUSER' in os.environ,
-        any(key.startswith('PG') for key in os.environ.keys())
-    ]
-
-    if any(pg_indicators):
-        database_engine = 'postgresql'
-        print(f"✅ PostgreSQL detected! Indicators: {[i for i, v in enumerate(pg_indicators) if v]}")
-        print(f"PGDATABASE: {os.environ.get('PGDATABASE', 'Not set')}")
-        print(f"PGHOST: {os.environ.get('PGHOST', 'Not set')}")
-        print(f"DATABASE_URL present: {'DATABASE_URL' in os.environ}")
-    else:
-        print("❌ No PostgreSQL indicators found, using SQLite")
-        print(f"Available env vars: {list(os.environ.keys())[:10]}...")  # Show first 10 env vars
+print(f"🔧 Database engine set to: {database_engine}")
 
 if database_engine == 'postgresql':
     # Get database configuration with fallbacks
