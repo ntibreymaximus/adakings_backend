@@ -4,19 +4,22 @@
 # Ensure these imports are present
 from decimal import Decimal
 from rest_framework import serializers
+from drf_spectacular.utils import extend_schema_field
+from typing import Optional, Dict, List, Any
 from apps.menu.models import MenuItem
 from .models import Order, OrderItem, DeliveryLocation # OrderItem model no longer has parent_item
 
+@extend_schema_field(serializers.CharField(help_text="Delivery location name or ID"))
 class DeliveryLocationField(serializers.Field):
     """Custom field that accepts either DeliveryLocation ID or name"""
     
-    def to_representation(self, value):
+    def to_representation(self, value) -> Optional[str]:
         """Convert DeliveryLocation instance to its name for serialization"""
         if value is None:
             return None
         return value.name
     
-    def to_internal_value(self, data):
+    def to_internal_value(self, data) -> Optional[DeliveryLocation]:
         """Convert input data (ID or name) to DeliveryLocation instance"""
         if data is None:
             return None
@@ -115,7 +118,8 @@ class OrderSerializer(serializers.ModelSerializer):
         }
 
     
-    def get_effective_delivery_location_name(self, obj):
+    @extend_schema_field(serializers.CharField(help_text="Effective delivery location name"))
+    def get_effective_delivery_location_name(self, obj) -> str:
         """Get the effective delivery location name (from DeliveryLocation or custom)"""
         return obj.get_effective_delivery_location_name()
     
@@ -153,11 +157,13 @@ class OrderSerializer(serializers.ModelSerializer):
         
         return data
     
-    def get_payment_status(self, obj):
+    @extend_schema_field(serializers.CharField(help_text="Payment status of the order"))
+    def get_payment_status(self, obj) -> str:
         """Get the payment status based on related payments"""
         return obj.get_payment_status()
     
-    def get_payment_mode(self, obj):
+    @extend_schema_field(serializers.CharField(help_text="Most recent payment method used", allow_null=True))
+    def get_payment_mode(self, obj) -> Optional[str]:
         """Get the most recent payment method used"""
         latest_payment = obj.payments.filter(
             status='completed',
@@ -168,7 +174,8 @@ class OrderSerializer(serializers.ModelSerializer):
             return latest_payment.payment_method
         return None
     
-    def get_payments(self, obj):
+    @extend_schema_field(serializers.ListField(child=serializers.DictField(), help_text="List of payments for this order"))
+    def get_payments(self, obj) -> List[Dict[str, Any]]:
         """Get all payments for this order with basic details"""
         payments = obj.payments.all().order_by('-created_at')
         return [
@@ -188,7 +195,8 @@ class OrderSerializer(serializers.ModelSerializer):
             for payment in payments
         ]
     
-    def get_time_ago(self, obj):
+    @extend_schema_field(serializers.CharField(help_text="Time since the order was last updated"))
+    def get_time_ago(self, obj) -> str:
         """Get the time since the order was last updated"""
         return obj.time_ago()
 

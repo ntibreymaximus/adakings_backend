@@ -55,6 +55,7 @@ def next_order_number(request):
 @extend_schema(
     summary="Get Today's Orders",
     description="Returns all orders for today. Optimized for instant loading.",
+    responses={200: OrderSerializer(many=True)},
     tags=['Orders']
 )
 @api_view(['GET'])
@@ -247,6 +248,7 @@ class DeliveryLocationListAPIView(generics.ListAPIView):
     tags=['Orders']
 )
 class OrderStatusHistoryAPIView(generics.ListAPIView):
+    serializer_class = OrderSerializer  # Add serializer class
     permission_classes = [IsAdminOrFrontdesk]
     authentication_classes = [JWTAuthentication]
     

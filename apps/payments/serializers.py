@@ -1,5 +1,7 @@
 from rest_framework import serializers
 from django.core.validators import MinValueValidator # Added import
+from drf_spectacular.utils import extend_schema_field
+from typing import Optional, Dict, List, Any
 from .models import Payment, PaymentTransaction
 from apps.orders.models import Order # For Order lookup
 from decimal import Decimal
@@ -55,7 +57,8 @@ class PaymentTransactionSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ('created_at', 'updated_at')
     
-    def get_time_ago(self, obj):
+    @extend_schema_field(serializers.CharField(help_text="Time since the transaction was last updated"))
+    def get_time_ago(self, obj) -> str:
         """Get the time since the transaction was last updated"""
         return obj.time_ago()
 
@@ -115,19 +118,23 @@ class PaymentSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ('reference', 'paystack_reference', 'response_data', 'created_at', 'updated_at')
     
-    def get_order_amount_paid(self, obj):
+    @extend_schema_field(serializers.DecimalField(max_digits=10, decimal_places=2, help_text="Total amount paid for the order"))
+    def get_order_amount_paid(self, obj) -> Decimal:
         """Get the total amount paid for the order"""
         return obj.order.amount_paid()
     
-    def get_order_balance_due(self, obj):
+    @extend_schema_field(serializers.DecimalField(max_digits=10, decimal_places=2, help_text="Balance due for the order"))
+    def get_order_balance_due(self, obj) -> Decimal:
         """Get the balance due for the order"""
         return obj.order.balance_due()
     
-    def get_order_payment_status(self, obj):
+    @extend_schema_field(serializers.CharField(help_text="Payment status of the order"))
+    def get_order_payment_status(self, obj) -> str:
         """Get the payment status of the order"""
         return obj.order.get_payment_status()
     
-    def get_time_ago(self, obj):
+    @extend_schema_field(serializers.CharField(help_text="Time since the payment was last updated"))
+    def get_time_ago(self, obj) -> str:
         """Get the time since the payment was last updated"""
         return obj.time_ago()
 

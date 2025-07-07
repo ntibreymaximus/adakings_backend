@@ -696,7 +696,8 @@ class PaymentModesAPIView(views.APIView):
     ],
     tags=['Payments']
 )
-class PaymentHistoryAPIView(views.APIView):
+class PaymentHistoryAPIView(generics.ListAPIView):
+    serializer_class = PaymentSerializer
     permission_classes = [IsAdminOrFrontdesk]
     
     def get(self, request, *args, **kwargs):
