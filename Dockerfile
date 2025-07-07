@@ -30,6 +30,9 @@ COPY . /app/
 # Create necessary directories
 RUN mkdir -p /app/logs /app/staticfiles /app/mediafiles
 
+# Make railway_start.sh executable
+RUN chmod +x railway_start.sh
+
 # Create non-root user
 RUN groupadd -r adakings && useradd -r -g adakings adakings
 RUN chown -R adakings:adakings /app
@@ -44,5 +47,5 @@ EXPOSE $PORT
 HEALTHCHECK --interval=30s --timeout=30s --start-period=60s --retries=5 \
     CMD curl -f http://localhost:${PORT:-8000}/health/ || exit 1
 
-# Run migrations and start gunicorn
-CMD python manage.py migrate --noinput && python manage.py collectstatic --noinput && gunicorn adakings_backend.wsgi:application --bind 0.0.0.0:$PORT --workers 1 --timeout 60
+# Use railway_start.sh as the entry point
+CMD ["bash", "railway_start.sh"]
