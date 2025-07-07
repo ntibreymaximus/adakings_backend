@@ -32,6 +32,8 @@ from rest_framework_simplejwt.views import (
     TokenRefreshView,
     TokenVerifyView,
 )
+from django.http import JsonResponse
+from django.db import connection
 
 # Simple redirect view for the root URL to dashboard or login
 def home_redirect(request):
@@ -40,6 +42,24 @@ def home_redirect(request):
         return redirect('users_api:user-me') 
     # Redirect unauthenticated users to the API login endpoint
     return redirect('users_api:login')
+
+# Health check endpoint for Railway
+def health_check(request):
+    try:
+        # Check database connection
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+        return JsonResponse({
+            'status': 'healthy',
+            'database': 'connected',
+            'timestamp': str(timezone.now()) if 'timezone' in globals() else 'unknown'
+        })
+    except Exception as e:
+        return JsonResponse({
+            'status': 'unhealthy',
+            'database': 'disconnected',
+            'error': str(e)
+        }, status=500)
 
 # Serializer for api_root response
 class APIRootSerializer(serializers.Serializer):
@@ -66,6 +86,9 @@ def api_root(request, format=None):
     })
 
 urlpatterns = [
+    # Health check endpoint
+    path('health/', health_check, name='health-check'),
+    
     # Admin URLs
     path('admin/', admin.site.urls),
 

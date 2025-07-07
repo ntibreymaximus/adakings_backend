@@ -1,0 +1,16 @@
+[phases.setup]
+nixPkgs = ["python311", "postgresql"]
+
+[phases.install]
+cmds = [
+    "pip install --upgrade pip",
+    "pip install -r requirements-prod.txt"
+]
+
+[phases.build]
+cmds = [
+    "python manage.py collectstatic --noinput --clear"
+]
+
+[start]
+cmd = "python manage.py migrate && gunicorn adakings_backend.wsgi:application --bind 0.0.0.0:$PORT"
