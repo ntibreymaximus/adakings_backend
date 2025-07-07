@@ -34,6 +34,7 @@ from rest_framework_simplejwt.views import (
 )
 from django.http import JsonResponse
 from django.db import connection
+from django.utils import timezone
 
 # Simple redirect view for the root URL to dashboard or login
 def home_redirect(request):
@@ -52,7 +53,7 @@ def health_check(request):
         return JsonResponse({
             'status': 'healthy',
             'database': 'connected',
-            'timestamp': str(timezone.now()) if 'timezone' in globals() else 'unknown'
+            'timestamp': str(timezone.now())
         })
     except Exception as e:
         return JsonResponse({
