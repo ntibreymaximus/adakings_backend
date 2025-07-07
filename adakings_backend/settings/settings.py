@@ -134,37 +134,54 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'adakings_backend.wsgi.application'
 
-# Database configuration - Enhanced PostgreSQL detection
+# Database configuration - Force PostgreSQL in production environments
 database_engine = os.environ.get('DATABASE_ENGINE', 'sqlite3').lower()
 
-# Multiple ways to detect PostgreSQL in Railway
-pg_indicators = [
-    'DATABASE_URL' in os.environ,
-    'PGDATABASE' in os.environ,
-    'PGHOST' in os.environ,
-    'PGUSER' in os.environ,
-    any(key.startswith('PG') for key in os.environ.keys())
-]
-
-if any(pg_indicators):
+# Force PostgreSQL in Railway environment (Railway always provides a database)
+if 'PORT' in os.environ:
+    # Railway always sets PORT environment variable
     database_engine = 'postgresql'
-    print(f"✅ PostgreSQL detected! Indicators: {[i for i, v in enumerate(pg_indicators) if v]}")
-    print(f"PGDATABASE: {os.environ.get('PGDATABASE', 'Not set')}")
-    print(f"PGHOST: {os.environ.get('PGHOST', 'Not set')}")
-    print(f"DATABASE_URL present: {'DATABASE_URL' in os.environ}")
+    print("🚀 Railway environment detected - forcing PostgreSQL")
+    print(f"PORT: {os.environ.get('PORT')}")
+    print(f"Environment keys: {sorted([k for k in os.environ.keys() if 'PG' in k or 'DB' in k.upper()])}")
 else:
-    print("❌ No PostgreSQL indicators found, using SQLite")
-    print(f"Available env vars: {list(os.environ.keys())[:10]}...")  # Show first 10 env vars
+    # Multiple ways to detect PostgreSQL in other environments
+    pg_indicators = [
+        'DATABASE_URL' in os.environ,
+        'PGDATABASE' in os.environ,
+        'PGHOST' in os.environ,
+        'PGUSER' in os.environ,
+        any(key.startswith('PG') for key in os.environ.keys())
+    ]
+
+    if any(pg_indicators):
+        database_engine = 'postgresql'
+        print(f"✅ PostgreSQL detected! Indicators: {[i for i, v in enumerate(pg_indicators) if v]}")
+        print(f"PGDATABASE: {os.environ.get('PGDATABASE', 'Not set')}")
+        print(f"PGHOST: {os.environ.get('PGHOST', 'Not set')}")
+        print(f"DATABASE_URL present: {'DATABASE_URL' in os.environ}")
+    else:
+        print("❌ No PostgreSQL indicators found, using SQLite")
+        print(f"Available env vars: {list(os.environ.keys())[:10]}...")  # Show first 10 env vars
 
 if database_engine == 'postgresql':
+    # Get database configuration with fallbacks
+    db_name = os.environ.get('PGDATABASE') or os.environ.get('DB_NAME') or 'railway'
+    db_user = os.environ.get('PGUSER') or os.environ.get('DB_USER') or 'postgres'
+    db_password = os.environ.get('PGPASSWORD') or os.environ.get('DB_PASSWORD') or ''
+    db_host = os.environ.get('PGHOST') or os.environ.get('DB_HOST') or 'localhost'
+    db_port = os.environ.get('PGPORT') or os.environ.get('DB_PORT') or '5432'
+    
+    print(f"PostgreSQL Config: {db_user}@{db_host}:{db_port}/{db_name}")
+    
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
-            'NAME': os.environ.get('PGDATABASE', os.environ.get('DB_NAME', 'adakings_db')),
-            'USER': os.environ.get('PGUSER', os.environ.get('DB_USER', 'postgres')),
-            'PASSWORD': os.environ.get('PGPASSWORD', os.environ.get('DB_PASSWORD', '')),
-            'HOST': os.environ.get('PGHOST', os.environ.get('DB_HOST', 'localhost')),
-            'PORT': os.environ.get('PGPORT', os.environ.get('DB_PORT', '5432')),
+            'NAME': db_name,
+            'USER': db_user,
+            'PASSWORD': db_password,
+            'HOST': db_host,
+            'PORT': db_port,
         }
     }
 else:
