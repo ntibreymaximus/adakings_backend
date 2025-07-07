@@ -140,6 +140,14 @@ database_engine = os.environ.get('DATABASE_ENGINE', 'sqlite3').lower()
 # Auto-detect PostgreSQL if Railway DATABASE_URL is present
 if 'DATABASE_URL' in os.environ or 'PGDATABASE' in os.environ:
     database_engine = 'postgresql'
+    print(f"PostgreSQL detected! PGDATABASE: {os.environ.get('PGDATABASE', 'Not found')}")
+    print(f"DATABASE_URL present: {'DATABASE_URL' in os.environ}")
+
+# Force PostgreSQL in Railway environment (Railway always uses PostgreSQL)
+if 'RAILWAY_ENVIRONMENT' in os.environ or 'PORT' in os.environ:
+    if any(key.startswith('PG') for key in os.environ.keys()):
+        database_engine = 'postgresql'
+        print("Railway PostgreSQL environment detected!")
 
 if database_engine == 'postgresql':
     DATABASES = {
@@ -570,6 +578,9 @@ if not os.environ.get('DJANGO_SETTINGS_LOADED'):
     print(f"Debug mode: {DEBUG}")
     print(f"Allowed hosts: {ALLOWED_HOSTS}")
     print(f"Database: {'PostgreSQL' if database_engine == 'postgresql' else 'SQLite'}")
+    if database_engine == 'postgresql':
+        print(f"PostgreSQL Host: {os.environ.get('PGHOST', 'Not set')}")
+        print(f"PostgreSQL Database: {os.environ.get('PGDATABASE', 'Not set')}")
     print(f"Email backend: {EMAIL_BACKEND}")
     print(f"Paystack configured: {is_paystack_configured()}")
     print("Ready for development and production!")
