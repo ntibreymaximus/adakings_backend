@@ -137,15 +137,19 @@ WSGI_APPLICATION = 'adakings_backend.wsgi.application'
 # Database configuration
 database_engine = os.environ.get('DATABASE_ENGINE', 'sqlite3').lower()
 
+# Auto-detect PostgreSQL if Railway DATABASE_URL is present
+if 'DATABASE_URL' in os.environ or 'PGDATABASE' in os.environ:
+    database_engine = 'postgresql'
+
 if database_engine == 'postgresql':
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
-            'NAME': os.environ.get('DB_NAME', 'adakings_db'),
-            'USER': os.environ.get('DB_USER', 'postgres'),
-            'PASSWORD': os.environ.get('DB_PASSWORD', ''),
-            'HOST': os.environ.get('DB_HOST', 'localhost'),
-            'PORT': os.environ.get('DB_PORT', '5432'),
+            'NAME': os.environ.get('PGDATABASE', os.environ.get('DB_NAME', 'adakings_db')),
+            'USER': os.environ.get('PGUSER', os.environ.get('DB_USER', 'postgres')),
+            'PASSWORD': os.environ.get('PGPASSWORD', os.environ.get('DB_PASSWORD', '')),
+            'HOST': os.environ.get('PGHOST', os.environ.get('DB_HOST', 'localhost')),
+            'PORT': os.environ.get('PGPORT', os.environ.get('DB_PORT', '5432')),
         }
     }
 else:
