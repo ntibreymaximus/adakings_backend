@@ -91,8 +91,9 @@ def api_root(request, format=None):
     })
 
 urlpatterns = [
-    # Health check endpoint (handles both /health and /health/)
-    re_path(r'^health/?$', health_check, name='health-check'),
+    # Health check endpoint (explicit paths to avoid redirects)
+    path('health/', health_check, name='health-check-slash'),
+    path('health', health_check, name='health-check-no-slash'),
     
     # Admin URLs
     path('admin/', admin.site.urls),
