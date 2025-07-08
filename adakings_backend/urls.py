@@ -34,17 +34,10 @@ from rest_framework_simplejwt.views import (
     TokenVerifyView,
 )
 
-# Simple response for the root URL
-def home_response(request):
-    # Return a simple JSON response instead of redirecting
-    return JsonResponse({
-        'message': 'Welcome to Adakings Backend API',
-        'api_root': '/api/',
-        'admin': '/admin/',
-        'docs': '/api/docs/',
-        'swagger': '/api/docs/swagger/',
-        'status': 'running'
-    })
+# Redirect root URL to Django admin
+def home_redirect(request):
+    # Redirect to Django admin by default
+    return redirect('/admin/')
 
 
 # Serializer for api_root response
@@ -101,8 +94,8 @@ urlpatterns = [
     path('api/docs/swagger/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('api/docs/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
 
-    # Root URL returns API information
-    path('', home_response, name='home'),
+    # Root URL redirects to Django admin
+    path('', home_redirect, name='home'),
 ]
 
 # Serve static and media files in development
