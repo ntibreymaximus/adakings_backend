@@ -5,8 +5,8 @@
 ### Version Tracking
 ```
 feature=2.0.0      # Continuous across all features
-dev=4.0.0          # Independent dev versioning
-production=1.1.1   # Independent production versioning
+dev=1.0.0          # Independent dev versioning
+production=1.0.0   # Independent production versioning
 ```
 
 ### 📁 Project Structure
@@ -14,14 +14,14 @@ production=1.1.1   # Independent production versioning
 adakings_backend/
 ├── .deploy_backup
 ├── .env
+├── .env.dev
 ├── .env.example
 ├── .gitignore
 ├── adakings_backend
+├── adakings_local.db
 ├── apps
 ├── CHANGELOG.md
-├── clear_throttle_cache.py
-├── CUSTOM_LOCATION_IMPLEMENTATION.md
-├── db.sqlite3
+├── check_environment.py
 ```
 
 ## ✅ System Features
@@ -38,15 +38,15 @@ adakings_backend/
 # Deploy feature (continues from highest feature version)
 python smart_deploy.py feature/name patch "Description"
 
-# Deploy to dev (independent versioning)
-python smart_deploy.py dev minor "Dev release"
+    # Deploy to dev (independent versioning + devtest branch)
+    python smart_deploy.py dev minor "Dev release"
 
-# Deploy to production (independent versioning)
-python smart_deploy.py production major "Production release"
+    # Deploy to production (independent versioning + live branch)
+    python smart_deploy.py production major "Production release"
 ```
 
 ## 📊 Latest Deployment
 - **Feature Version**: 2.0.0
-- **Dev Version**: 4.0.0
-- **Production Version**: 1.1.1
-- **Last Updated**: 2025-07-05 19:32:01
+- **Dev Version**: 1.0.0
+- **Production Version**: 1.0.0
+- **Last Updated**: 2025-07-08 10:40:10

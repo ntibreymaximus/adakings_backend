@@ -7,8 +7,8 @@ This is the Adakings Backend API with a comprehensive **branch-specific versioni
 
 ```
 feature=2.0.0
-dev=4.0.0
-production=1.1.1
+dev=1.0.0
+production=1.0.0
 ```
 
 ## 📁 Project Structure
@@ -17,14 +17,14 @@ production=1.1.1
 adakings_backend/
 ├── .deploy_backup
 ├── .env
+├── .env.dev
 ├── .env.example
 ├── .gitignore
 ├── adakings_backend
+├── adakings_local.db
 ├── apps
 ├── CHANGELOG.md
-├── clear_throttle_cache.py
-├── CUSTOM_LOCATION_IMPLEMENTATION.md
-├── db.sqlite3
+├── check_environment.py
 ```
 
 ## 🔧 Branch-Specific Versioning
@@ -51,6 +51,6 @@ python smart_deploy.py production major "Major release"
 The VERSION file tracks all three branch types independently:
 ```
 feature=2.0.0      # Latest feature version
-dev=4.0.0          # Latest dev version
-production=1.1.1   # Latest production version
+dev=1.0.0          # Latest dev version
+production=1.0.0   # Latest production version
 ```
