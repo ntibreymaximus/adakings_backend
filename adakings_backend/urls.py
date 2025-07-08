@@ -17,6 +17,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include, re_path
 from django.shortcuts import redirect
+from django.http import JsonResponse
 from django.conf import settings
 from django.conf.urls.static import static
 from django.views.generic import RedirectView
@@ -33,10 +34,17 @@ from rest_framework_simplejwt.views import (
     TokenVerifyView,
 )
 
-# Simple redirect view for the root URL to API documentation
-def home_redirect(request):
-    # Redirect all users to the API root for now
-    return redirect('api-root')
+# Simple response for the root URL
+def home_response(request):
+    # Return a simple JSON response instead of redirecting
+    return JsonResponse({
+        'message': 'Welcome to Adakings Backend API',
+        'api_root': '/api/',
+        'admin': '/admin/',
+        'docs': '/api/docs/',
+        'swagger': '/api/docs/swagger/',
+        'status': 'running'
+    })
 
 
 # Serializer for api_root response
@@ -93,8 +101,8 @@ urlpatterns = [
     path('api/docs/swagger/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('api/docs/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
 
-    # Root URL redirects to dashboard or login page
-    path('', home_redirect, name='home'),
+    # Root URL returns API information
+    path('', home_response, name='home'),
 ]
 
 # Serve static and media files in development
