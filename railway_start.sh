@@ -53,7 +53,8 @@ fi
 echo "=== Starting Gunicorn with enhanced logging ==="
 exec gunicorn adakings_backend.wsgi:application \
     --bind 0.0.0.0:$PORT \
-    --workers 1 \
+    --workers 2 \
+    --worker-class sync \
     --timeout 60 \
     --keep-alive 5 \
     --max-requests 1000 \
@@ -61,4 +62,4 @@ exec gunicorn adakings_backend.wsgi:application \
     --access-logfile - \
     --error-logfile - \
     --log-level info \
-    --capture-output
+    --preload

@@ -171,6 +171,10 @@ if database_engine == 'postgresql':
             'PASSWORD': db_password,
             'HOST': db_host,
             'PORT': db_port,
+            'CONN_MAX_AGE': 0,  # Disable connection pooling to prevent threading issues
+            'OPTIONS': {
+                'connect_timeout': 10,
+            },
         }
     }
 else:
@@ -323,8 +327,11 @@ else:
         }
     }
 
-# Session cache
+# Session cache - use database backend with proper threading safety
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
+SESSION_COOKIE_AGE = 1209600  # 2 weeks
+SESSION_SAVE_EVERY_REQUEST = False
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 
 
 # Django REST Framework settings

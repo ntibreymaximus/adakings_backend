@@ -9,7 +9,7 @@ DATABASES = {
         'PASSWORD': os.environ.get('PGPASSWORD', ''),
         'HOST': os.environ.get('PGHOST', 'localhost'),
         'PORT': os.environ.get('PGPORT', '5432'),
-        'CONN_MAX_AGE': 300,
+        'CONN_MAX_AGE': 0,  # Disable connection pooling to prevent threading issues
         'OPTIONS': {
             'connect_timeout': 10,
         },
