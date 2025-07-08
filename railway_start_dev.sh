@@ -1,14 +1,12 @@
 #!/bin/bash
 
 # Railway Development Startup Script for Adakings Backend API
-echo "🚀 Starting Adakings Backend API - Railway Development Environment"
-echo "=================================================================="
+echo "Starting Adakings Backend - Development Environment\n"
 
-# Set Django settings module for development
 export DJANGO_SETTINGS_MODULE=adakings_backend.settings_dev
 
 # Wait for database to be ready
-echo "⏳ Waiting for database to be ready..."
+echo "Waiting for database to be ready..."
 python -c "
 import os
 import time
@@ -29,39 +27,34 @@ def wait_for_db():
                 database=os.environ.get('PGDATABASE')
             )
             conn.close()
-            print('✅ Database is ready!')
+            print('Database is ready!')
             return
         except OperationalError:
             retry_count += 1
-            print(f'⏳ Database not ready. Retry {retry_count}/{max_retries}...')
+            print(f"Database not ready. Retry {retry_count}/{max_retries}...")
             time.sleep(2)
     
-    print('❌ Database connection failed after max retries')
+    print('Database connection failed after max retries')
     exit(1)
 
-wait_for_db()
-"
+wait_for_db()"
 
 # Run migrations
-echo "🔄 Running database migrations..."
+echo "Running database migrations..."
 python manage.py migrate --noinput
 
 # Create superuser if none exists
-echo "👤 Creating superuser if none exists..."
+echo "Creating superuser if none exists..."
 python create_superuser.py
 
 # Collect static files
-echo "📦 Collecting static files..."
+echo "Collecting static files..."
 python manage.py collectstatic --noinput
 
-# Start the development server with debug capabilities
-echo "🌐 Starting development server..."
-echo "📊 Debug mode: ENABLED"
-echo "🔍 Django Debug Toolbar: ENABLED"
-echo "🧪 API Testing mode: ENABLED"
-echo "=================================================================="
+# Start the development server
 
-# Use Gunicorn with development-friendly settings
+echo "Development environment active.\n"
+
 exec gunicorn adakings_backend.wsgi:application \
     --bind 0.0.0.0:$PORT \
     --workers 2 \
@@ -73,4 +66,5 @@ exec gunicorn adakings_backend.wsgi:application \
     --preload \
     --log-level debug \
     --access-logfile - \
+    --error-logfile -
     --error-logfile -
