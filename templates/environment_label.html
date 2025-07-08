@@ -1,0 +1,27 @@
+{% load static %}
+
+{% if environment_info.show_tag and environment_info.ui_tag %}
+<div class="environment-label {{ environment_info.ui_tag_class }}">
+    {{ environment_info.ui_tag }}
+</div>
+{% endif %}
+
+<style>
+.environment-label {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    z-index: 100;
+    padding: 5px 10px;
+    border-radius: 3px;
+    color: white;
+    font-weight: bold;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+.env-tag-local {
+    background-color: #4CAF50;
+}
+.env-tag-dev {
+    background-color: #FF9800;
+}
+</style>

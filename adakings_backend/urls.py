@@ -34,6 +34,7 @@ from rest_framework_simplejwt.views import (
     TokenRefreshView,
     TokenVerifyView,
 )
+from .views import environment_info, health_check
 
 
 
@@ -43,6 +44,8 @@ class APIRootSerializer(serializers.Serializer):
     menu = serializers.URLField() # Added
     orders = serializers.URLField() # Added
     payments = serializers.URLField() # Added
+    environment = serializers.URLField()  # Added
+    health = serializers.URLField()  # Added
     schema = serializers.URLField()
     docs = serializers.URLField()
     swagger = serializers.URLField()
@@ -56,6 +59,8 @@ def api_root(request, format=None):
         'menu': reverse('menu_api:menuitem-list-create', request=request, format=format), # Added
         'orders': reverse('orders_api:order-list-create', request=request, format=format), # Added
         'payments': reverse('payments_api:payment-list', request=request, format=format), # Added
+        'environment': reverse('environment-info', request=request, format=format),  # Added
+        'health': reverse('health-check', request=request, format=format),  # Added
         'schema': reverse('schema', request=request, format=format),
         'docs': reverse('redoc', request=request, format=format),
         'swagger': reverse('swagger-ui', request=request, format=format),
@@ -78,6 +83,11 @@ urlpatterns = [
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/token/verify/', TokenVerifyView.as_view(), name='token_verify'),
 
+    # System endpoints
+    path('api/environment/', environment_info, name='environment-info'),
+    path('api/health/', health_check, name='health-check'),
+    path('health/', health_check, name='health-check-root'),  # For load balancers
+    
     # API Root
     path('api/', api_root, name='api-root'),
     path('api/users/', include('apps.users.urls')),

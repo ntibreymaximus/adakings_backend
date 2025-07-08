@@ -2,6 +2,46 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.0] - 2025-07-08
+
+### 🚀 Development Release
+
+**📋 Release Information:**
+- **Environment**: dev
+- **Branch**: `dev/1.1.0`
+- **Version**: `Unknown` → `1.1.0`
+- **Deployment Time**: 2025-07-08 19:40:23
+- **Description**: Development environment deployment with latest features
+
+**📝 Changes Made:**
+env tags
+
+**📁 Files Modified:**
+  - Modified: `EPLOYMENT_SUMMARY.md`
+  - Added: `ENVIRONMENT_UI_GUIDE.md`
+  - Modified: `README.md`
+  - Modified: `VERSION`
+  - Modified: `adakings_backend/settings.py`
+  - Modified: `adakings_backend/urls.py`
+  - Added: `adakings_backend/views.py`
+  - Changed: `adakings_backend/context_processors.py`
+  - Changed: `adakings_backend/middleware.py`
+  - Changed: `templates/`
+
+**🔄 Deployment Details:**
+- **Source Branch**: `dev/1.1.0`
+- **Target Branch**: `dev/1.1.0`
+- **Merge Strategy**: Automatic merge with main branch
+- **Version Bump Type**: Version update
+
+**🎯 Environment Specific Notes:**
+- Development environment deployment
+- Contains latest features and changes
+- Used for integration testing before production
+- May contain experimental features
+
+---
+
 ## [1.0.1] - 2025-07-08
 
 ### 🎯 Production Release

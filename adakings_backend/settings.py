@@ -141,6 +141,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'adakings_backend.middleware.EnvironmentTagMiddleware',
 ] + MIDDLEWARE_DEBUG
 
 ROOT_URLCONF = 'adakings_backend.urls'
@@ -165,6 +166,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'adakings_backend.context_processors.environment_info',
             ],
         },
     },
