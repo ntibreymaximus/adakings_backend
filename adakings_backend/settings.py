@@ -114,6 +114,16 @@ ROOT_URLCONF = 'adakings_backend.urls'
 # Disable APPEND_SLASH to prevent any automatic redirects
 APPEND_SLASH = False
 
+# Railway-specific settings to handle load balancer
+if 'RAILWAY_ENVIRONMENT' in os.environ or 'PORT' in os.environ:
+    # Trust Railway's load balancer headers
+    USE_X_FORWARDED_HOST = True
+    USE_X_FORWARDED_PORT = True
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    
+    # Disable automatic HTTPS redirect since Railway handles it
+    SECURE_SSL_REDIRECT = False
+
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
