@@ -3,8 +3,7 @@
 # Railway Development Startup Script for Adakings Backend API
 echo "Starting Adakings Backend - Development Environment\n"
 
-export DJANGO_SETTINGS_MODULE=adakings_backend.settings_dev
-
+export DJANGO_SETTINGS_MODULE=adakings_backend.settings
 # Wait for database to be ready
 echo "Waiting for database to be ready..."
 python -c "

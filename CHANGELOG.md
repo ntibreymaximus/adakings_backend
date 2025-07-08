@@ -2,6 +2,42 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.4] - 2025-07-08
+
+### 🚀 Development Release
+
+**📋 Release Information:**
+- **Environment**: dev
+- **Branch**: `dev/1.0.4`
+- **Version**: `Unknown` → `1.0.4`
+- **Deployment Time**: 2025-07-08 19:03:43
+- **Description**: Development environment deployment with latest features
+
+**📝 Changes Made:**
+environments patch
+
+**📁 Files Modified:**
+  - Modified: `EPLOYMENT_SUMMARY.md`
+  - Modified: `README.md`
+  - Modified: `VERSION`
+  - Modified: `entrypoint.sh`
+  - Modified: `railway.toml`
+  - Modified: `railway_start_dev.sh`
+
+**🔄 Deployment Details:**
+- **Source Branch**: `dev/1.0.4`
+- **Target Branch**: `dev/1.0.4`
+- **Merge Strategy**: Automatic merge with main branch
+- **Version Bump Type**: Version update
+
+**🎯 Environment Specific Notes:**
+- Development environment deployment
+- Contains latest features and changes
+- Used for integration testing before production
+- May contain experimental features
+
+---
+
 ## [1.0.3] - 2025-07-08
 
 ### 🚀 Development Release

@@ -35,7 +35,7 @@ echo "RAILWAY_ENVIRONMENT: ${RAILWAY_ENVIRONMENT:-'Not Set'}"
 echo "PORT: ${PORT:-'Not Set'}"
 
 # Determine which startup script to use
-if [ "${DJANGO_ENVIRONMENT:-}" = "production" ] || [ "${RAILWAY_ENVIRONMENT:-}" = "production" ]; then
+if [ "${DJANGO_ENVIRONMENT:-}" = "production" ] || [ "${RAILWAY_ENVIRONMENT:-}" = "prod" ]; then
     echo "=== Starting Production Environment ==="
     exec ./railway_start.sh
 else
