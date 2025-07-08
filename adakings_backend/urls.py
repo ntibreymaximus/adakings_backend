@@ -33,13 +33,10 @@ from rest_framework_simplejwt.views import (
     TokenVerifyView,
 )
 
-# Simple redirect view for the root URL to dashboard or login
+# Simple redirect view for the root URL to API documentation
 def home_redirect(request):
-    if request.user.is_authenticated:
-        # Redirect authenticated users to their API profile/me endpoint
-        return redirect('users_api:user-me') 
-    # Redirect unauthenticated users to the API login endpoint
-    return redirect('users_api:login')
+    # Redirect all users to the API root for now
+    return redirect('api-root')
 
 
 # Serializer for api_root response
