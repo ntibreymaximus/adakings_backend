@@ -34,10 +34,6 @@ from rest_framework_simplejwt.views import (
     TokenVerifyView,
 )
 
-# Redirect root URL to Django admin
-def home_redirect(request):
-    # Redirect to Django admin by default
-    return redirect('/admin/')
 
 
 # Serializer for api_root response
@@ -95,7 +91,7 @@ urlpatterns = [
     path('api/docs/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
 
     # Root URL redirects to Django admin
-    path('', home_redirect, name='home'),
+    path('', RedirectView.as_view(url='/admin/', permanent=False), name='home'),
 ]
 
 # Serve static and media files in development
