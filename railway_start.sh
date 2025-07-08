@@ -40,6 +40,9 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+echo "=== Creating superuser if needed ==="
+python create_superuser.py || echo "Superuser creation skipped (may already exist)"
+
 echo "=== Testing WSGI application ==="
 python -c "from adakings_backend.wsgi import application; print('WSGI application loaded successfully')"
 if [ $? -ne 0 ]; then
