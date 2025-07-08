@@ -91,23 +91,20 @@ urlpatterns = [
     # Admin URLs
     path('admin/', admin.site.urls),
     
-    # Root URL returns simple info (both with and without trailing slash)
-    path('', lambda request: JsonResponse({
-        'message': 'Adakings Backend API',
-        'admin': '/admin/',
-        'api': '/api/',
-        'status': 'running'
-    }), name='home'),
-    # Also handle root with trailing slash explicitly
-    re_path(r'^/$', lambda request: JsonResponse({
-        'message': 'Adakings Backend API',
-        'admin': '/admin/',
-        'api': '/api/',
-        'status': 'running'
-    }), name='home-slash'),
+    # Root URL redirects to admin page
+    path('', RedirectView.as_view(url='/admin/', permanent=False), name='home'),
 ]
 
 # Serve static and media files in development
 if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    
+    # Django Debug Toolbar URLs
+    try:
+        import debug_toolbar
+        urlpatterns = [
+            path('__debug__/', include(debug_toolbar.urls)),
+        ] + urlpatterns
+    except ImportError:
+        pass

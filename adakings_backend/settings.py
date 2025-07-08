@@ -15,10 +15,12 @@ from dotenv import load_dotenv
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Load environment variables from .env file
-env_path = BASE_DIR / '.env'
-if env_path.exists():
-    load_dotenv(env_path)
+# Load environment variables from .env file (only if not on Railway)
+# Railway provides environment variables directly, so we skip .env loading on Railway
+if 'RAILWAY_ENVIRONMENT' not in os.environ:
+    env_path = BASE_DIR / '.env'
+    if env_path.exists():
+        load_dotenv(env_path)
 
 # SECURITY WARNING: Secret key
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-dev-secret-key-change-in-production')
@@ -78,21 +80,31 @@ INSTALLED_APPS = [
 ]
 
 # Enable development tools if available and in debug mode
+MIDDLEWARE_DEBUG = []
 if DEBUG:
-    try:
-        import debug_toolbar
-        INSTALLED_APPS += ['debug_toolbar']
-        MIDDLEWARE_DEBUG = ['debug_toolbar.middleware.DebugToolbarMiddleware']
-    except ImportError:
-        MIDDLEWARE_DEBUG = []
+    # Django Debug Toolbar
+    if os.environ.get('ENABLE_DEBUG_TOOLBAR', 'True').lower() == 'true':
+        try:
+            import debug_toolbar
+            INSTALLED_APPS += ['debug_toolbar']
+            MIDDLEWARE_DEBUG += ['debug_toolbar.middleware.DebugToolbarMiddleware']
+        except ImportError:
+            pass
     
+    # Django Extensions
+    if os.environ.get('ENABLE_DJANGO_EXTENSIONS', 'True').lower() == 'true':
+        try:
+            import django_extensions
+            INSTALLED_APPS += ['django_extensions']
+        except ImportError:
+            pass
+    
+    # DRF Spectacular Sidecar
     try:
         import drf_spectacular_sidecar
         INSTALLED_APPS += ['drf_spectacular_sidecar']
     except ImportError:
         pass
-else:
-    MIDDLEWARE_DEBUG = []
 
 # Custom user model
 AUTH_USER_MODEL = 'users.CustomUser'
@@ -120,9 +132,6 @@ if 'RAILWAY_ENVIRONMENT' in os.environ or 'PORT' in os.environ:
     USE_X_FORWARDED_HOST = True
     USE_X_FORWARDED_PORT = True
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-    
-    # Disable automatic HTTPS redirect since Railway handles it
-    SECURE_SSL_REDIRECT = False
 
 TEMPLATES = [
     {
@@ -171,19 +180,7 @@ else:
             'ENGINE': 'django.db.backends.sqlite3',
             'NAME': BASE_DIR / os.environ.get('DATABASE_NAME', 'db.sqlite3'),
             'OPTIONS': {
-                'timeout': 5,  # Reduced timeout for faster responses
-                'check_same_thread': False,
-                # SQLite optimizations for speed
-                'init_command': (
-                    "PRAGMA foreign_keys=ON;"
-                    "PRAGMA journal_mode=WAL;"
-                    "PRAGMA synchronous=NORMAL;"
-                    "PRAGMA cache_size=10000;"
-                    "PRAGMA temp_store=MEMORY;"
-                    "PRAGMA mmap_size=134217728;"
-                    "PRAGMA wal_autocheckpoint=1000;"
-                    "PRAGMA wal_checkpoint(TRUNCATE);"
-                ),
+                'timeout': 20,
             },
             'CONN_MAX_AGE': 300,  # Keep connections alive for 5 minutes for better performance
         }
@@ -349,8 +346,10 @@ REST_FRAMEWORK = {
         'rest_framework.filters.OrderingFilter',
     ],
     'DEFAULT_RENDERER_CLASSES': [
+        'rest_framework.renderers.BrowsableAPIRenderer',
         'rest_framework.renderers.JSONRenderer',
-        'rest_framework.renderers.BrowsableAPIRenderer' if DEBUG else 'rest_framework.renderers.JSONRenderer',
+    ] if DEBUG else [
+        'rest_framework.renderers.JSONRenderer',
     ],
     'DEFAULT_THROTTLE_CLASSES': [
         'rest_framework.throttling.AnonRateThrottle',
@@ -363,6 +362,13 @@ REST_FRAMEWORK = {
     'EXCEPTION_HANDLER': 'rest_framework.views.exception_handler',
     'UNAUTHENTICATED_USER': 'django.contrib.auth.models.AnonymousUser',
     'UNAUTHENTICATED_TOKEN': None,
+    # Browsable API settings
+    'DEFAULT_METADATA_CLASS': 'rest_framework.metadata.SimpleMetadata',
+    # Make browsable API more developer-friendly
+    'HTML_SELECT_CUTOFF': 1000,
+    'HTML_SELECT_CUTOFF_TEXT': "More than {count} items...",
+    'URL_FORMAT_OVERRIDE': 'format',
+    'FORMAT_SUFFIX_KWARG': 'format',
 }
 
 # drf-spectacular settings
@@ -580,5 +586,33 @@ RATELIMIT_ENABLE = os.environ.get('RATE_LIMIT_ENABLE', 'False').lower() == 'true
 
 # Debug toolbar configuration
 if DEBUG:
-    INTERNAL_IPS = ['127.0.0.1', 'localhost']
+    INTERNAL_IPS = [
+        '127.0.0.1',
+        'localhost',
+        '0.0.0.0',
+    ]
+    
+    # Django Debug Toolbar configuration
+    if 'debug_toolbar' in INSTALLED_APPS:
+        DEBUG_TOOLBAR_CONFIG = {
+            'SHOW_TOOLBAR_CALLBACK': lambda request: DEBUG,
+            'SHOW_COLLAPSED': True,
+            'ENABLE_STACKTRACES': True,
+        }
+        
+        DEBUG_TOOLBAR_PANELS = [
+            'debug_toolbar.panels.history.HistoryPanel',
+            'debug_toolbar.panels.versions.VersionsPanel',
+            'debug_toolbar.panels.timer.TimerPanel',
+            'debug_toolbar.panels.settings.SettingsPanel',
+            'debug_toolbar.panels.headers.HeadersPanel',
+            'debug_toolbar.panels.request.RequestPanel',
+            'debug_toolbar.panels.sql.SQLPanel',
+            'debug_toolbar.panels.staticfiles.StaticFilesPanel',
+            'debug_toolbar.panels.templates.TemplatesPanel',
+            'debug_toolbar.panels.cache.CachePanel',
+            'debug_toolbar.panels.signals.SignalsPanel',
+            'debug_toolbar.panels.redirects.RedirectsPanel',
+            'debug_toolbar.panels.profiling.ProfilingPanel',
+        ]
 

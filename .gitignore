@@ -1,34 +1,31 @@
-# Smart Deploy - Environment Management
-# This gitignore preserves all environment folders but excludes sensitive files
+# Production-Ready .gitignore for Django Railway Deployment
 
-# Environment Variables (sensitive data should not be committed)
-# Keep template files, exclude actual .env files with credentials
+# === SENSITIVE FILES (NEVER COMMIT) ===
+# Environment variables with secrets
+.env
+.env.local
+.env.*.local
+.env.development
+.env.staging
+.env.production.local
 
-# Sensitive files
+# Security certificates and keys
 *.pem
 *.key
 *.crt
 *.p12
+*.pfx
 
-# Ignore actual environment configuration
-.env
-!.env.template
-
-# Deployment manifests (generated, don't commit)
-environments/*/deployment_manifest.json
-
-# Smart deploy backup directory (temporary files, don't commit)
-.deploy_backup/
-
-
-# Base Project Gitignore
-# Django .gitignore
-*.pyc
+# === PYTHON BYTECODE AND CACHE ===
 __pycache__/
 *.py[cod]
-*.class
-*.so
+*$py.class
+*.pyc
+*.pyo
+*.pyd
 .Python
+
+# === BUILD AND DISTRIBUTION ===
 build/
 develop-eggs/
 dist/
@@ -46,63 +43,111 @@ wheels/
 *.egg
 *.manifest
 *.spec
-pip-log.txt
-pip-delete-this-directory.txt
-htmlcov/
-.tox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-.hypothesis/
-.pytest_cache/
-*.mo
-*.pot
-*.log
-local_settings.py
-# SQLite database files (exclude all SQLite files from version control)
+
+# === DATABASES ===
+# SQLite databases (use PostgreSQL in production)
 db.sqlite3
 db.sqlite3-shm
 db.sqlite3-wal
 *.sqlite3
 *.sqlite3-shm
 *.sqlite3-wal
-instance/
-.webassets-cache
-# Environment files (exclude actual .env files, keep templates)
-.env
-.env.local
-.env.*.local
-environments/*/.env
-environments/feature/.env
-environments/dev/.env
-environments/production/.env
+*.db
 
-# Keep environment templates (these should be committed)
-!.env.template
-!.env.*.template
-!environments/*/.env.template
+# Database dumps
+*.sql
+*.dump
 
-# Deployment manifests (generated, don't commit)
-environments/*/deployment_manifest.json
+# === DJANGO SPECIFIC ===
+# Local settings (use environment variables instead)
+local_settings.py
+settings_local.py
 
-# Smart deploy backup directory (temporary files, don't commit)
-.deploy_backup/
-.venv
-env/
+# Static and media files (handled by WhiteNoise and cloud storage)
+/static/
+/staticfiles/
+/media/
+/mediafiles/
+
+# Django logs
+*.log
+logs/
+
+# Django migrations (keep these, but exclude local test migrations)
+# migrations/
+
+# === VIRTUAL ENVIRONMENTS ===
 venv/
+.venv/
+env/
 ENV/
 env.bak/
 venv.bak/
-.spyderproject
-.spyproject
-.ropeproject
-/site
-.mypy_cache/
-.pyre/
+virtualenv/
+.virtualenv/
+pyvenv.cfg
+
+# === TESTING AND COVERAGE ===
+.tox/
+.coverage
+.coverage.*
+.cache
+.pytest_cache/
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+htmlcov/
+
+# === DEVELOPMENT TOOLS ===
+# IDEs
 .idea/
 .vscode/
 *.swp
 *.swo
+*~
+
+# Text editors
+.spyderproject
+.spyproject
+.ropeproject
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# === TYPE CHECKING ===
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+
+# === JUPYTER NOTEBOOKS ===
+.ipynb_checkpoints
+
+# === DOCUMENTATION ===
+/site
+docs/_build/
+
+# === TEMPORARY FILES ===
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# === DEPLOYMENT ===
+# Deployment manifests (generated)
+deployment_manifest.json
+.deploy_backup/
+
+# === KEEP THESE (TEMPLATES AND EXAMPLES) ===
+# Environment templates should be committed
+!.env.template
+!.env.example
+!.env.sample
