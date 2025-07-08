@@ -17,7 +17,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include, re_path
 from django.shortcuts import redirect
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponseRedirect
 from django.conf import settings
 from django.conf.urls.static import static
 from django.views.generic import RedirectView
@@ -91,7 +91,7 @@ urlpatterns = [
     path('api/docs/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
 
     # Root URL redirects to Django admin
-    path('', RedirectView.as_view(url='/admin/', permanent=False), name='home'),
+    path('', lambda request: HttpResponseRedirect('/admin/'), name='home'),
 ]
 
 # Serve static and media files in development
