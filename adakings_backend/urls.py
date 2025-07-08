@@ -91,13 +91,20 @@ urlpatterns = [
     # Admin URLs
     path('admin/', admin.site.urls),
     
-    # Root URL returns simple info
+    # Root URL returns simple info (both with and without trailing slash)
     path('', lambda request: JsonResponse({
         'message': 'Adakings Backend API',
         'admin': '/admin/',
         'api': '/api/',
         'status': 'running'
     }), name='home'),
+    # Also handle root with trailing slash explicitly
+    re_path(r'^/$', lambda request: JsonResponse({
+        'message': 'Adakings Backend API',
+        'admin': '/admin/',
+        'api': '/api/',
+        'status': 'running'
+    }), name='home-slash'),
 ]
 
 # Serve static and media files in development
