@@ -25,8 +25,9 @@ if 'RAILWAY_ENVIRONMENT' not in os.environ:
 # SECURITY WARNING: Secret key
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-dev-secret-key-change-in-production')
 
-# SECURITY WARNING: Debug mode
-DEBUG = os.environ.get('DJANGO_DEBUG', 'True').lower() in ('true', '1', 'on', 'yes')
+# SECURITY WARNING: Debug mode - default to False in production
+# Only enable debug if explicitly set to True
+DEBUG = os.environ.get('DJANGO_DEBUG', 'False').lower() in ('true', '1', 'on', 'yes')
 
 # Allowed hosts
 allowed_hosts_env = os.environ.get('DJANGO_ALLOWED_HOSTS', '127.0.0.1,localhost')

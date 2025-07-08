@@ -3,21 +3,32 @@
 # Enable error handling
 set -euo pipefail
 
-echo "=== Railway Deployment Start ==="
-echo "Environment variables:"
+# Ensure production environment variables are set
+export DJANGO_DEBUG="False"
+export DJANGO_SETTINGS_MODULE="adakings_backend.settings"
+export DJANGO_ENVIRONMENT="production"
+export DATABASE_ENGINE="postgresql"
+
+echo "=== Railway Deployment Start (Production) ==="
+echo "Verifying Environment Configuration:"
 echo "PORT: $PORT"
 echo "DATABASE_ENGINE: $DATABASE_ENGINE"
-echo "DB_HOST: $DB_HOST"
-echo "DB_NAME: $DB_NAME"
+echo "PGHOST/DB_HOST: ${PGHOST:-$DB_HOST}"
+echo "PGDATABASE/DB_NAME: ${PGDATABASE:-$DB_NAME}"
 echo "DJANGO_DEBUG: $DJANGO_DEBUG"
 echo "DJANGO_SETTINGS_MODULE: $DJANGO_SETTINGS_MODULE"
-echo "PYTHON_PATH: $PYTHONPATH"
+echo "DJANGO_ENVIRONMENT: $DJANGO_ENVIRONMENT"
+echo "RAILWAY_ENVIRONMENT: ${RAILWAY_ENVIRONMENT:-'Not Set'}"
+echo "PYTHONPATH: ${PYTHONPATH:-'Not Set'}"
 
 echo "=== Testing Django import ==="
 python -c "import django; print(f'Django version: {django.get_version()}')"
 
 echo "=== Testing settings import ==="
 python -c "import os; os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'adakings_backend.settings'); import django; django.setup(); print('Settings imported successfully')"
+
+echo "=== Verifying Environment Configuration ==="
+python check_environment.py
 
 echo "=== Running Django checks ==="
 python manage.py check
