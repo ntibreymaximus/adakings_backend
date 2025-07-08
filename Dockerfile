@@ -36,7 +36,7 @@ RUN dos2unix railway_start.sh railway_start_dev.sh start_prod.sh entrypoint.sh
 RUN chmod +x railway_start.sh railway_start_dev.sh start_prod.sh entrypoint.sh
 
 # Verify scripts exist and are executable
-RUN ls -la /app/railway_start*.sh /app/entrypoint.sh && file /app/railway_start*.sh /app/entrypoint.sh
+RUN ls -la /app/railway_start*.sh /app/entrypoint.sh
 
 # Create non-root user
 RUN groupadd -r adakings && useradd -r -g adakings adakings
