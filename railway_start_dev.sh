@@ -45,7 +45,7 @@ python manage.py migrate --noinput
 
 # Create superuser if none exists
 echo "Creating superuser if none exists..."
-python create_superuser.py
+python manage.py create_superuser_if_none_exists
 
 # Collect static files
 echo "Collecting static files..."
