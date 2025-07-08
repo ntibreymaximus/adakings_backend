@@ -26,19 +26,14 @@ IS_RAILWAY = 'RAILWAY_ENVIRONMENT' in os.environ
 if IS_RAILWAY:
     # Use Railway's DJANGO_ENVIRONMENT variable for dev/prod
     ENVIRONMENT = os.environ.get('DJANGO_ENVIRONMENT', 'development')
-    print(f"Running on Railway in {ENVIRONMENT} environment")
 else:
     # Load .env file for local development
     env_path = BASE_DIR / '.env'
     if env_path.exists():
         load_dotenv(env_path)
-        print(f"Loaded environment variables from {env_path}")
-    else:
-        print(f"No environment file found at {env_path}")
     
     # Get environment from .env file or default to local
     ENVIRONMENT = os.environ.get('DJANGO_ENVIRONMENT', 'local')
-    print(f"Running locally in {ENVIRONMENT} environment")
 
 # SECURITY WARNING: Secret key
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-dev-secret-key-change-in-production')
@@ -199,7 +194,6 @@ if IS_RAILWAY:
             'ATOMIC_REQUESTS': True,  # Wrap each request in a transaction
         }
     }
-    print(f"Using PostgreSQL database: {db_name}@{db_host}:{db_port}")
 else:
     # Local development uses SQLite
     database_name = os.environ.get('DATABASE_NAME', 'db.sqlite3')
@@ -213,7 +207,6 @@ else:
             'CONN_MAX_AGE': 300,  # Keep connections alive for 5 minutes for better performance
         }
     }
-    print(f"Using SQLite database: {database_name}")
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -531,9 +524,9 @@ LOGGING = {
     },
     'handlers': {
         'console': {
-            'level': 'DEBUG' if DEBUG else 'INFO',
+            'level': 'WARNING',
             'class': 'logging.StreamHandler',
-            'formatter': 'verbose' if DEBUG else 'simple',
+            'formatter': 'verbose',
             'filters': [] if DEBUG else ['broken_pipe_filter'],
         },
         'file': {
@@ -546,19 +539,19 @@ LOGGING = {
     },
     'root': {
         'handlers': ['console'],
-        'level': 'DEBUG' if DEBUG else 'INFO',
+        'level': 'WARNING',
         'filters': [] if DEBUG else ['broken_pipe_filter'],
     },
     'loggers': {
         'django': {
             'handlers': ['console'],
-            'level': 'DEBUG' if DEBUG else 'INFO',
+            'level': 'WARNING',
             'propagate': False,
             'filters': [] if DEBUG else ['broken_pipe_filter'],
         },
         'django.server': {
             'handlers': ['console'],
-            'level': 'DEBUG' if DEBUG else 'WARNING',
+            'level': 'WARNING',
             'propagate': False,
             'filters': [] if DEBUG else ['broken_pipe_filter'],
         },

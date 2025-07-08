@@ -3,14 +3,19 @@
 import os
 import sys
 
+# Module-level flag to prevent duplicate environment checks
+_env_check_done = False
 
 def main():
     """Run administrative tasks."""
+    global _env_check_done
+    
     # Set default settings module
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'adakings_backend.settings')
     
-    # Run environment check before starting the server
-    if len(sys.argv) > 1 and sys.argv[1] == 'runserver':
+    # Run environment check before starting the server (only once)
+    if len(sys.argv) > 1 and sys.argv[1] == 'runserver' and not _env_check_done:
+        _env_check_done = True
         print("🔍 Running environment configuration check...")
         print("-" * 50)
         try:
