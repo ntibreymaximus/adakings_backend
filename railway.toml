@@ -5,5 +5,30 @@ builder = "nixpacks"
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 10
 
+# Production Environment Configuration
 [environments.production]
-variables = { }
+variables = {
+  DJANGO_DEBUG = "False",
+  DJANGO_SETTINGS_MODULE = "adakings_backend.settings",
+  DJANGO_ENVIRONMENT = "production",
+  LOG_LEVEL = "INFO",
+  RATE_LIMIT_ENABLE = "True",
+  SECURE_SSL_REDIRECT = "True",
+  API_TEST_MODE = "False",
+  ENABLE_DEBUG_TOOLBAR = "False",
+  ENABLE_DJANGO_EXTENSIONS = "False"
+}
+
+# Development Environment Configuration
+[environments.dev]
+variables = {
+  DJANGO_DEBUG = "True",
+  DJANGO_SETTINGS_MODULE = "adakings_backend.settings_dev",
+  DJANGO_ENVIRONMENT = "development",
+  LOG_LEVEL = "DEBUG",
+  RATE_LIMIT_ENABLE = "False",
+  SECURE_SSL_REDIRECT = "False",
+  API_TEST_MODE = "True",
+  ENABLE_DEBUG_TOOLBAR = "True",
+  ENABLE_DJANGO_EXTENSIONS = "True"
+}

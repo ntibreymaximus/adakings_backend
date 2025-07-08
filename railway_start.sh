@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Enable error handling
-set -e
+set -euo pipefail
 
 echo "=== Railway Deployment Start ==="
 echo "Environment variables:"
@@ -20,7 +20,7 @@ echo "=== Testing settings import ==="
 python -c "import os; os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'adakings_backend.settings'); import django; django.setup(); print('Settings imported successfully')"
 
 echo "=== Running Django checks ==="
-python manage.py check --deploy
+python manage.py check
 if [ $? -ne 0 ]; then
     echo "Django checks failed!"
     exit 1

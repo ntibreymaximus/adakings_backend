@@ -30,8 +30,9 @@ COPY . /app/
 # Create necessary directories
 RUN mkdir -p /app/logs /app/staticfiles /app/mediafiles
 
-# Make railway_start.sh executable
+# Make startup scripts executable
 RUN chmod +x railway_start.sh
+RUN chmod +x railway_start_dev.sh
 
 # Create non-root user
 RUN groupadd -r adakings && useradd -r -g adakings adakings
@@ -45,4 +46,4 @@ EXPOSE $PORT
 
 
 # Use railway_start.sh as the entry point
-CMD ["bash", "railway_start.sh"]
+CMD ["bash", "railway_start_dev.sh"]
