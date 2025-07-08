@@ -111,8 +111,8 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'adakings_backend.urls'
 
-# Disable automatic slash appending to prevent redirect loops
-APPEND_SLASH = False
+# Re-enable APPEND_SLASH with custom redirect handling
+APPEND_SLASH = True
 
 TEMPLATES = [
     {

@@ -18,6 +18,7 @@ from django.contrib import admin
 from django.urls import path, include, re_path
 from django.shortcuts import redirect
 from django.http import JsonResponse, HttpResponseRedirect
+from django.views.decorators.cache import never_cache
 from django.conf import settings
 from django.conf.urls.static import static
 from django.views.generic import RedirectView
@@ -61,9 +62,6 @@ def api_root(request, format=None):
     })
 
 urlpatterns = [
-    
-    # Admin URLs
-    path('admin/', admin.site.urls),
 
     # Menu app API URLs
     path('api/menu/', include('apps.menu.urls')),
@@ -90,8 +88,16 @@ urlpatterns = [
     path('api/docs/swagger/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('api/docs/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
 
-    # Root URL redirects to Django admin
-    path('', lambda request: HttpResponseRedirect('/admin/'), name='home'),
+    # Admin URLs
+    path('admin/', admin.site.urls),
+    
+    # Root URL returns simple info
+    path('', lambda request: JsonResponse({
+        'message': 'Adakings Backend API',
+        'admin': '/admin/',
+        'api': '/api/',
+        'status': 'running'
+    }), name='home'),
 ]
 
 # Serve static and media files in development
