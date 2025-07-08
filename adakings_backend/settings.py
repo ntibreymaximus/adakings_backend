@@ -111,6 +111,9 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'adakings_backend.urls'
 
+# Disable automatic slash appending to prevent redirect loops
+APPEND_SLASH = False
+
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
