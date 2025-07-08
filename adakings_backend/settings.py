@@ -193,7 +193,9 @@ if IS_RAILWAY:
             'CONN_MAX_AGE': 0,  # Disable connection pooling to prevent threading issues
             'OPTIONS': {
                 'connect_timeout': 10,
+                'isolation_level': 'read_committed',
             },
+            'ATOMIC_REQUESTS': True,  # Wrap each request in a transaction
         }
     }
     print(f"Using PostgreSQL database: {db_name}@{db_host}:{db_port}")
