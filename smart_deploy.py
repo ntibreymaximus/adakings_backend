@@ -52,12 +52,14 @@ VERSION File Example:
 
 Git Workflow:
 - Feature deployments: Push to feature/name-x.x.x, then merge with main
-- Dev deployments: Push to dev/x.x.x only (no merge)
-- Production deployments: Push to dev with prod-x.x.x tag, then push to prod
+- Dev deployments: Push to dev/x.x.x and create/update devtest branch (no merge with main)
+- Production deployments: Push to prod/x.x.x and create/update live branch (no merge with main)
 
-Production Tagging Strategy:
-Production versions are tagged on the dev branch (prod-x.x.x) to track which
-dev version corresponds to the current production deployment.
+Branch Versioning Strategy:
+Each environment maintains its own versioned branches:
+- Feature: feature/name-x.x.x (merged with main)
+- Dev: dev/x.x.x (updates devtest branch)
+- Production: prod/x.x.x (updates live branch)
 
 Note: Each branch type deployment only updates its specific version in the VERSION file,
 leaving other branch type versions unchanged.
@@ -89,14 +91,13 @@ class SmartDeployer:
         self.git_config = {
             "production": {
                 "target_branch": "prod",
-                "merge_with": None,  # Production pushes to dev with tag, then to prod
-                "push_to_dev": True,  # Special case: also push to dev with production tag
-                "description": "Production release"
+                "merge_with": None,  # Production pushes to prod branch and updates live
+                "description": "Production release with live branch update"
             },
             "dev": {
                 "target_branch": "dev",
-                "merge_with": None,  # Dev only pushes to dev branch
-                "description": "Development release"
+                "merge_with": None,  # Dev pushes to dev branch and updates devtest
+                "description": "Development release with devtest branch update"
             },
             "feature": {
                 "target_branch": None,  # Will be set dynamically
@@ -436,11 +437,11 @@ adakings_backend/
 # Deploy feature (continues from highest feature version)
 python smart_deploy.py feature/name patch "Description"
 
-# Deploy to dev (independent versioning)
-python smart_deploy.py dev minor "Dev release"
+    # Deploy to dev (independent versioning + devtest branch)
+    python smart_deploy.py dev minor "Dev release"
 
-# Deploy to production (independent versioning)
-python smart_deploy.py production major "Production release"
+    # Deploy to production (independent versioning + live branch)
+    python smart_deploy.py production major "Production release"
 ```
 
 ## 📊 Latest Deployment
@@ -900,115 +901,160 @@ All notable changes to this project will be documented in this file.
         
         self.log_success(f"Successfully merged {source_branch} with main")
 
-    def push_production_to_dev(self, version):
-        """Push production changes to new versioned dev branch with production tag."""
-        self.log_info(f"Pushing production version {version} to dev branch with tag...")
+    def create_or_update_devtest_branch(self, new_version, commit_message):
+        """Create or update the devtest branch with the latest dev changes."""
+        self.log_info(f"🧪 Managing devtest branch for dev version {new_version}...")
         
-        # Get the highest dev version and ALWAYS do a MAJOR version bump for production deployments
-        current_dev_version = self.get_highest_branch_version("dev")
+        # The current branch should be the versioned dev branch: dev/{new_version}
+        current_dev_branch = f"dev/{new_version}"
+        current_branch = self.get_current_branch()
         
-        # Check if this is the first dev deployment (no versioned dev branches exist)
-        if current_dev_version == "1.0.0":
-            # Check if there are actually any dev branches in remote
-            try:
-                remote_branches = self.run_command("git branch -r").stdout
-                dev_branches_exist = any("origin/dev/" in branch for branch in remote_branches.split('\n') if branch.strip())
-                
-                if not dev_branches_exist:
-                    # No dev branches exist - start from 1.0.0
-                    new_dev_version = "1.0.0"
-                    self.log_info(f"No existing dev branches found - starting dev versioning from {new_dev_version}")
-                else:
-                    # Dev branches exist but we got 1.0.0 as highest - do major bump
-                    new_dev_version = self.bump_version("major", current_dev_version)
-                    self.log_info(f"Production deployment: MAJOR dev version bump {current_dev_version} → {new_dev_version}")
-            except Exception:
-                # Error checking branches - start from 1.0.0
-                new_dev_version = "1.0.0"
-                self.log_info(f"Could not check existing dev branches - starting from {new_dev_version}")
-        else:
-            # Always do MAJOR version bump for production deployments to dev
-            new_dev_version = self.bump_version("major", current_dev_version)
-            self.log_info(f"Production deployment: MAJOR dev version bump {current_dev_version} → {new_dev_version}")
+        # Verify we're on the correct dev branch
+        if current_branch != current_dev_branch:
+            self.log_warning(f"Expected to be on {current_dev_branch}, but currently on {current_branch}")
+            # Checkout the correct dev branch
+            self.run_command(f"git checkout {current_dev_branch}")
+            current_branch = current_dev_branch
         
-        dev_branch_name = f"dev/{new_dev_version}"
+        self.log_info(f"Working from versioned dev branch: {current_branch}")
         
-        self.log_success(f"🎯 Production → Dev: Always performing MAJOR version upgrade")
-        self.log_info(f"Creating new dev branch: {dev_branch_name}")
-        
-        # Check if the versioned dev branch exists
+        # Check if devtest branch exists locally
         local_branches = self.run_command("git branch").stdout
         clean_local_branches = [branch.strip().replace('*', '').strip() for branch in local_branches.split('\n') if branch.strip()]
-        local_dev_exists = dev_branch_name in clean_local_branches
+        local_devtest_exists = "devtest" in clean_local_branches
         
-        # Check remote branches
+        # Check if devtest branch exists remotely
         remote_branches = self.run_command("git branch -r").stdout
-        clean_remote_branches = [branch.strip() for branch in remote_branches.split('\n') if branch.strip() and not '-e' in branch]
-        remote_dev_exists = f"origin/{dev_branch_name}" in clean_remote_branches
+        clean_remote_branches = [branch.strip() for branch in remote_branches.split('\n') if branch.strip() and not '→' in branch]
+        remote_devtest_exists = "origin/devtest" in clean_remote_branches
         
-        if local_dev_exists:
-            # Local versioned dev branch exists, just checkout
-            self.run_command(f"git checkout {dev_branch_name}")
-        elif remote_dev_exists:
-            # Remote versioned dev branch exists but not locally - create local tracking branch
-            self.run_command(f"git checkout -b {dev_branch_name} origin/{dev_branch_name}")
-            self.log_info(f"Created local dev branch tracking origin/{dev_branch_name}")
-        else:
-            # No versioned dev branch exists - create new dev branch from current branch
-            current_branch = self.get_current_branch()
-            self.run_command(f"git checkout -b {dev_branch_name}")
-            self.log_info(f"Created new versioned dev branch {dev_branch_name} from {current_branch}")
+        self.log_info(f"Local devtest exists: {local_devtest_exists}")
+        self.log_info(f"Remote devtest exists: {remote_devtest_exists}")
         
-        # Pull latest dev to avoid conflicts
-        try:
-            self.run_command(f"git pull origin {dev_branch_name}")
-        except subprocess.CalledProcessError:
-            self.log_warning(f"Could not pull from origin/{dev_branch_name} - continuing...")
-        
-        # Check if prod branch exists before trying to merge
-        try:
-            remote_branches = self.run_command("git branch -r").stdout
-            prod_branch_exists = any("origin/prod" in branch and "origin/prod/" not in branch for branch in remote_branches.split('\n') if branch.strip())
-            
-            if prod_branch_exists:
-                # Merge existing prod branch into dev
+        if local_devtest_exists:
+            # Local devtest exists, checkout and update
+            self.run_command("git checkout devtest")
+            if remote_devtest_exists:
+                # Pull latest changes from remote
                 try:
-                    self.run_command("git merge prod")
+                    self.run_command("git pull origin devtest")
+                    self.log_info("Updated local devtest with remote changes")
                 except subprocess.CalledProcessError:
-                    # If there are conflicts, resolve them by taking the prod version
-                    self.log_warning("Merge conflicts detected. Resolving by taking prod changes...")
-                    self.run_command("git merge -X theirs prod")
-            else:
-                # No prod branch exists yet - this is the first production deployment
-                # Just continue with current branch state (no merge needed)
-                self.log_info("No existing prod branch found - first production deployment, skipping merge")
-        except Exception as e:
-            self.log_warning(f"Error checking for prod branch: {e} - continuing without merge")
+                    self.log_warning("Could not pull from origin/devtest - continuing...")
+        elif remote_devtest_exists:
+            # Remote devtest exists but not locally - create local tracking branch
+            self.run_command("git checkout -b devtest origin/devtest")
+            self.log_info("Created local devtest branch tracking origin/devtest")
+        else:
+            # No devtest branch exists - create new one from the versioned dev branch
+            self.run_command(f"git checkout -b devtest {current_dev_branch}")
+            self.log_info(f"Created new devtest branch from {current_dev_branch}")
         
-        # Create production tag on dev to mark this as a production version
-        production_tag = f"prod-{version}"
+        # Merge the versioned dev branch changes into devtest
         try:
-            # Delete tag if it already exists
-            self.run_command(f"git tag -d {production_tag}", check=False)
-            self.run_command(f"git push origin --delete {production_tag}", check=False)
+            self.run_command(f"git merge {current_dev_branch}")
+            self.log_info(f"Merged {current_dev_branch} into devtest")
         except subprocess.CalledProcessError:
-            pass  # Tag might not exist, that's fine
+            # If there are conflicts, resolve them by taking the dev branch version
+            self.log_warning("Merge conflicts detected. Resolving by taking dev branch changes...")
+            self.run_command(f"git merge -X theirs {current_dev_branch}")
+            self.log_info(f"Resolved conflicts by taking {current_dev_branch} changes")
         
-        # Create new production tag
-        self.run_command(f'git tag -a {production_tag} -m "Production version {version} deployed to dev"')
+        # Check if there are any changes to commit
+        status_result = self.run_command("git status --porcelain")
         
-        # Update VERSION file with the new dev version
-        self.update_version_in_file("dev", new_dev_version)
+        if status_result.stdout.strip():
+            # Add and commit any remaining changes
+            self.run_command("git add .")
+            devtest_commit_msg = f"test(devtest): Update devtest with dev/{new_version} changes - {commit_message or 'Dev deployment'}"
+            self.run_command(f'git commit -m "{devtest_commit_msg}"')
+            self.log_info("Committed additional changes to devtest")
         
-        # Commit the version update
-        self.run_command("git add .")
-        self.run_command(f'git commit -m "update(dev): Bump dev version to {new_dev_version} for production {version}"')
+        # Push devtest branch
+        self.run_command("git push origin devtest")
+        self.log_success(f"✅ Devtest branch updated and pushed with dev/{new_version} changes")
         
-        # Push dev branch and tag
-        self.run_command(f"git push origin {dev_branch_name}")
-        self.run_command(f"git push origin {production_tag}")
+        # Return to the versioned dev branch
+        self.run_command(f"git checkout {current_dev_branch}")
+        self.log_info(f"Returned to {current_dev_branch}")
+
+    def create_or_update_live_branch(self, new_version, commit_message):
+        """Create or update the live branch with the latest production changes."""
+        self.log_info(f"🔴 Managing live branch for production version {new_version}...")
         
-        self.log_success(f"Pushed production version {version} to {dev_branch_name} branch with tag {production_tag}")
+        # The current branch should be the versioned prod branch: prod/{new_version}
+        current_prod_branch = f"prod/{new_version}"
+        current_branch = self.get_current_branch()
+        
+        # Verify we're on the correct prod branch
+        if current_branch != current_prod_branch:
+            self.log_warning(f"Expected to be on {current_prod_branch}, but currently on {current_branch}")
+            # Checkout the correct prod branch
+            self.run_command(f"git checkout {current_prod_branch}")
+            current_branch = current_prod_branch
+        
+        self.log_info(f"Working from versioned prod branch: {current_branch}")
+        
+        # Check if live branch exists locally
+        local_branches = self.run_command("git branch").stdout
+        clean_local_branches = [branch.strip().replace('*', '').strip() for branch in local_branches.split('\n') if branch.strip()]
+        local_live_exists = "live" in clean_local_branches
+        
+        # Check if live branch exists remotely
+        remote_branches = self.run_command("git branch -r").stdout
+        clean_remote_branches = [branch.strip() for branch in remote_branches.split('\n') if branch.strip() and not '→' in branch]
+        remote_live_exists = "origin/live" in clean_remote_branches
+        
+        self.log_info(f"Local live exists: {local_live_exists}")
+        self.log_info(f"Remote live exists: {remote_live_exists}")
+        
+        if local_live_exists:
+            # Local live exists, checkout and update
+            self.run_command("git checkout live")
+            if remote_live_exists:
+                # Pull latest changes from remote
+                try:
+                    self.run_command("git pull origin live")
+                    self.log_info("Updated local live with remote changes")
+                except subprocess.CalledProcessError:
+                    self.log_warning("Could not pull from origin/live - continuing...")
+        elif remote_live_exists:
+            # Remote live exists but not locally - create local tracking branch
+            self.run_command("git checkout -b live origin/live")
+            self.log_info("Created local live branch tracking origin/live")
+        else:
+            # No live branch exists - create new one from the versioned prod branch
+            self.run_command(f"git checkout -b live {current_prod_branch}")
+            self.log_info(f"Created new live branch from {current_prod_branch}")
+        
+        # Merge the versioned prod branch changes into live
+        try:
+            self.run_command(f"git merge {current_prod_branch}")
+            self.log_info(f"Merged {current_prod_branch} into live")
+        except subprocess.CalledProcessError:
+            # If there are conflicts, resolve them by taking the prod branch version
+            self.log_warning("Merge conflicts detected. Resolving by taking prod branch changes...")
+            self.run_command(f"git merge -X theirs {current_prod_branch}")
+            self.log_info(f"Resolved conflicts by taking {current_prod_branch} changes")
+        
+        # Check if there are any changes to commit
+        status_result = self.run_command("git status --porcelain")
+        
+        if status_result.stdout.strip():
+            # Add and commit any remaining changes
+            self.run_command("git add .")
+            live_commit_msg = f"deploy(live): Update live with prod/{new_version} changes - {commit_message or 'Production deployment'}"
+            self.run_command(f'git commit -m "{live_commit_msg}"')
+            self.log_info("Committed additional changes to live")
+        
+        # Push live branch
+        self.run_command("git push origin live")
+        self.log_success(f"✅ Live branch updated and pushed with prod/{new_version} changes")
+        
+        # Return to the versioned prod branch
+        self.run_command(f"git checkout {current_prod_branch}")
+        self.log_info(f"Returned to {current_prod_branch}")
+
 
     def validate_production_version(self, new_version):
         """Validate that production version is being incremented properly."""
@@ -1017,7 +1063,7 @@ All notable changes to this project will be documented in this file.
         # Special case: If no production branches exist, allow 1.0.0 as first version
         try:
             remote_branches = self.run_command("git branch -r").stdout
-            prod_branches_exist = any("origin/prod" in branch for branch in remote_branches.split('\n') if branch.strip())
+            prod_branches_exist = any("origin/prod/" in branch for branch in remote_branches.split('\n') if branch.strip())
             
             if not prod_branches_exist and new_version == "1.0.0":
                 self.log_info("First production deployment - allowing version 1.0.0")
@@ -1135,7 +1181,7 @@ All notable changes to this project will be documented in this file.
                     elif target_env == "dev":
                         branches_exist = any("origin/dev/" in branch for branch in remote_branches.split('\n') if branch.strip())
                     elif target_env == "production":
-                        branches_exist = any("origin/prod" in branch for branch in remote_branches.split('\n') if branch.strip())
+                        branches_exist = any("origin/prod/" in branch for branch in remote_branches.split('\n') if branch.strip())
                     
                     if not branches_exist:
                         # No branches exist for this environment type - start from 1.0.0
@@ -1172,7 +1218,7 @@ All notable changes to this project will be documented in this file.
                 branch_name = f"dev/{new_version}"
             elif target_env == "production":
                 env_type = "production"
-                branch_name = "prod"  # Direct push to prod branch (not versioned)
+                branch_name = f"prod/{new_version}"  # Versioned prod branch
             else:
                 self.log_error(f"Invalid target environment: {target_env}")
                 return False
@@ -1180,51 +1226,17 @@ All notable changes to this project will be documented in this file.
             self.log_info(f"Target branch: {branch_name}")
             self.log_info(f"Version: {current_version} → {new_version}")
 
-            # Special handling for production deployments - two-step process
+            # Production deployment - simplified single-step process with versioned branches
             if target_env == "production":
-                # Calculate what the dev version will be
-                current_dev_version = self.get_highest_branch_version("dev")
-                try:
-                    remote_branches = self.run_command("git branch -r").stdout
-                    dev_branches_exist = any("origin/dev/" in branch for branch in remote_branches.split('\n') if branch.strip())
-                    
-                    if current_dev_version == "1.0.0" and not dev_branches_exist:
-                        next_dev_version = "1.0.0"
-                    else:
-                        next_dev_version = self.bump_version("major", current_dev_version)
-                except Exception:
-                    next_dev_version = "1.0.0"
-                
-                print(f"\n🎯 PRODUCTION DEPLOYMENT - TWO-STEP PROCESS:")
+                print(f"\n🎯 PRODUCTION DEPLOYMENT:")
                 print(f"   📦 Production Version: {current_version} → {new_version}")
-                print(f"   🚀 Dev Version: {current_dev_version} → {next_dev_version} (MAJOR BUMP)")
+                print(f"   🌿 Branch: {branch_name}")
+                print(f"   🔴 Live Branch: Will be updated with production changes")
                 print(f"   📝 Message: {commit_message or 'Automated production deployment'}")
                 print(f"")
-                print(f"   🔄 Process:")
-                print(f"   1️⃣  Create dev/{next_dev_version} branch first")
-                print(f"   2️⃣  Then create prod branch")
-                print(f"")
                 
-                # STEP 1: Create dev branch first
-                print(f"\n🚀 STEP 1: DEV BRANCH CREATION")
-                print(f"   Creating dev/{next_dev_version} with production tag prod-{new_version}")
-                
-                if not self.confirm_action(f"Create dev/{next_dev_version} branch first?"):
+                if not self.confirm_action(f"Create production branch {branch_name} and update live branch?"):
                     self.log_warning("Production deployment cancelled by user")
-                    return False
-                
-                # Execute dev branch creation
-                self.push_production_to_dev(new_version)
-                self.log_success(f"✅ Step 1 completed: dev/{next_dev_version} created with tag prod-{new_version}")
-                
-                # STEP 2: Confirm production branch creation
-                print(f"\n🎯 STEP 2: PRODUCTION BRANCH CREATION")
-                print(f"   Now creating production branch: {branch_name}")
-                print(f"   ⚠️  This is the FINAL step for PRODUCTION deployment!")
-                
-                if not self.confirm_action(f"Proceed with PRODUCTION branch creation?"):
-                    self.log_warning("Production branch creation cancelled by user")
-                    self.log_info("Note: Dev branch was already created and pushed")
                     return False
             
             # Create/checkout target branch (with user confirmation for new branches)
@@ -1242,10 +1254,17 @@ All notable changes to this project will be documented in this file.
             # Commit and push changes
             self.push_to_branch(branch_name, comprehensive_commit_msg)
 
-            # Handle special production workflow
+            # Handle special dev workflow - create/update devtest branch
+            if target_env == "dev":
+                self.log_info(f"\n🧪 DEV DEPLOYMENT - DEVTEST BRANCH MANAGEMENT")
+                self.log_info(f"   Creating/updating devtest branch with dev/{new_version} changes")
+                self.create_or_update_devtest_branch(new_version, commit_message)
+
+            # Handle special production workflow - create/update live branch
             if target_env == "production":
-                # Dev branch was already created in the two-step confirmation process above
-                self.log_success(f"🏷️  Production version {new_version} tagged on dev branch (completed in step 1)")
+                self.log_info(f"\n🔴 PRODUCTION DEPLOYMENT - LIVE BRANCH MANAGEMENT")
+                self.log_info(f"   Creating/updating live branch with prod/{new_version} changes")
+                self.create_or_update_live_branch(new_version, commit_message)
             
             # Merge with main if configured (only for features now)
             merge_target = self.git_config[env_type]["merge_with"]
@@ -1259,15 +1278,18 @@ All notable changes to this project will be documented in this file.
             if merge_target:
                 self.log_success(f"🔀 Merged with {merge_target}")
             
-            if target_env == "production":
-                # Get the actual dev version that was created
-                current_dev_version = self.get_version_from_file('dev')
+            if target_env == "dev":
                 self.log_success(f"")
-                self.log_success(f"🎆 PRODUCTION DEPLOYMENT COMPLETED - TWO-STEP PROCESS:")
-                self.log_success(f"   ✅ Step 1: Dev branch created with MAJOR version bump ({current_dev_version})")
-                self.log_success(f"   ✅ Step 2: Production branch created ({new_version})")
-                self.log_success(f"   🏷️  Tagged: prod-{new_version} on dev branch")
-                self.log_success(f"🚀 Both dev and prod branches successfully deployed!")
+                self.log_success(f"🧪 DEV DEPLOYMENT COMPLETED:")
+                self.log_success(f"   ✅ Dev branch created: dev/{new_version}")
+                self.log_success(f"   ✅ Devtest branch updated with latest changes")
+                self.log_success(f"🚀 Both dev and devtest branches successfully deployed!")
+            elif target_env == "production":
+                self.log_success(f"")
+                self.log_success(f"🎆 PRODUCTION DEPLOYMENT COMPLETED:")
+                self.log_success(f"   ✅ Production branch created: prod/{new_version}")
+                self.log_success(f"   ✅ Live branch updated with latest changes")
+                self.log_success(f"🚀 Both prod and live branches successfully deployed!")
 
             return True
 
