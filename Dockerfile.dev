@@ -1,0 +1,47 @@
+# Dockerfile for Adakings Backend API - Railway Development Environment
+FROM python:3.11-slim
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV DJANGO_SETTINGS_MODULE=adakings_backend.settings_dev
+ENV DJANGO_ENVIRONMENT=development
+
+# Set work directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        postgresql-client \
+        build-essential \
+        libpq-dev \
+        curl \
+        vim \
+        git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies
+COPY requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt
+
+# Copy project
+COPY . /app/
+
+# Create necessary directories
+RUN mkdir -p /app/logs /app/staticfiles /app/mediafiles
+
+# Make railway_start.sh executable
+RUN chmod +x railway_start.sh
+
+# Create non-root user
+RUN groupadd -r adakings && useradd -r -g adakings adakings
+RUN chown -R adakings:adakings /app
+USER adakings
+
+# Expose port
+EXPOSE $PORT
+
+# Use railway_start.sh as the entry point
+CMD ["bash", "railway_start.sh"]

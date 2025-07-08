@@ -1,3 +1,7 @@
+# Ignore local environment files
+.env
+.env.*
+
 # Production-Ready .gitignore for Django Railway Deployment
 
 # === SENSITIVE FILES (NEVER COMMIT) ===
