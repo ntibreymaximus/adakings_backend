@@ -30,9 +30,13 @@ COPY . /app/
 # Create necessary directories
 RUN mkdir -p /app/logs /app/staticfiles /app/mediafiles
 
-# Make startup scripts executable
-RUN chmod +x railway_start.sh
-RUN chmod +x railway_start_dev.sh
+# Fix line endings and make startup scripts executable
+RUN apt-get update && apt-get install -y dos2unix && rm -rf /var/lib/apt/lists/*
+RUN dos2unix railway_start.sh railway_start_dev.sh start_prod.sh entrypoint.sh
+RUN chmod +x railway_start.sh railway_start_dev.sh start_prod.sh entrypoint.sh
+
+# Verify scripts exist and are executable
+RUN ls -la /app/railway_start*.sh /app/entrypoint.sh && file /app/railway_start*.sh /app/entrypoint.sh
 
 # Create non-root user
 RUN groupadd -r adakings && useradd -r -g adakings adakings
@@ -45,5 +49,5 @@ USER adakings
 EXPOSE $PORT
 
 
-# Use railway_start.sh as the entry point
-CMD ["bash", "railway_start_dev.sh"]
+# Use entrypoint.sh to determine which startup script to use
+CMD ["./entrypoint.sh"]

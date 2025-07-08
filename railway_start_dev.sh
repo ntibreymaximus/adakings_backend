@@ -67,4 +67,3 @@ exec gunicorn adakings_backend.wsgi:application \
     --log-level debug \
     --access-logfile - \
     --error-logfile -
-    --error-logfile -
