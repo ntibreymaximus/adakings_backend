@@ -501,34 +501,34 @@ LOGGING = {
         'console': {
             'level': 'DEBUG' if DEBUG else 'INFO',
             'class': 'logging.StreamHandler',
-            'formatter': 'simple',
-            'filters': ['broken_pipe_filter'],
+            'formatter': 'verbose' if DEBUG else 'simple',
+            'filters': [] if DEBUG else ['broken_pipe_filter'],
         },
         'file': {
             'level': 'DEBUG' if DEBUG else 'INFO',
             'class': 'logging.FileHandler',
             'filename': os.path.join(BASE_DIR, 'logs', 'django.log'),
             'formatter': 'verbose',
-            'filters': ['broken_pipe_filter'],
+            'filters': [] if DEBUG else ['broken_pipe_filter'],
         },
     },
     'root': {
         'handlers': ['console'],
-        'level': 'INFO',
-        'filters': ['broken_pipe_filter'],
+        'level': 'DEBUG' if DEBUG else 'INFO',
+        'filters': [] if DEBUG else ['broken_pipe_filter'],
     },
     'loggers': {
         'django': {
             'handlers': ['console'],
-            'level': 'INFO',
+            'level': 'DEBUG' if DEBUG else 'INFO',
             'propagate': False,
-            'filters': ['broken_pipe_filter'],
+            'filters': [] if DEBUG else ['broken_pipe_filter'],
         },
         'django.server': {
             'handlers': ['console'],
-            'level': 'WARNING',  # Reduce server logging level
+            'level': 'DEBUG' if DEBUG else 'WARNING',
             'propagate': False,
-            'filters': ['broken_pipe_filter'],
+            'filters': [] if DEBUG else ['broken_pipe_filter'],
         },
         'apps': {
             'handlers': ['console', 'file'] if not DEBUG else ['console'],
