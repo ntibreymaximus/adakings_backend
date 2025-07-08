@@ -9,6 +9,27 @@ def main():
     # Set default settings module
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'adakings_backend.settings')
     
+    # Run environment check before starting the server
+    if len(sys.argv) > 1 and sys.argv[1] == 'runserver':
+        print("🔍 Running environment configuration check...")
+        print("-" * 50)
+        try:
+            from check_environment import check_environment
+            validation_passed, env_type = check_environment()
+            
+            if not validation_passed:
+                print("\n❌ Environment validation failed! Please fix the issues above.")
+                sys.exit(1)
+            
+            print(f"\n✅ Environment check passed for {env_type}!")
+            print("🚀 Starting Django development server...")
+            print("=" * 50)
+            
+        except Exception as e:
+            print(f"\n⚠️  Warning: Environment check failed: {e}")
+            print("⚠️  Proceeding with server start anyway...")
+            print("=" * 50)
+    
     try:
         from django.core.management import execute_from_command_line
     except ImportError as exc:

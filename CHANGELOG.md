@@ -2,6 +2,47 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.2] - 2025-07-08
+
+### 🚀 Development Release
+
+**📋 Release Information:**
+- **Environment**: dev
+- **Branch**: `dev/1.0.2`
+- **Version**: `Unknown` → `1.0.2`
+- **Deployment Time**: 2025-07-08 18:22:35
+- **Description**: Development environment deployment with latest features
+
+**📝 Changes Made:**
+environment setup for local and live
+
+**📁 Files Modified:**
+  - Deleted: `env.example`
+  - Modified: `DEPLOYMENT_SUMMARY.md`
+  - Modified: `README.md`
+  - Modified: `VERSION`
+  - Modified: `adakings_backend/settings.py`
+  - Deleted: `adakings_backend/settings_dev.py`
+  - Modified: `check_environment.py`
+  - Modified: `manage.py`
+  - Changed: `adakings_backend/management/`
+  - Changed: `check_env.bat`
+  - Changed: `start_server.bat`
+
+**🔄 Deployment Details:**
+- **Source Branch**: `dev/1.0.2`
+- **Target Branch**: `dev/1.0.2`
+- **Merge Strategy**: Automatic merge with main branch
+- **Version Bump Type**: Version update
+
+**🎯 Environment Specific Notes:**
+- Development environment deployment
+- Contains latest features and changes
+- Used for integration testing before production
+- May contain experimental features
+
+---
+
 ## [1.0.1] - 2025-07-08
 
 ### 🚀 Development Release

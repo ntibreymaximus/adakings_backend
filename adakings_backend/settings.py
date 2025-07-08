@@ -15,12 +15,30 @@ from dotenv import load_dotenv
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Load environment variables from .env file (only if not on Railway)
-# Railway provides environment variables directly, so we skip .env loading on Railway
-if 'RAILWAY_ENVIRONMENT' not in os.environ:
+# Environment detection and configuration
+# Railway provides environment variables directly for dev and prod
+# Local development uses .env file
+
+# Detect if we're running on Railway
+IS_RAILWAY = 'RAILWAY_ENVIRONMENT' in os.environ
+
+# Get environment from Railway variables or default to local
+if IS_RAILWAY:
+    # Use Railway's DJANGO_ENVIRONMENT variable for dev/prod
+    ENVIRONMENT = os.environ.get('DJANGO_ENVIRONMENT', 'development')
+    print(f"Running on Railway in {ENVIRONMENT} environment")
+else:
+    # Load .env file for local development
     env_path = BASE_DIR / '.env'
     if env_path.exists():
         load_dotenv(env_path)
+        print(f"Loaded environment variables from {env_path}")
+    else:
+        print(f"No environment file found at {env_path}")
+    
+    # Get environment from .env file or default to local
+    ENVIRONMENT = os.environ.get('DJANGO_ENVIRONMENT', 'local')
+    print(f"Running locally in {ENVIRONMENT} environment")
 
 # SECURITY WARNING: Secret key
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-dev-secret-key-change-in-production')
@@ -65,6 +83,9 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    
+    # Core app for management commands
+    'adakings_backend',
     
     # Custom apps
     'apps.users',
@@ -128,7 +149,7 @@ ROOT_URLCONF = 'adakings_backend.urls'
 APPEND_SLASH = False
 
 # Railway-specific settings to handle load balancer
-if 'RAILWAY_ENVIRONMENT' in os.environ or 'PORT' in os.environ:
+if IS_RAILWAY:
     # Trust Railway's load balancer headers
     USE_X_FORWARDED_HOST = True
     USE_X_FORWARDED_PORT = True
@@ -151,18 +172,15 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'adakings_backend.wsgi.application'
 
-# Database configuration
-database_engine = os.environ.get('DATABASE_ENGINE', 'sqlite3').lower()
-
-
-if database_engine == 'postgresql':
-    # Get database configuration with fallbacks
+# Database configuration based on environment
+if IS_RAILWAY:
+    # Railway environments (dev/prod) use PostgreSQL
+    # Railway provides PGDATABASE, PGUSER, PGPASSWORD, PGHOST, PGPORT automatically
     db_name = os.environ.get('PGDATABASE') or os.environ.get('DB_NAME') or 'railway'
     db_user = os.environ.get('PGUSER') or os.environ.get('DB_USER') or 'postgres'
     db_password = os.environ.get('PGPASSWORD') or os.environ.get('DB_PASSWORD') or ''
     db_host = os.environ.get('PGHOST') or os.environ.get('DB_HOST') or 'localhost'
     db_port = os.environ.get('PGPORT') or os.environ.get('DB_PORT') or '5432'
-    
     
     DATABASES = {
         'default': {
@@ -178,18 +196,21 @@ if database_engine == 'postgresql':
             },
         }
     }
+    print(f"Using PostgreSQL database: {db_name}@{db_host}:{db_port}")
 else:
-# Default to SQLite for development with optimizations
+    # Local development uses SQLite
+    database_name = os.environ.get('DATABASE_NAME', 'db.sqlite3')
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / os.environ.get('DATABASE_NAME', 'db.sqlite3'),
+            'NAME': BASE_DIR / database_name,
             'OPTIONS': {
                 'timeout': 20,
             },
             'CONN_MAX_AGE': 300,  # Keep connections alive for 5 minutes for better performance
         }
     }
+    print(f"Using SQLite database: {database_name}")
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -218,7 +239,7 @@ STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 # WhiteNoise configuration for static files - use StaticFilesStorage to avoid manifest issues
-if 'RAILWAY_ENVIRONMENT' in os.environ or 'PORT' in os.environ:
+if IS_RAILWAY:
     # Use basic WhiteNoise storage for production to avoid manifest.json issues
     STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 else:
@@ -262,7 +283,7 @@ csrf_origins_env = os.environ.get('CSRF_TRUSTED_ORIGINS', 'http://localhost:8000
 CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in csrf_origins_env.split(',') if origin.strip()]
 
 # Add Railway HTTPS domains automatically
-if 'RAILWAY_ENVIRONMENT' in os.environ:
+if IS_RAILWAY:
     railway_public_domain = os.environ.get('RAILWAY_PUBLIC_DOMAIN')
     railway_private_domain = os.environ.get('RAILWAY_PRIVATE_DOMAIN')
     
