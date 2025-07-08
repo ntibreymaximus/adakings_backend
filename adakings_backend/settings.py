@@ -560,6 +560,9 @@ if DEBUG:
 # API rate limiting
 RATELIMIT_ENABLE = os.environ.get('RATE_LIMIT_ENABLE', 'False').lower() == 'true'
 
+# Disable APPEND_SLASH to prevent health check redirects
+APPEND_SLASH = False
+
 # Debug toolbar configuration
 if DEBUG:
     INTERNAL_IPS = ['127.0.0.1', 'localhost']

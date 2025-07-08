@@ -32,9 +32,6 @@ from rest_framework_simplejwt.views import (
     TokenRefreshView,
     TokenVerifyView,
 )
-from django.http import JsonResponse
-from django.db import connection
-from django.utils import timezone
 
 # Simple redirect view for the root URL to dashboard or login
 def home_redirect(request):
@@ -44,27 +41,6 @@ def home_redirect(request):
     # Redirect unauthenticated users to the API login endpoint
     return redirect('users_api:login')
 
-# Health check endpoint for Railway
-def health_check(request):
-    print(f"Health check accessed: {request.path} - Method: {request.method}")
-    health_status = {
-        'status': 'healthy',
-        'timestamp': str(timezone.now()),
-        'django': 'running',
-        'path': request.path
-    }
-    
-    # Try database connection but don't fail if it's not ready
-    try:
-        with connection.cursor() as cursor:
-            cursor.execute("SELECT 1")
-        health_status['database'] = 'connected'
-    except Exception as e:
-        health_status['database'] = 'disconnected'
-        health_status['database_error'] = str(e)
-        # Don't return 500, just warn about database
-    
-    return JsonResponse(health_status)
 
 # Serializer for api_root response
 class APIRootSerializer(serializers.Serializer):
@@ -91,9 +67,6 @@ def api_root(request, format=None):
     })
 
 urlpatterns = [
-    # Health check endpoint (explicit paths to avoid redirects)
-    path('health/', health_check, name='health-check-slash'),
-    path('health', health_check, name='health-check-no-slash'),
     
     # Admin URLs
     path('admin/', admin.site.urls),
@@ -107,8 +80,6 @@ urlpatterns = [
     # Payments app API URLs
     path('api/payments/', include('apps.payments.urls')),
 
-    # Health check API URLs (commented out - app not implemented)
-    # path('api/health/', include('apps.health.urls')),
 
     # JWT token endpoints
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
