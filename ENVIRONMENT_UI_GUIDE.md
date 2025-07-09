@@ -86,7 +86,7 @@ const EnvironmentTag = () => {
   return (
     <div style={{ 
       position: 'fixed', 
-      top: '10px', 
+      bottom: '10px', 
       right: '10px', 
       zIndex: 9999 
     }}>
@@ -139,7 +139,7 @@ export default {
 <style scoped>
 .environment-tag {
   position: fixed;
-  top: 10px;
+  bottom: 10px;
   right: 10px;
   z-index: 9999;
   padding: 2px 8px;
@@ -187,7 +187,7 @@ interface EnvironmentInfo {
   styles: [`
     .environment-tag {
       position: fixed;
-      top: 10px;
+      bottom: 10px;
       right: 10px;
       z-index: 9999;
       padding: 2px 8px;
@@ -224,7 +224,7 @@ export class EnvironmentTagComponent implements OnInit {
 ```css
 .environment-tag {
   position: fixed;
-  top: 10px;
+  bottom: 10px;
   right: 10px;
   z-index: 9999;
   padding: 4px 12px;

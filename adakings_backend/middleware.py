@@ -46,7 +46,7 @@ class EnvironmentTagMiddleware(MiddlewareMixin):
         tag_html = f'''
         <div style="
             position: fixed;
-            top: 10px;
+            bottom: 10px;
             right: 10px;
             z-index: 9999;
             padding: 4px 8px;

@@ -2,6 +2,42 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.2] - 2025-07-09
+
+### 🚀 Development Release
+
+**📋 Release Information:**
+- **Environment**: dev
+- **Branch**: `dev/1.2.2`
+- **Version**: `Unknown` → `1.2.2`
+- **Deployment Time**: 2025-07-09 13:42:14
+- **Description**: Development environment deployment with latest features
+
+**📝 Changes Made:**
+UI Tag fix
+
+**📁 Files Modified:**
+  - Modified: `EPLOYMENT_SUMMARY.md`
+  - Modified: `ENVIRONMENT_UI_GUIDE.md`
+  - Modified: `README.md`
+  - Modified: `VERSION`
+  - Modified: `adakings_backend/middleware.py`
+  - Modified: `templates/environment_label.html`
+
+**🔄 Deployment Details:**
+- **Source Branch**: `dev/1.2.2`
+- **Target Branch**: `dev/1.2.2`
+- **Merge Strategy**: Automatic merge with main branch
+- **Version Bump Type**: Version update
+
+**🎯 Environment Specific Notes:**
+- Development environment deployment
+- Contains latest features and changes
+- Used for integration testing before production
+- May contain experimental features
+
+---
+
 ## [1.2.1] - 2025-07-09
 
 ### 🚀 Development Release
