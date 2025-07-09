@@ -3,6 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.renderers import JSONRenderer
 from django.contrib.auth import login, logout, authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.core.mail import send_mail
@@ -77,6 +78,7 @@ class UserRegistrationView(generics.CreateAPIView):
 class UserLoginView(APIView):
     permission_classes = [AllowAny]
     serializer_class = UserLoginSerializer
+    renderer_classes = [JSONRenderer]
 
     @extend_schema(exclude=True) # Exclude schema for GET on login view if it just serves the serializer fields
     def get(self, request, *args, **kwargs):
