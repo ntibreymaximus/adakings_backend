@@ -26,5 +26,9 @@ sentry-sdk[django]>=1.25.0
 # API Documentation
 drf-spectacular-sidecar>=2023.5.1
 
+# WebSocket Support
+channels>=4.0.0
+channels-redis>=4.1.0
+
 # Utilities
 requests>=2.31.0

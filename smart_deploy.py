@@ -901,159 +901,101 @@ All notable changes to this project will be documented in this file.
         
         self.log_success(f"Successfully merged {source_branch} with main")
 
-    def create_or_update_devtest_branch(self, new_version, commit_message):
-        """Create or update the devtest branch with the latest dev changes."""
-        self.log_info(f"🧪 Managing devtest branch for dev version {new_version}...")
+    def manage_branch(self, branch_name, source_branch, new_version, commit_message, branch_type):
+        """Generic branch creation and updating function."""
+        self.log_info(f"Managing {branch_type} branch '{branch_name}' with version {new_version}...")
         
-        # The current branch should be the versioned dev branch: dev/{new_version}
-        current_dev_branch = f"dev/{new_version}"
+        # Store the current branch to return to
         current_branch = self.get_current_branch()
         
-        # Verify we're on the correct dev branch
-        if current_branch != current_dev_branch:
-            self.log_warning(f"Expected to be on {current_dev_branch}, but currently on {current_branch}")
-            # Checkout the correct dev branch
-            self.run_command(f"git checkout {current_dev_branch}")
-            current_branch = current_dev_branch
-        
-        self.log_info(f"Working from versioned dev branch: {current_branch}")
-        
-        # Check if devtest branch exists locally
+        # Verify we're on the correct source branch
+        if current_branch != source_branch:
+            self.log_warning(f"Expected to be on {source_branch}, but currently on {current_branch}")
+            # Checkout the correct source branch
+            self.run_command(f"git checkout {source_branch}")
+            current_branch = source_branch
+
+        self.log_info(f"Working from source branch: {source_branch}")
+
+        # Check if target branch exists locally
         local_branches = self.run_command("git branch").stdout
         clean_local_branches = [branch.strip().replace('*', '').strip() for branch in local_branches.split('\n') if branch.strip()]
-        local_devtest_exists = "devtest" in clean_local_branches
-        
-        # Check if devtest branch exists remotely
+        local_exists = branch_name in clean_local_branches
+
+        # Check if target branch exists remotely
         remote_branches = self.run_command("git branch -r").stdout
         clean_remote_branches = [branch.strip() for branch in remote_branches.split('\n') if branch.strip() and not '→' in branch]
-        remote_devtest_exists = "origin/devtest" in clean_remote_branches
-        
-        self.log_info(f"Local devtest exists: {local_devtest_exists}")
-        self.log_info(f"Remote devtest exists: {remote_devtest_exists}")
-        
-        if local_devtest_exists:
-            # Local devtest exists, checkout and update
-            self.run_command("git checkout devtest")
-            if remote_devtest_exists:
-                # Pull latest changes from remote
+        remote_exists = f"origin/{branch_name}" in clean_remote_branches
+
+        self.log_info(f"Local {branch_name} exists: {local_exists}")
+        self.log_info(f"Remote {branch_name} exists: {remote_exists}")
+
+        if local_exists:
+            # Local target branch exists, checkout and update
+            self.run_command(f"git checkout {branch_name}")
+            if remote_exists:
                 try:
-                    self.run_command("git pull origin devtest")
-                    self.log_info("Updated local devtest with remote changes")
+                    self.run_command(f"git pull origin {branch_name}")
+                    self.log_info(f"Updated local {branch_name} with remote changes")
                 except subprocess.CalledProcessError:
-                    self.log_warning("Could not pull from origin/devtest - continuing...")
-        elif remote_devtest_exists:
-            # Remote devtest exists but not locally - create local tracking branch
-            self.run_command("git checkout -b devtest origin/devtest")
-            self.log_info("Created local devtest branch tracking origin/devtest")
+                    self.log_warning(f"Could not pull from origin/{branch_name} - continuing...")
+        elif remote_exists:
+            # Remote target branch exists but not locally - create local tracking branch
+            self.run_command(f"git checkout -b {branch_name} origin/{branch_name}")
+            self.log_info(f"Created local {branch_name} branch tracking origin/{branch_name}")
         else:
-            # No devtest branch exists - create new one from the versioned dev branch
-            self.run_command(f"git checkout -b devtest {current_dev_branch}")
-            self.log_info(f"Created new devtest branch from {current_dev_branch}")
-        
-        # Merge the versioned dev branch changes into devtest
+            # No target branch exists - create new one from source branch
+            self.run_command(f"git checkout -b {branch_name} {source_branch}")
+            self.log_info(f"Created new {branch_name} branch from {source_branch}")
+
+        # Merge source branch changes into target branch
         try:
-            self.run_command(f"git merge {current_dev_branch}")
-            self.log_info(f"Merged {current_dev_branch} into devtest")
+            self.run_command(f"git merge {source_branch}")
+            self.log_info(f"Merged {source_branch} into {branch_name}")
         except subprocess.CalledProcessError:
-            # If there are conflicts, resolve them by taking the dev branch version
-            self.log_warning("Merge conflicts detected. Resolving by taking dev branch changes...")
-            self.run_command(f"git merge -X theirs {current_dev_branch}")
-            self.log_info(f"Resolved conflicts by taking {current_dev_branch} changes")
-        
-        # Check if there are any changes to commit
+            # Handle conflicts by taking source branch changes
+            self.log_warning("Merge conflicts detected. Resolving by taking source branch changes...")
+            self.run_command(f"git merge -X theirs {source_branch}")
+            self.log_info(f"Resolved conflicts by taking {source_branch} changes")
+
+        # Check for changes to commit
         status_result = self.run_command("git status --porcelain")
-        
+
         if status_result.stdout.strip():
-            # Add and commit any remaining changes
             self.run_command("git add .")
-            devtest_commit_msg = f"test(devtest): Update devtest with dev/{new_version} changes - {commit_message or 'Dev deployment'}"
-            self.run_command(f'git commit -m "{devtest_commit_msg}"')
-            self.log_info("Committed additional changes to devtest")
-        
-        # Push devtest branch
-        self.run_command("git push origin devtest")
-        self.log_success(f"✅ Devtest branch updated and pushed with dev/{new_version} changes")
-        
-        # Return to the versioned dev branch
-        self.run_command(f"git checkout {current_dev_branch}")
-        self.log_info(f"Returned to {current_dev_branch}")
+            final_commit_msg = f"{branch_type}({branch_name}): Update {branch_name} with {source_branch}/{new_version} changes - {commit_message or f'{branch_type.capitalize()} deployment'}"
+            self.run_command(f'git commit -m "{final_commit_msg}"')
+            self.log_info(f"Committed additional changes to {branch_name}")
+
+        # Push target branch
+        self.run_command(f"git push origin {branch_name}")
+        self.log_success(f"✅ {branch_name.capitalize()} branch updated and pushed with {source_branch}/{new_version} changes")
+
+        # Return to the source branch
+        self.run_command(f"git checkout {source_branch}")
+        self.log_info(f"Returned to {source_branch}")
+
+    def create_or_update_devtest_branch(self, new_version, commit_message):
+        """Create or update the devtest branch with the latest dev changes."""
+        current_dev_branch = f"dev/{new_version}"
+        self.manage_branch(
+            branch_name='devtest',
+            source_branch=current_dev_branch,
+            new_version=new_version,
+            commit_message=commit_message,
+            branch_type='devtest'
+        )
 
     def create_or_update_live_branch(self, new_version, commit_message):
         """Create or update the live branch with the latest production changes."""
-        self.log_info(f"🔴 Managing live branch for production version {new_version}...")
-        
-        # The current branch should be the versioned prod branch: prod/{new_version}
         current_prod_branch = f"prod/{new_version}"
-        current_branch = self.get_current_branch()
-        
-        # Verify we're on the correct prod branch
-        if current_branch != current_prod_branch:
-            self.log_warning(f"Expected to be on {current_prod_branch}, but currently on {current_branch}")
-            # Checkout the correct prod branch
-            self.run_command(f"git checkout {current_prod_branch}")
-            current_branch = current_prod_branch
-        
-        self.log_info(f"Working from versioned prod branch: {current_branch}")
-        
-        # Check if live branch exists locally
-        local_branches = self.run_command("git branch").stdout
-        clean_local_branches = [branch.strip().replace('*', '').strip() for branch in local_branches.split('\n') if branch.strip()]
-        local_live_exists = "live" in clean_local_branches
-        
-        # Check if live branch exists remotely
-        remote_branches = self.run_command("git branch -r").stdout
-        clean_remote_branches = [branch.strip() for branch in remote_branches.split('\n') if branch.strip() and not '→' in branch]
-        remote_live_exists = "origin/live" in clean_remote_branches
-        
-        self.log_info(f"Local live exists: {local_live_exists}")
-        self.log_info(f"Remote live exists: {remote_live_exists}")
-        
-        if local_live_exists:
-            # Local live exists, checkout and update
-            self.run_command("git checkout live")
-            if remote_live_exists:
-                # Pull latest changes from remote
-                try:
-                    self.run_command("git pull origin live")
-                    self.log_info("Updated local live with remote changes")
-                except subprocess.CalledProcessError:
-                    self.log_warning("Could not pull from origin/live - continuing...")
-        elif remote_live_exists:
-            # Remote live exists but not locally - create local tracking branch
-            self.run_command("git checkout -b live origin/live")
-            self.log_info("Created local live branch tracking origin/live")
-        else:
-            # No live branch exists - create new one from the versioned prod branch
-            self.run_command(f"git checkout -b live {current_prod_branch}")
-            self.log_info(f"Created new live branch from {current_prod_branch}")
-        
-        # Merge the versioned prod branch changes into live
-        try:
-            self.run_command(f"git merge {current_prod_branch}")
-            self.log_info(f"Merged {current_prod_branch} into live")
-        except subprocess.CalledProcessError:
-            # If there are conflicts, resolve them by taking the prod branch version
-            self.log_warning("Merge conflicts detected. Resolving by taking prod branch changes...")
-            self.run_command(f"git merge -X theirs {current_prod_branch}")
-            self.log_info(f"Resolved conflicts by taking {current_prod_branch} changes")
-        
-        # Check if there are any changes to commit
-        status_result = self.run_command("git status --porcelain")
-        
-        if status_result.stdout.strip():
-            # Add and commit any remaining changes
-            self.run_command("git add .")
-            live_commit_msg = f"deploy(live): Update live with prod/{new_version} changes - {commit_message or 'Production deployment'}"
-            self.run_command(f'git commit -m "{live_commit_msg}"')
-            self.log_info("Committed additional changes to live")
-        
-        # Push live branch
-        self.run_command("git push origin live")
-        self.log_success(f"✅ Live branch updated and pushed with prod/{new_version} changes")
-        
-        # Return to the versioned prod branch
-        self.run_command(f"git checkout {current_prod_branch}")
-        self.log_info(f"Returned to {current_prod_branch}")
+        self.manage_branch(
+            branch_name='live',
+            source_branch=current_prod_branch,
+            new_version=new_version,
+            commit_message=commit_message,
+            branch_type='live'
+        )
 
 
     def validate_production_version(self, new_version):

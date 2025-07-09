@@ -2,6 +2,44 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.0] - 2025-07-09
+
+### 🚀 Development Release
+
+**📋 Release Information:**
+- **Environment**: dev
+- **Branch**: `dev/1.2.0`
+- **Version**: `Unknown` → `1.2.0`
+- **Deployment Time**: 2025-07-09 07:07:49
+- **Description**: Development environment deployment with latest features
+
+**📝 Changes Made:**
+websocket and redis setip
+
+**📁 Files Modified:**
+  - Modified: `EPLOYMENT_SUMMARY.md`
+  - Modified: `README.md`
+  - Modified: `VERSION`
+  - Modified: `adakings_backend/asgi.py`
+  - Modified: `adakings_backend/settings.py`
+  - Modified: `requirements.txt`
+  - Modified: `smart_deploy.py`
+  - Changed: `apps/websockets/`
+
+**🔄 Deployment Details:**
+- **Source Branch**: `dev/1.2.0`
+- **Target Branch**: `dev/1.2.0`
+- **Merge Strategy**: Automatic merge with main branch
+- **Version Bump Type**: Version update
+
+**🎯 Environment Specific Notes:**
+- Development environment deployment
+- Contains latest features and changes
+- Used for integration testing before production
+- May contain experimental features
+
+---
+
 ## [1.1.1] - 2025-07-08
 
 ### 🎯 Production Release

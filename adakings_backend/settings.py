@@ -87,6 +87,7 @@ INSTALLED_APPS = [
     'apps.menu',
     'apps.orders',
     'apps.payments',
+    'apps.websockets',
     
     # Third-party apps
     'rest_framework',
@@ -94,6 +95,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt.token_blacklist',
     'drf_spectacular',
     'corsheaders',
+    'channels',
 ]
 
 # Enable development tools if available and in debug mode
@@ -168,6 +170,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'adakings_backend.wsgi.application'
+ASGI_APPLICATION = 'adakings_backend.asgi.application'
 
 # Database configuration based on environment
 if IS_RAILWAY:
@@ -350,6 +353,28 @@ SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 SESSION_COOKIE_AGE = 1209600  # 2 weeks
 SESSION_SAVE_EVERY_REQUEST = False
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+
+# Channel layers configuration for WebSocket support
+redis_url = os.environ.get('REDIS_URL')
+if redis_url and not DEBUG:
+    # Use Redis for production WebSocket channels
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {
+                'hosts': [redis_url],
+                'capacity': 1500,
+                'expiry': 60,
+            },
+        },
+    }
+else:
+    # Use in-memory channel layer for development
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels.layers.InMemoryChannelLayer'
+        }
+    }
 
 
 # Django REST Framework settings
