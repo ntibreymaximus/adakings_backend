@@ -2,6 +2,41 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.1] - 2025-07-09
+
+### 🚀 Development Release
+
+**📋 Release Information:**
+- **Environment**: dev
+- **Branch**: `dev/1.2.1`
+- **Version**: `Unknown` → `1.2.1`
+- **Deployment Time**: 2025-07-09 12:19:20
+- **Description**: Development environment deployment with latest features
+
+**📝 Changes Made:**
+JSON Issue fix
+
+**📁 Files Modified:**
+  - Modified: `EPLOYMENT_SUMMARY.md`
+  - Modified: `README.md`
+  - Modified: `VERSION`
+  - Modified: `adakings_backend/settings.py`
+  - Modified: `apps/users/views.py`
+
+**🔄 Deployment Details:**
+- **Source Branch**: `dev/1.2.1`
+- **Target Branch**: `dev/1.2.1`
+- **Merge Strategy**: Automatic merge with main branch
+- **Version Bump Type**: Version update
+
+**🎯 Environment Specific Notes:**
+- Development environment deployment
+- Contains latest features and changes
+- Used for integration testing before production
+- May contain experimental features
+
+---
+
 ## [1.1.1] - 2025-07-08
 
 ### 🎯 Production Release
