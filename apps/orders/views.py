@@ -12,6 +12,7 @@ from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes,
 from apps.users.permissions import IsAdminOrFrontdesk, IsAdminOrFrontdeskNoDelete
 from .models import Order, OrderItem, DeliveryLocation
 from .serializers import OrderSerializer, OrderStatusUpdateSerializer, DeliveryLocationSerializer
+from apps.audit.utils import log_create, log_update, log_delete, log_status_change, get_model_changes, get_data_changes
 
 
 class OrderListPagination(PageNumberPagination):
@@ -116,8 +117,23 @@ class OrderListCreateAPIView(generics.ListCreateAPIView):
     ordering_fields = ['created_at', 'total_price', 'status']
     ordering = ['-created_at']
     
+    def perform_create(self, serializer):
+        """Log order creation"""
+        order = serializer.save()
+        
+        # Log the order creation
+        log_create(
+            user=self.request.user,
+            obj=order,
+            request=self.request,
+            extra_data={
+                'description': f"Created order {order.order_number} for {order.customer_phone or 'Walk-in'}",
+                'order_type': order.delivery_type,
+                'total_amount': str(order.total_price),
+                'items_count': order.items.count()
+            }
+        )
     
-
     # @extend_schema decorator was here, moved to class level
     def get_queryset(self):
         # Optimize queryset with select_related and prefetch_related for instant loading
@@ -171,6 +187,32 @@ class OrderRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
     )
     def put(self, request, *args, **kwargs):
         return super().put(request, *args, **kwargs)
+    
+    def perform_update(self, serializer):
+        """Log order updates"""
+        # Get the original data
+        order = self.get_object()
+        original_data = OrderSerializer(order).data
+        
+        # Save the updated order
+        updated_order = serializer.save()
+        
+        # Get changes
+        updated_data = OrderSerializer(updated_order).data
+        changes = get_data_changes(original_data, updated_data)
+        
+        # Extract old and new values from changes
+        old_values = {field: change['old'] for field, change in changes.items()}
+        new_values = {field: change['new'] for field, change in changes.items()}
+        
+        # Log the update
+        log_update(
+            user=self.request.user,
+            obj=updated_order,
+            old_values=old_values,
+            new_values=new_values,
+            request=self.request
+        )
 
     @extend_schema(
         summary="Partially Update an Order",
@@ -187,6 +229,29 @@ class OrderRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
     )
     def delete(self, request, *args, **kwargs):
         return super().delete(request, *args, **kwargs)
+    
+    def perform_destroy(self, instance):
+        """Log order deletion"""
+        # Capture order details before deletion
+        order_details = {
+            'description': f"Deleted order {instance.order_number}",
+            'order_number': instance.order_number,
+            'customer_phone': instance.customer_phone,
+            'total_price': str(instance.total_price),
+            'status': instance.status,
+            'payment_status': instance.get_payment_status()
+        }
+        
+        # Log the deletion
+        log_delete(
+            user=self.request.user,
+            obj=instance,
+            request=self.request,
+            extra_data=order_details
+        )
+        
+        # Perform the actual deletion
+        super().perform_destroy(instance)
 
 @extend_schema(
     summary="Manage Order Status", # Added summary
@@ -208,6 +273,30 @@ class OrderStatusUpdateAPIView(generics.UpdateAPIView):
     def update(self, request, *args, **kwargs):
         # Permission is now handled by IsAdminOrFrontdesk class
         return super().update(request, *args, **kwargs)
+    
+    def perform_update(self, serializer):
+        """Log order status changes"""
+        # Get the original status
+        order = self.get_object()
+        old_status = order.status
+        
+        # Save the updated order
+        updated_order = serializer.save()
+        new_status = updated_order.status
+        
+        # Log the status change
+        log_status_change(
+            user=self.request.user,
+            obj=updated_order,
+            old_status=old_status,
+            new_status=new_status,
+            request=self.request,
+            extra_data={
+                'description': f"Changed order {updated_order.order_number} status from {old_status} to {new_status}",
+                'order_type': updated_order.delivery_type,
+                'total_amount': str(updated_order.total_price)
+            }
+        )
 
     def patch(self, request, *args, **kwargs):
         # Redirect PATCH to PUT since we're only updating status

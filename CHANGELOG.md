@@ -2,6 +2,46 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.0] - 2025-07-10
+
+### 🚀 Development Release
+
+**📋 Release Information:**
+- **Environment**: dev
+- **Branch**: `dev/1.3.0`
+- **Version**: `Unknown` → `1.3.0`
+- **Deployment Time**: 2025-07-10 15:10:24
+- **Description**: Development environment deployment with latest features
+
+**📝 Changes Made:**
+UI improvements
+
+**📁 Files Modified:**
+  - Modified: `EPLOYMENT_SUMMARY.md`
+  - Modified: `README.md`
+  - Modified: `VERSION`
+  - Modified: `adakings_backend/settings.py`
+  - Modified: `adakings_backend/urls.py`
+  - Modified: `apps/menu/views.py`
+  - Modified: `apps/orders/views.py`
+  - Modified: `apps/payments/views.py`
+  - Modified: `apps/websockets/signals.py`
+  - Changed: `apps/audit/`
+
+**🔄 Deployment Details:**
+- **Source Branch**: `dev/1.3.0`
+- **Target Branch**: `dev/1.3.0`
+- **Merge Strategy**: Automatic merge with main branch
+- **Version Bump Type**: Version update
+
+**🎯 Environment Specific Notes:**
+- Development environment deployment
+- Contains latest features and changes
+- Used for integration testing before production
+- May contain experimental features
+
+---
+
 ## [4.0.0] - 2025-07-09
 
 ### 🔧 Feature Development

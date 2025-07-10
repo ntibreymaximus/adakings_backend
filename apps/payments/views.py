@@ -24,6 +24,13 @@ from .serializers import (
     PaystackWebhookSerializer,
     PaymentTransactionSerializer
 )
+from apps.audit.utils import (
+    log_create,
+    log_update,
+    log_payment,
+    log_refund,
+    get_model_changes
+)
 
 @extend_schema(
     tags=['Payments']
@@ -126,6 +133,16 @@ class PaymentInitiateAPIView(views.APIView):
                     reference=payment_reference,
                     notes=f"{payment_method} refund of ₵{amount} processed by {request.user.username}."
                 )
+                
+                # Log the refund
+                log_refund(
+                    user=request.user,
+                    payment_obj=payment,
+                    amount=amount,
+                    reason=f"Refund requested by {request.user.username}",
+                    request=request
+                )
+                
                 order.save() # Recalculate order totals if necessary
                 return Response(PaymentSerializer(payment).data, status=status.HTTP_201_CREATED)
 
@@ -146,6 +163,19 @@ class PaymentInitiateAPIView(views.APIView):
                     status=Payment.STATUS_COMPLETED,
                     reference=payment_reference,
                     notes=f"{payment_method} payment of ₵{amount} received by {request.user.username}."
+                )
+                
+                # Log the payment
+                log_payment(
+                    user=request.user,
+                    payment_obj=payment,
+                    amount=amount,
+                    payment_method=payment_method,
+                    request=request,
+                    extra_data={
+                        'order_number': order.order_number,
+                        'transaction_type': 'payment'
+                    }
                 )
                 
                 # Update order status based on order type and current status
@@ -183,6 +213,21 @@ class PaymentInitiateAPIView(views.APIView):
                     status=Payment.STATUS_PENDING, # Start as pending
                     reference=payment_reference,
                     mobile_number=cleaned_mobile_number
+                )
+                
+                # Log the payment initiation
+                log_payment(
+                    user=request.user,
+                    payment_obj=payment,
+                    amount=amount,
+                    payment_method=Payment.PAYMENT_METHOD_PAYSTACK_API,
+                    request=request,
+                    extra_data={
+                        'order_number': order.order_number,
+                        'transaction_type': 'initiation',
+                        'mobile_number': cleaned_mobile_number,
+                        'status': 'pending'
+                    }
                 )
 
                 paystack_secret = settings.PAYSTACK_SECRET_KEY
@@ -224,6 +269,15 @@ class PaymentInitiateAPIView(views.APIView):
                             payment.response_data = response_data
                             payment.status = Payment.STATUS_PROCESSING # Update status
                             payment.save()
+                            
+                            # Log the payment status update
+                            log_update(
+                                user=request.user,
+                                obj=payment,
+                                old_values={'status': 'pending'},
+                                new_values={'status': 'processing'},
+                                request=request
+                            )
 
                             PaymentTransaction.objects.create(
                                 payment=payment,
@@ -243,6 +297,16 @@ class PaymentInitiateAPIView(views.APIView):
                             payment.status = Payment.STATUS_FAILED
                             payment.notes = error_msg
                             payment.save()
+                            
+                            # Log the payment failure
+                            log_update(
+                                user=request.user,
+                                obj=payment,
+                                old_values={'status': 'processing', 'notes': ''},
+                                new_values={'status': 'failed', 'notes': error_msg},
+                                request=request
+                            )
+                            
                             return Response({"detail": error_msg}, status=status.HTTP_400_BAD_REQUEST)
                     else:
                         error_msg = response_data.get('message', 'Paystack API did not return success status.')
@@ -777,6 +841,13 @@ class PaymentHistoryAPIView(generics.ListAPIView):
                 'time_ago': payment.time_ago(),
                 'transactions': transaction_details,
                 'transaction_count': len(transaction_details),
+                # User tracking information
+                'created_by': payment.created_by.id if payment.created_by else None,
+                'created_by_username': payment.created_by.username if payment.created_by else None,
+                'created_by_role': payment.created_by_role if hasattr(payment, 'created_by_role') else None,
+                'processed_by': payment.processed_by.id if hasattr(payment, 'processed_by') and payment.processed_by else None,
+                'processed_by_username': payment.processed_by.username if hasattr(payment, 'processed_by') and payment.processed_by else None,
+                'processed_by_role': payment.processed_by_role if hasattr(payment, 'processed_by_role') else None,
                 'payment_timeline': [
                     {
                         'event': 'Payment Created',

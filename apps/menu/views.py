@@ -8,6 +8,7 @@ from django.shortcuts import get_object_or_404 # Added import
 from django.db.models import Q, Prefetch # Added import
 from rest_framework.response import Response # Added import
 from django.core.cache import cache
+from apps.audit.utils import log_create, log_update, log_delete, log_toggle
 
 
 from django.utils.decorators import method_decorator
@@ -121,6 +122,18 @@ class MenuItemListCreateAPIView(generics.ListCreateAPIView):
     def perform_create(self, serializer):
         """Clear cache after creating new menu item"""
         instance = serializer.save(created_by=self.request.user)
+        # Log menu item creation
+        log_creation(
+            user=self.request.user,
+            model_instance=instance,
+            metadata={
+                'item_name': instance.name,
+                'item_type': instance.item_type,
+                'price': str(instance.price),
+                'is_available': instance.is_available
+            },
+            request=self.request
+        )
         # Clear all menu-related cache entries
         clear_menu_cache()
         return instance
@@ -137,7 +150,25 @@ class MenuItemRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView
 
     def perform_update(self, serializer):
         """Clear cache after updating menu item"""
+        # Get the changes before saving
+        from apps.audit.utils import get_model_changes
+        changes = get_model_changes(serializer.instance, serializer.validated_data)
+        
         instance = serializer.save()
+        
+        # Log menu item update
+        log_update(
+            user=self.request.user,
+            model_instance=instance,
+            changes=changes,
+            metadata={
+                'item_name': instance.name,
+                'item_type': instance.item_type,
+                'updated_fields': list(changes.keys()) if changes else []
+            },
+            request=self.request
+        )
+        
         # Clear all menu-related cache entries
         clear_menu_cache()
         return instance
@@ -146,9 +177,33 @@ class MenuItemRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView
         # Superadmins can delete anything, admins can delete menu items, frontdesk cannot delete
         if self.request.user.is_superuser:
             # Superadmins have unrestricted access
+            # Log deletion before actually deleting
+            log_deletion(
+                user=self.request.user,
+                model_instance=instance,
+                metadata={
+                    'item_name': instance.name,
+                    'item_type': instance.item_type,
+                    'price': str(instance.price),
+                    'deleted_by_role': 'superuser'
+                },
+                request=self.request
+            )
             instance.delete()
         elif hasattr(self.request.user, 'role') and self.request.user.role == 'admin':
             # Admins can delete menu items
+            # Log deletion before actually deleting
+            log_deletion(
+                user=self.request.user,
+                model_instance=instance,
+                metadata={
+                    'item_name': instance.name,
+                    'item_type': instance.item_type,
+                    'price': str(instance.price),
+                    'deleted_by_role': 'admin'
+                },
+                request=self.request
+            )
             instance.delete()
         else:
             raise PermissionDenied("Only admin users and superadmins can delete menu items.")
@@ -167,8 +222,24 @@ class MenuItemRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView
 @drf_permission_classes([IsAdminOrFrontdesk])
 def toggle_menu_item_availability_api(request, pk):
     item = get_object_or_404(MenuItem, pk=pk)
+    old_availability = item.is_available
     item.is_available = not item.is_available
     item.save()
+    
+    # Log the availability toggle
+    log_toggle(
+        user=request.user,
+        model_instance=item,
+        field_name='is_available',
+        old_value=old_availability,
+        new_value=item.is_available,
+        metadata={
+            'item_name': item.name,
+            'item_type': item.item_type,
+            'action': 'enabled' if item.is_available else 'disabled'
+        },
+        request=request
+    )
     
     # Clear all menu-related cache entries after toggling availability
     clear_menu_cache()

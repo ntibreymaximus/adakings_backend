@@ -44,6 +44,7 @@ class APIRootSerializer(serializers.Serializer):
     menu = serializers.URLField() # Added
     orders = serializers.URLField() # Added
     payments = serializers.URLField() # Added
+    audit = serializers.URLField() # Added
     environment = serializers.URLField()  # Added
     health = serializers.URLField()  # Added
     schema = serializers.URLField()
@@ -59,6 +60,7 @@ def api_root(request, format=None):
         'menu': reverse('menu_api:menuitem-list-create', request=request, format=format), # Added
         'orders': reverse('orders_api:order-list-create', request=request, format=format), # Added
         'payments': reverse('payments_api:payment-list', request=request, format=format), # Added
+        'audit': reverse('audit_api:audit-log-list', request=request, format=format), # Added
         'environment': reverse('environment-info', request=request, format=format),  # Added
         'health': reverse('health-check', request=request, format=format),  # Added
         'schema': reverse('schema', request=request, format=format),
@@ -76,6 +78,9 @@ urlpatterns = [
 
     # Payments app API URLs
     path('api/payments/', include('apps.payments.urls')),
+
+    # Audit app API URLs
+    path('api/audit/', include('apps.audit.urls')),
 
 
     # JWT token endpoints

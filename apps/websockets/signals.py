@@ -1,5 +1,6 @@
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
+from django.utils import timezone
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 import json
@@ -34,9 +35,9 @@ def order_created_or_updated(sender, instance, created, **kwargs):
                 'id': instance.id,
                 'order_number': instance.order_number,
                 'status': instance.status,
-                'total_amount': str(instance.total_amount),
-                'customer_name': instance.customer_name,
+                'total_amount': str(instance.total_price),
                 'customer_phone': instance.customer_phone,
+                'delivery_type': instance.delivery_type,
                 'created_at': instance.created_at.isoformat(),
                 'updated_at': instance.updated_at.isoformat(),
             }

@@ -88,6 +88,7 @@ INSTALLED_APPS = [
     'apps.orders',
     'apps.payments',
     'apps.websockets',
+    'apps.audit',
     
     # Third-party apps
     'rest_framework',
