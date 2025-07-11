@@ -9,6 +9,7 @@ from django.db.models import Q, Prefetch # Added import
 from rest_framework.response import Response # Added import
 from django.core.cache import cache
 from apps.audit.utils import log_create, log_update, log_delete, log_toggle
+import logging
 
 
 from django.utils.decorators import method_decorator
@@ -224,8 +225,13 @@ def toggle_menu_item_availability_api(request, pk):
     item = get_object_or_404(MenuItem, pk=pk)
     old_availability = item.is_available
     item.is_available = not item.is_available
-    item.save()
     
+    try:
+        item.save()
+    except Exception as e:
+        logging.error(f"Error toggling availability for menu item {pk}: {e}")
+        return Response({'detail': 'Error toggling availability.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
     # Log the availability toggle
     log_toggle(
         user=request.user,

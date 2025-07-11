@@ -2,6 +2,40 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.0] - 2025-07-11
+
+### 🚀 Development Release
+
+**📋 Release Information:**
+- **Environment**: dev
+- **Branch**: `dev/1.4.0`
+- **Version**: `Unknown` → `1.4.0`
+- **Deployment Time**: 2025-07-11 01:53:29
+- **Description**: Development environment deployment with latest features
+
+**📝 Changes Made:**
+menu toggle availability fix
+
+**📁 Files Modified:**
+  - Modified: `EPLOYMENT_SUMMARY.md`
+  - Modified: `README.md`
+  - Modified: `VERSION`
+  - Modified: `apps/menu/views.py`
+
+**🔄 Deployment Details:**
+- **Source Branch**: `dev/1.4.0`
+- **Target Branch**: `dev/1.4.0`
+- **Merge Strategy**: Automatic merge with main branch
+- **Version Bump Type**: Version update
+
+**🎯 Environment Specific Notes:**
+- Development environment deployment
+- Contains latest features and changes
+- Used for integration testing before production
+- May contain experimental features
+
+---
+
 ## [1.3.0] - 2025-07-10
 
 ### 🚀 Development Release
