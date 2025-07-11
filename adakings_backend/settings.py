@@ -137,6 +137,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'adakings_backend.middleware.TokenRefreshMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'adakings_backend.middleware.EnvironmentTagMiddleware',
@@ -448,15 +449,15 @@ if DEBUG:
         'SORT_OPERATIONS': False,
     })
 
-# JWT Settings
-ACCESS_TOKEN_LIFETIME = timedelta(hours=8 if DEBUG else 1)
-REFRESH_TOKEN_LIFETIME = timedelta(days=30 if DEBUG else 7)
+# JWT Settings - Extended lifetimes to prevent automatic logout
+ACCESS_TOKEN_LIFETIME = timedelta(hours=24 if DEBUG else 8)  # 24 hours dev, 8 hours prod
+REFRESH_TOKEN_LIFETIME = timedelta(days=30 if DEBUG else 30)  # 30 days for both
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': ACCESS_TOKEN_LIFETIME,
     'REFRESH_TOKEN_LIFETIME': REFRESH_TOKEN_LIFETIME,
     'ROTATE_REFRESH_TOKENS': True,
-    'BLACKLIST_AFTER_ROTATION': True,
+    'BLACKLIST_AFTER_ROTATION': False,  # Don't blacklist immediately to allow for race conditions
     'UPDATE_LAST_LOGIN': True,
     'ALGORITHM': 'HS256',
     'SIGNING_KEY': SECRET_KEY,
@@ -470,6 +471,9 @@ SIMPLE_JWT = {
     'USER_AUTHENTICATION_RULE': 'rest_framework_simplejwt.authentication.default_user_authentication_rule',
     'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
     'TOKEN_TYPE_CLAIM': 'token_type',
+    'SLIDING_TOKEN_REFRESH_EXP_CLAIM': 'refresh_exp',
+    'SLIDING_TOKEN_LIFETIME': timedelta(minutes=5),
+    'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=1),
 }
 
 # CORS headers

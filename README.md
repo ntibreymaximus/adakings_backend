@@ -8,7 +8,7 @@ This is the Adakings Backend API with a comprehensive **branch-specific versioni
 ```
 feature=4.0.0
 dev=1.4.0
-production=1.3.1
+production=1.3.2
 ```
 
 ## 📁 Project Structure
@@ -52,5 +52,5 @@ The VERSION file tracks all three branch types independently:
 ```
 feature=4.0.0      # Latest feature version
 dev=1.4.0          # Latest dev version
-production=1.3.1   # Latest production version
+production=1.3.2   # Latest production version
 ```

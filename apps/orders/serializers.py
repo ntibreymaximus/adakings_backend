@@ -8,6 +8,9 @@ from drf_spectacular.utils import extend_schema_field
 from typing import Optional, Dict, List, Any
 from apps.menu.models import MenuItem
 from .models import Order, OrderItem, DeliveryLocation # OrderItem model no longer has parent_item
+import logging
+
+logger = logging.getLogger(__name__)
 
 @extend_schema_field(serializers.CharField(help_text="Delivery location name or ID"))
 class DeliveryLocationField(serializers.Field):
@@ -221,9 +224,28 @@ class OrderSerializer(serializers.ModelSerializer):
         # Update Order instance fields
         instance.customer_phone = validated_data.get('customer_phone', instance.customer_phone)
         instance.delivery_type = validated_data.get('delivery_type', instance.delivery_type)
-        instance.delivery_location = validated_data.get('delivery_location', instance.delivery_location)
-        instance.custom_delivery_location = validated_data.get('custom_delivery_location', instance.custom_delivery_location)
-        instance.custom_delivery_fee = validated_data.get('custom_delivery_fee', instance.custom_delivery_fee)
+        
+        # Handle delivery location properly - use 'delivery_location' key if present, otherwise keep current
+        if 'delivery_location' in validated_data:
+            instance.delivery_location = validated_data['delivery_location']
+            # Clear custom fields when using delivery location
+            if instance.delivery_location:
+                instance.custom_delivery_location = None
+                instance.custom_delivery_fee = None
+        if 'custom_delivery_location' in validated_data:
+            instance.custom_delivery_location = validated_data['custom_delivery_location']
+            # Clear delivery location when using custom location
+            if instance.custom_delivery_location:
+                instance.delivery_location = None
+        if 'custom_delivery_fee' in validated_data:
+            instance.custom_delivery_fee = validated_data['custom_delivery_fee']
+            
+        # Clear delivery location fields when switching to pickup
+        if instance.delivery_type == 'Pickup':
+            instance.delivery_location = None
+            instance.custom_delivery_location = None
+            instance.custom_delivery_fee = None
+            
         instance.status = validated_data.get('status', instance.status)
         instance.notes = validated_data.get('notes', instance.notes)
         # delivery_fee and total_price are recalculated, not directly set from validated_data
@@ -236,8 +258,41 @@ class OrderSerializer(serializers.ModelSerializer):
             for item_data in items_data:
                 OrderItem.objects.create(order=instance, **item_data)
         
-        instance.delivery_fee = instance._calculate_delivery_fee() # Recalculate delivery fee based on potentially new location/type
+        # Recalculate delivery fee based on potentially new delivery type/location
+        old_delivery_fee = instance.delivery_fee
+        instance.delivery_fee = instance._calculate_delivery_fee()
+        logger.debug(f"Delivery fee changed from {old_delivery_fee} to {instance.delivery_fee} for order: {instance.id}")
+        
+        # Force a refresh from database to ensure we have all the latest items
+        if items_data is not None:
+            # Store current field values before refresh
+            delivery_type = instance.delivery_type
+            delivery_location = instance.delivery_location
+            custom_delivery_location = instance.custom_delivery_location
+            custom_delivery_fee = instance.custom_delivery_fee
+            customer_phone = instance.customer_phone
+            status = instance.status
+            notes = instance.notes
+            
+            instance.refresh_from_db()
+            
+            # Restore field values after refresh
+            instance.delivery_type = delivery_type
+            instance.delivery_location = delivery_location
+            instance.custom_delivery_location = custom_delivery_location
+            instance.custom_delivery_fee = custom_delivery_fee
+            instance.customer_phone = customer_phone
+            instance.status = status
+            instance.notes = notes
+            
+            # Recalculate delivery fee again after refresh
+            instance.delivery_fee = instance._calculate_delivery_fee()
+        
+        logger.debug(f"Calculating total before saving order: {instance.id}")
         instance.calculate_total()  # Recalculate total price based on updated items and delivery_fee
+        logger.debug(f"Total price calculated for order: {instance.id} is {instance.total_price}")
+        
+        # Save all the updated fields
         instance.save()
         return instance
 

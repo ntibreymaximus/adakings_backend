@@ -23,11 +23,13 @@ def update_order_total_on_item_save(sender, instance, **kwargs):
         _signal_processing.add(signal_key)
         
         order = instance.order
+        logger.debug(f"Signal: Recalculating total for order: {order.id} after item save")
         order.calculate_total()  # This updates order.total_price in memory
         
         # Save only the total_price and updated_at to avoid triggering full save logic
         # Use update_fields to prevent triggering the Order post_save signal
         order.save(update_fields=['total_price', 'updated_at'])
+        logger.debug(f"Signal: Updated total for order: {order.id} is {order.total_price}")
         
             
     finally:
@@ -48,10 +50,12 @@ def update_order_total_on_item_delete(sender, instance, **kwargs):
         _signal_processing.add(signal_key)
         
         order = instance.order
+        logger.debug(f"Recalculating total for order: {order.id}")
         order.calculate_total()  # This updates order.total_price in memory
         
         # Save only the total_price and updated_at to avoid triggering full save logic
         order.save(update_fields=['total_price', 'updated_at'])
+        logger.debug(f"Updated total for order: {order.id} is {order.total_price}")
         
             
     finally:

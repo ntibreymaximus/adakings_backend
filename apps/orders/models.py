@@ -7,6 +7,9 @@ from decimal import Decimal
 from django.utils import timezone
 from apps.menu.models import MenuItem
 from django.utils.timesince import timesince
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Delivery fees are now managed through the DeliveryLocation model
 
@@ -235,8 +238,10 @@ class Order(models.Model):
     
     def _calculate_delivery_fee(self):
         if self.delivery_type == "Pickup":
+            logger.debug("Calculating delivery fee for Pickup")
             return Decimal("0.00")
         elif self.delivery_type == "Delivery":
+            logger.debug("Calculating delivery fee for Delivery")
             # Use delivery location fee if available
             if self.delivery_location:
                 return self.delivery_location.fee
@@ -247,6 +252,10 @@ class Order(models.Model):
                 # No location or custom fee set
                 return Decimal("0.00") 
         return Decimal("0.00")
+        
+    def update_delivery_fee(self):
+        self.delivery_fee = self._calculate_delivery_fee()
+        logger.debug(f"Updated delivery fee to {self.delivery_fee}")
     
     def get_effective_delivery_location_name(self):
         """Get the display name for the delivery location (either from DeliveryLocation or custom)"""

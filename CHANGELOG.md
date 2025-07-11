@@ -2,6 +2,51 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.2] - 2025-07-11
+
+### 🎯 Production Release
+
+**📋 Release Information:**
+- **Environment**: production
+- **Branch**: `prod`
+- **Version**: `4.0.0` → `1.3.2`
+- **Deployment Time**: 2025-07-11 16:49:05
+- **Description**: Production deployment - stable release
+
+**📝 Changes Made:**
+Version: 1.3.2 feat: Deploy to production environment
+
+**📁 Files Modified:**
+  - Modified: `EPLOYMENT_SUMMARY.md`
+  - Modified: `README.md`
+  - Modified: `VERSION`
+  - Modified: `adakings_backend/middleware.py`
+  - Modified: `adakings_backend/settings.py`
+  - Modified: `adakings_backend/urls.py`
+  - Modified: `apps/orders/models.py`
+  - Modified: `apps/orders/serializers.py`
+  - Modified: `apps/orders/signals.py`
+  - Changed: `apps/users/auth_views.py`
+  - Changed: `test_delivery_fee_change.py`
+  - Changed: `test_delivery_fee_only.py`
+  - Changed: `test_order_editing.py`
+  - Changed: `test_order_update.py`
+  - Changed: `test_token_refresh.py`
+
+**🔄 Deployment Details:**
+- **Source Branch**: `prod/1.3.2`
+- **Target Branch**: `prod`
+- **Merge Strategy**: Automatic merge with main branch
+- **Version Bump Type**: Minor (new features)
+
+**🎯 Environment Specific Notes:**
+- Production environment deployment
+- Stable and tested release
+- Ready for end users
+- All features have been thoroughly tested
+
+---
+
 ## [1.3.1] - 2025-07-11
 
 ### 🎯 Production Release
