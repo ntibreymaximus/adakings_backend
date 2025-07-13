@@ -10,8 +10,10 @@ from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes, authentication_classes, action
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes, inline_serializer
 from apps.users.permissions import IsAdminOrFrontdesk, IsAdminOrFrontdeskNoDelete
-from .models import Order, OrderItem, DeliveryLocation
+from .models import Order, OrderItem
+from apps.deliveries.models import DeliveryLocation
 from .serializers import OrderSerializer, OrderStatusUpdateSerializer, DeliveryLocationSerializer
+from .serializers_bolt_wix import BoltWixOrderSerializer
 from apps.audit.utils import log_create, log_update, log_delete, log_status_change, get_model_changes, get_data_changes
 
 
@@ -116,6 +118,29 @@ class OrderListCreateAPIView(generics.ListCreateAPIView):
     search_fields = ['customer_phone', 'order_number', 'delivery_location__name']
     ordering_fields = ['created_at', 'total_price', 'status']
     ordering = ['-created_at']
+    
+    def get_serializer_class(self):
+        """Use appropriate serializer based on order type"""
+        if self.request.method == 'POST':
+            # Check if this is a Bolt/Wix order based on delivery_location
+            delivery_location = self.request.data.get('delivery_location')
+            
+            # Try to get the DeliveryLocation object if ID is provided
+            if delivery_location:
+                try:
+                    if isinstance(delivery_location, int) or (isinstance(delivery_location, str) and delivery_location.isdigit()):
+                        # It's an ID, fetch the location
+                        location = DeliveryLocation.objects.get(id=int(delivery_location))
+                        if location.name in ["Bolt Delivery", "WIX Delivery"]:
+                            return BoltWixOrderSerializer
+                    elif isinstance(delivery_location, str):
+                        # It's a name, check directly
+                        if delivery_location in ["Bolt Delivery", "WIX Delivery"]:
+                            return BoltWixOrderSerializer
+                except DeliveryLocation.DoesNotExist:
+                    pass
+        
+        return self.serializer_class
     
     def perform_create(self, serializer):
         """Log order creation"""

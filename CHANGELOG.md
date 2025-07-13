@@ -2,6 +2,65 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.0] - 2025-07-13
+
+### 🚀 Development Release
+
+**📋 Release Information:**
+- **Environment**: dev
+- **Branch**: `dev/1.6.0`
+- **Version**: `Unknown` → `1.6.0`
+- **Deployment Time**: 2025-07-13 16:09:45
+- **Description**: Development environment deployment with latest features
+
+**📝 Changes Made:**
+Version: 1.6.0 feat: Deploy to dev environment
+
+**📁 Files Modified:**
+  - Modified: `EPLOYMENT_SUMMARY.md`
+  - Modified: `README.md`
+  - Modified: `VERSION`
+  - Modified: `adakings_backend/settings.py`
+  - Modified: `adakings_backend/urls.py`
+  - Modified: `apps/menu/models.py`
+  - Modified: `apps/menu/serializers.py`
+  - Modified: `apps/menu/views.py`
+  - Modified: `apps/orders/admin.py`
+  - Modified: `apps/orders/models.py`
+  - Modified: `apps/orders/serializers.py`
+  - Modified: `apps/orders/signals.py`
+  - Modified: `apps/orders/views.py`
+  - Modified: `apps/payments/views.py`
+  - Changed: `apps/deliveries/`
+  - Changed: `apps/menu/management/commands/update_item_prefixes.py`
+  - Changed: `apps/menu/migrations/0004_add_bolt_wix_item_types.py`
+  - Changed: `apps/menu/tests/`
+  - Changed: `apps/orders/migrations/0017_alter_order_delivery_location_and_more.py`
+  - Changed: `apps/orders/migrations/0018_fix_completed_status.py`
+  - Changed: `apps/orders/serializers_bolt_wix.py`
+  - Changed: `check_cors_debug.py`
+  - Changed: `check_delivery_orders.py`
+  - Changed: `check_phone_validation.py`
+  - Changed: `frontend_auth_fix.js`
+  - Changed: `investigate_order.py`
+  - Changed: `quick_api_test.py`
+  - Changed: `test_frontend_request.py`
+  - Changed: `test_orders_api.py`
+
+**🔄 Deployment Details:**
+- **Source Branch**: `dev/1.6.0`
+- **Target Branch**: `dev/1.6.0`
+- **Merge Strategy**: Automatic merge with main branch
+- **Version Bump Type**: Version update
+
+**🎯 Environment Specific Notes:**
+- Development environment deployment
+- Contains latest features and changes
+- Used for integration testing before production
+- May contain experimental features
+
+---
+
 ## [1.5.0] - 2025-07-12
 
 ### 🚀 Development Release

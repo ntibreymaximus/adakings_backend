@@ -183,6 +183,18 @@ class PaymentInitiateAPIView(views.APIView):
                     if order.delivery_type == 'Delivery':
                         # For delivery orders: Always move to Fulfilled when payment confirmed
                         order.status = Order.STATUS_FULFILLED
+                        
+                        # Update delivery assignment status to delivered if exists
+                        if hasattr(order, 'delivery_assignment'):
+                            from apps.deliveries.models import OrderAssignment
+                            from django.utils import timezone
+                            
+                            assignment = order.delivery_assignment
+                            if assignment.status != 'delivered':
+                                assignment.status = 'delivered'
+                                assignment.delivered_at = timezone.now()
+                                assignment.save()
+                                
                     elif order.status == Order.STATUS_PENDING:
                         # For pickup orders: Pending -> Accepted when payment received
                         order.status = Order.STATUS_ACCEPTED
@@ -383,6 +395,18 @@ class PaystackVerifyAPIView(views.APIView):
                         if order.delivery_type == 'Delivery':
                             # For delivery orders: Always move to Fulfilled when payment confirmed
                             order.status = Order.STATUS_FULFILLED
+                            
+                            # Update delivery assignment status to delivered if exists
+                            if hasattr(order, 'delivery_assignment'):
+                                from apps.deliveries.models import OrderAssignment
+                                from django.utils import timezone
+                                
+                                assignment = order.delivery_assignment
+                                if assignment.status != 'delivered':
+                                    assignment.status = 'delivered'
+                                    assignment.delivered_at = timezone.now()
+                                    assignment.save()
+                                    
                         elif order.status == Order.STATUS_PENDING:
                             # For pickup orders: Pending -> Accepted when payment received
                             order.status = Order.STATUS_ACCEPTED
@@ -493,6 +517,18 @@ class PaystackWebhookAPIView(views.APIView):
                             if order.delivery_type == 'Delivery':
                                 # For delivery orders: Always move to Fulfilled when payment confirmed
                                 order.status = Order.STATUS_FULFILLED
+                                
+                                # Update delivery assignment status to delivered if exists
+                                if hasattr(order, 'delivery_assignment'):
+                                    from apps.deliveries.models import OrderAssignment
+                                    from django.utils import timezone
+                                    
+                                    assignment = order.delivery_assignment
+                                    if assignment.status != 'delivered':
+                                        assignment.status = 'delivered'
+                                        assignment.delivered_at = timezone.now()
+                                        assignment.save()
+                                        
                             elif order.status == Order.STATUS_PENDING:
                                 # For pickup orders: Pending -> Accepted when payment received
                                 order.status = Order.STATUS_ACCEPTED

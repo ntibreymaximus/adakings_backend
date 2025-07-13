@@ -1,4 +1,4 @@
-from django.db.models.signals import post_save, post_delete
+from django.db.models.signals import post_save, post_delete, pre_save
 from django.dispatch import receiver
 from .models import OrderItem, Order
 import logging
@@ -60,4 +60,60 @@ def update_order_total_on_item_delete(sender, instance, **kwargs):
             
     finally:
         _signal_processing.discard(signal_key)
+
+
+@receiver(pre_save, sender=Order)
+def track_order_status_change(sender, instance, **kwargs):
+    """
+    Track when order status is about to change to detect Fulfilled status.
+    """
+    if instance.pk:
+        try:
+            old_instance = Order.objects.get(pk=instance.pk)
+            instance._old_status = old_instance.status
+        except Order.DoesNotExist:
+            instance._old_status = None
+    else:
+        instance._old_status = None
+
+
+@receiver(post_save, sender=Order)
+def update_delivery_assignment_on_fulfilled(sender, instance, created, **kwargs):
+    """
+    Automatically update delivery assignment status to 'delivered' when order status becomes 'Fulfilled'.
+    """
+    # Skip for new orders
+    if created:
+        return
+    
+    # Check if this update is coming from the delivery assignment signal to prevent recursion
+    if getattr(instance, '_updating_from_delivery', False):
+        return
+    
+    # Check if status changed to Fulfilled
+    old_status = getattr(instance, '_old_status', None)
+    new_status = instance.status
+    
+    if old_status != new_status and new_status == Order.STATUS_FULFILLED:
+        # Import here to avoid circular imports
+        from apps.deliveries.models import OrderAssignment
+        
+        try:
+            # Get the delivery assignment for this order
+            assignment = instance.delivery_assignment
+            
+            # Update to 'delivered' if assignment is in any active state (not already delivered, returned, or cancelled)
+            active_statuses = ['assigned', 'accepted', 'picked_up', 'in_transit']
+            if assignment and assignment.status in active_statuses:
+                logger.info(f"Order {instance.order_number} fulfilled - updating delivery assignment from '{assignment.status}' to 'delivered'")
+                assignment.status = 'delivered'
+                assignment.save()
+                logger.info(f"Delivery assignment for order {instance.order_number} marked as delivered")
+            elif assignment and assignment.status in ['delivered', 'returned', 'cancelled']:
+                logger.info(f"Order {instance.order_number} fulfilled but delivery assignment status is already '{assignment.status}'")
+            elif assignment:
+                logger.warning(f"Order {instance.order_number} fulfilled but delivery assignment has unexpected status '{assignment.status}'")
+        except OrderAssignment.DoesNotExist:
+            # No delivery assignment exists for this order (might be a pickup order)
+            logger.debug(f"No delivery assignment found for order {instance.order_number}")
 

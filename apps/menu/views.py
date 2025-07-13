@@ -45,7 +45,7 @@ from .serializers import MenuItemSerializer # Added import
     summary="List and Create Menu Items",
     description="Allows authenticated users to list menu items. Allows admin users to create new ones. Supports filtering by item_type, availability, and search term.",
     parameters=[
-        OpenApiParameter(name='item_type', description='Filter by item type (regular or extra)', required=False, type=OpenApiTypes.STR),
+        OpenApiParameter(name='item_type', description='Filter by item type (regular, extra, bolt, or wix)', required=False, type=OpenApiTypes.STR),
         OpenApiParameter(name='availability', description='Filter by availability (available or unavailable)', required=False, type=OpenApiTypes.STR),
         OpenApiParameter(name='search', description='Search by item name', required=False, type=OpenApiTypes.STR),
         OpenApiParameter(name='ordering', description='Order by fields (e.g., name, price, -price)', required=False, type=OpenApiTypes.STR),
@@ -124,16 +124,16 @@ class MenuItemListCreateAPIView(generics.ListCreateAPIView):
         """Clear cache after creating new menu item"""
         instance = serializer.save(created_by=self.request.user)
         # Log menu item creation
-        log_creation(
+        log_create(
             user=self.request.user,
-            model_instance=instance,
-            metadata={
+            obj=instance,
+            request=self.request,
+            extra_data={
                 'item_name': instance.name,
                 'item_type': instance.item_type,
                 'price': str(instance.price),
                 'is_available': instance.is_available
-            },
-            request=self.request
+            }
         )
         # Clear all menu-related cache entries
         clear_menu_cache()
@@ -160,13 +160,9 @@ class MenuItemRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView
         # Log menu item update
         log_update(
             user=self.request.user,
-            model_instance=instance,
-            changes=changes,
-            metadata={
-                'item_name': instance.name,
-                'item_type': instance.item_type,
-                'updated_fields': list(changes.keys()) if changes else []
-            },
+            obj=instance,
+            old_values=changes,
+            new_values=serializer.validated_data,
             request=self.request
         )
         
@@ -179,30 +175,18 @@ class MenuItemRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView
         if self.request.user.is_superuser:
             # Superadmins have unrestricted access
             # Log deletion before actually deleting
-            log_deletion(
+            log_delete(
                 user=self.request.user,
-                model_instance=instance,
-                metadata={
-                    'item_name': instance.name,
-                    'item_type': instance.item_type,
-                    'price': str(instance.price),
-                    'deleted_by_role': 'superuser'
-                },
+                obj=instance,
                 request=self.request
             )
             instance.delete()
         elif hasattr(self.request.user, 'role') and self.request.user.role == 'admin':
             # Admins can delete menu items
             # Log deletion before actually deleting
-            log_deletion(
+            log_delete(
                 user=self.request.user,
-                model_instance=instance,
-                metadata={
-                    'item_name': instance.name,
-                    'item_type': instance.item_type,
-                    'price': str(instance.price),
-                    'deleted_by_role': 'admin'
-                },
+                obj=instance,
                 request=self.request
             )
             instance.delete()
@@ -235,15 +219,10 @@ def toggle_menu_item_availability_api(request, pk):
     # Log the availability toggle
     log_toggle(
         user=request.user,
-        model_instance=item,
+        obj=item,
         field_name='is_available',
         old_value=old_availability,
         new_value=item.is_available,
-        metadata={
-            'item_name': item.name,
-            'item_type': item.item_type,
-            'action': 'enabled' if item.is_available else 'disabled'
-        },
         request=request
     )
     

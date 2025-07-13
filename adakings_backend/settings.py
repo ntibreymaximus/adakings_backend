@@ -89,6 +89,7 @@ INSTALLED_APPS = [
     'apps.payments',
     'apps.websockets',
     'apps.audit',
+    'apps.deliveries',
     
     # Third-party apps
     'rest_framework',
@@ -653,6 +654,7 @@ if DEBUG:
             'SHOW_TOOLBAR_CALLBACK': lambda request: DEBUG,
             'SHOW_COLLAPSED': True,
             'ENABLE_STACKTRACES': True,
+            'IS_RUNNING_TESTS': False,  # Bypass toolbar check for tests
         }
         
         DEBUG_TOOLBAR_PANELS = [

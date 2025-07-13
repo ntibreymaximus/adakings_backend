@@ -11,41 +11,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Delivery fees are now managed through the DeliveryLocation model
-
-class DeliveryLocation(models.Model):
-    """Model for managing delivery locations and their fees"""
-    name = models.CharField(
-        max_length=100,
-        unique=True,
-        help_text="Name of the delivery location"
-    )
-    fee = models.DecimalField(
-        max_digits=6,
-        decimal_places=2,
-        validators=[MinValueValidator(Decimal("0.00"))],
-        help_text="Delivery fee for this location"
-    )
-    is_active = models.BooleanField(
-        default=True,
-        help_text="Whether this location is currently available for delivery"
-    )
-    created_at = models.DateTimeField(default=timezone.now)
-    updated_at = models.DateTimeField(auto_now=True)
-    
-    class Meta:
-        verbose_name = "Delivery Location"
-        verbose_name_plural = "Delivery Locations"
-        ordering = ["name"]
-    
-    def __str__(self):
-        return f"{self.name} (₵{self.fee:.2f})"
-    
-    @classmethod
-    def get_active_locations_dict(cls):
-        """Return a dictionary of active locations with their fees"""
-        return {loc.name: loc.fee for loc in cls.objects.filter(is_active=True)}
-
+# Delivery fees are now managed through the DeliveryLocation model in deliveries app
 # Validator for Ghanaian phone numbers
 phone_regex = RegexValidator(
     regex=r"^(\+233|0)\d{9}$",
@@ -81,7 +47,7 @@ class Order(models.Model):
         default="Pickup"
     )
     delivery_location = models.ForeignKey(
-        DeliveryLocation,
+        'deliveries.DeliveryLocation',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -168,7 +134,13 @@ class Order(models.Model):
         return self.balance_due() == Decimal('0.00')
 
     def get_payment_status(self):
-        """Get the payment status: UNPAID, PARTIALLY PAID, PAID, OVERPAID, PENDING PAYMENT, REFUNDED."""
+        """Get the payment status: UNPAID, PARTIALLY PAID, PAID, OVERPAID, PENDING PAYMENT, REFUNDED, BOLT, WIX."""
+        # Bolt and Wix orders have their own payment status based on delivery location
+        if self.delivery_location and self.delivery_location.name == "Bolt Delivery":
+            return "BOLT"
+        elif self.delivery_location and self.delivery_location.name == "WIX Delivery":
+            return "WIX"
+        
         # Check if order is cancelled and has been refunded
         if self.status == self.STATUS_CANCELLED:
             # Check if there are completed refunds that cover the amount paid
@@ -227,8 +199,15 @@ class Order(models.Model):
             if self.delivery_location and self.custom_delivery_location:
                 errors["custom_delivery_location"] = "Cannot specify both a delivery location and custom location. Choose one."
             
-            # Customer phone is required for delivery orders
-            if not self.customer_phone or self.customer_phone.strip() == '':
+            # Customer phone is required for delivery orders (except Bolt and WIX)
+            # Check if this is a special delivery type that doesn't require phone
+            special_delivery_names = ["Bolt Delivery", "WIX Delivery"]
+            is_special_delivery = (
+                self.delivery_location and 
+                self.delivery_location.name in special_delivery_names
+            )
+            
+            if not is_special_delivery and (not self.customer_phone or self.customer_phone.strip() == ''):
                 errors["customer_phone"] = "Customer phone number is required for delivery orders."
         
         if errors:
@@ -321,7 +300,8 @@ class Order(models.Model):
         # Only set default status for truly new orders (not during updates)
         if not self.pk and self.status == self.STATUS_PENDING:
             if self.delivery_type == 'Delivery':
-                self.status = self.STATUS_ACCEPTED  # Delivery orders start as Accepted
+                # All delivery orders (including Bolt and Wix) start as Accepted
+                self.status = self.STATUS_ACCEPTED
             # Pickup orders keep the default STATUS_PENDING
         elif self.pk and hasattr(self, '_state') and self._state.adding is False:
             # This is an existing order being updated - preserve status unless explicitly changed
@@ -341,6 +321,23 @@ class Order(models.Model):
         self.calculate_total() # This updates self.total_price
 
         super().save(*args, **kwargs)
+    
+    def get_assigned_rider_name(self):
+        """Get the name of the assigned rider"""
+        # Check if this is a Bolt or Wix order
+        if self.delivery_location:
+            if self.delivery_location.name == "Bolt Delivery":
+                return "Bolt-Delivery"
+            elif self.delivery_location.name == "WIX Delivery":
+                return "Wix-Delivery"
+        
+        # For regular orders, check delivery assignment
+        try:
+            if hasattr(self, 'delivery_assignment') and self.delivery_assignment and self.delivery_assignment.rider:
+                return self.delivery_assignment.rider.name
+        except AttributeError:
+            pass
+        return None
     
     def time_ago(self):
         """Return the time since the order was last updated in a human-readable format."""

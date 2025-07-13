@@ -7,7 +7,8 @@ from rest_framework import serializers
 from drf_spectacular.utils import extend_schema_field
 from typing import Optional, Dict, List, Any
 from apps.menu.models import MenuItem
-from .models import Order, OrderItem, DeliveryLocation # OrderItem model no longer has parent_item
+from .models import Order, OrderItem # OrderItem model no longer has parent_item
+from apps.deliveries.models import DeliveryLocation
 import logging
 
 logger = logging.getLogger(__name__)
@@ -104,6 +105,7 @@ class OrderSerializer(serializers.ModelSerializer):
     delivery_location_fee = serializers.DecimalField(source='delivery_location.fee', max_digits=6, decimal_places=2, read_only=True)
     effective_delivery_location_name = serializers.SerializerMethodField()
     time_ago = serializers.SerializerMethodField()
+    assigned_rider_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
@@ -113,7 +115,7 @@ class OrderSerializer(serializers.ModelSerializer):
             'custom_delivery_location', 'custom_delivery_fee', 'effective_delivery_location_name',
             'status', 'total_price', 'delivery_fee', 'notes', 'created_at', 'updated_at',
             'items', 'amount_paid', 'balance_due', 'amount_overpaid', 
-            'payment_status', 'payment_mode', 'payments', 'time_ago'
+            'payment_status', 'payment_mode', 'payments', 'time_ago', 'assigned_rider_name'
         ]
         read_only_fields = ['order_number', 'total_price', 'created_at', 'updated_at']
         extra_kwargs = {
@@ -139,8 +141,16 @@ class OrderSerializer(serializers.ModelSerializer):
         if delivery_type == 'Delivery':
             errors = {}
             
-            # Check customer phone
-            if not customer_phone or customer_phone.strip() == '':
+            # Check if this is a special delivery type that doesn't require phone
+            special_delivery_names = ["Bolt Delivery", "WIX Delivery"]
+            is_special_delivery = (
+                delivery_location and 
+                hasattr(delivery_location, 'name') and 
+                delivery_location.name in special_delivery_names
+            )
+            
+            # Check customer phone (except for Bolt and WIX deliveries)
+            if not is_special_delivery and (not customer_phone or customer_phone.strip() == ''):
                 errors['customer_phone'] = ['Customer phone number is required for delivery orders.']
             
             # Check that either delivery_location OR custom_delivery_location is provided
@@ -202,6 +212,24 @@ class OrderSerializer(serializers.ModelSerializer):
     def get_time_ago(self, obj) -> str:
         """Get the time since the order was last updated"""
         return obj.time_ago()
+    
+    @extend_schema_field(serializers.CharField(help_text="Name of the assigned delivery rider", allow_null=True))
+    def get_assigned_rider_name(self, obj) -> Optional[str]:
+        """Get the name of the assigned delivery rider if any"""
+        # Check if this is a Bolt or Wix order
+        if obj.delivery_location:
+            if obj.delivery_location.name == "Bolt Delivery":
+                return "Bolt-Delivery"
+            elif obj.delivery_location.name == "WIX Delivery":
+                return "Wix-Delivery"
+        
+        # For regular orders, check delivery assignment
+        try:
+            if hasattr(obj, 'delivery_assignment') and obj.delivery_assignment:
+                return obj.delivery_assignment.rider.name
+        except AttributeError:
+            pass
+        return None
 
     def create(self, validated_data):
         items_data = validated_data.pop('items')

@@ -1,4 +1,4 @@
-﻿from django.contrib import admin
+from django.contrib import admin
 from django.contrib import messages
 from django.db.models import Sum, F, Value, DecimalField
 from django.db.models.functions import Coalesce
@@ -6,7 +6,7 @@ from django.utils.html import format_html
 from django.urls import reverse
 from django.utils.http import urlencode
 from django.http import HttpResponseRedirect
-from .models import Order, OrderItem, DeliveryLocation
+from .models import Order, OrderItem
 
 class OrderItemInline(admin.TabularInline):
     model = OrderItem
@@ -173,41 +173,6 @@ class OrderAdmin(admin.ModelAdmin):
                 perms_needed.add(f"Order {obj.order_number} has completed payments and cannot be deleted")
         
         return deleted_objects, model_count, perms_needed, protected
-
-@admin.register(DeliveryLocation)
-class DeliveryLocationAdmin(admin.ModelAdmin):
-    list_display = ('name', 'fee_display', 'is_active', 'created_at', 'updated_at')
-    list_filter = ('is_active', 'created_at')
-    search_fields = ('name',)
-    readonly_fields = ('created_at', 'updated_at')
-    ordering = ('name',)
-    
-    fieldsets = (
-        ('Location Details', {
-            'fields': ('name', 'fee', 'is_active')
-        }),
-        ('Metadata', {
-            'fields': ('created_at', 'updated_at'),
-            'classes': ('collapse',)
-        }),
-    )
-    
-    def fee_display(self, obj):
-        return f"₵{obj.fee:.2f}"
-    fee_display.short_description = 'Delivery Fee'
-    fee_display.admin_order_field = 'fee'
-    
-    actions = ['activate_locations', 'deactivate_locations']
-    
-    def activate_locations(self, request, queryset):
-        updated = queryset.update(is_active=True)
-        self.message_user(request, f"{updated} location(s) activated.")
-    activate_locations.short_description = "Activate selected locations"
-    
-    def deactivate_locations(self, request, queryset):
-        updated = queryset.update(is_active=False)
-        self.message_user(request, f"{updated} location(s) deactivated.")
-    deactivate_locations.short_description = "Deactivate selected locations"
 
 @admin.register(OrderItem)
 class OrderItemAdmin(admin.ModelAdmin):

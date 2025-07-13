@@ -9,6 +9,8 @@ class MenuItem(models.Model):
     ITEM_TYPES = [
         ('regular', 'Regular Item'),
         ('extra', 'Extra Item'),
+        ('bolt', 'Bolt Item'),
+        ('wix', 'WIX Item'),
     ]
     
     name = models.CharField(max_length=200, unique=True, db_index=True)  # Index for fast name lookups
@@ -16,7 +18,7 @@ class MenuItem(models.Model):
         max_length=10,
         choices=ITEM_TYPES,
         default='regular',
-        help_text='Whether this is a regular menu item or an extra',
+        help_text='Type of menu item: regular, extra, bolt, or wix',
         db_index=True  # Index for fast filtering by type
     )
     price = models.DecimalField(
@@ -45,7 +47,13 @@ class MenuItem(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.name} ({'Extra' if self.item_type == 'extra' else 'Regular'})"
+        type_display = {
+            'regular': 'Regular',
+            'extra': 'Extra',
+            'bolt': 'Bolt',
+            'wix': 'WIX'
+        }
+        return f"{self.name} ({type_display.get(self.item_type, self.item_type)})"
 
     def get_formatted_price(self):
         return f"₵{self.price:.2f}"
@@ -58,3 +66,13 @@ class MenuItem(models.Model):
     def is_extra(self):
         """Helper method to check if this is an extra item"""
         return self.item_type == 'extra'
+    
+    @property
+    def is_bolt(self):
+        """Helper method to check if this is a Bolt item"""
+        return self.item_type == 'bolt'
+    
+    @property
+    def is_wix(self):
+        """Helper method to check if this is a WIX item"""
+        return self.item_type == 'wix'
