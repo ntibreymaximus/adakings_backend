@@ -7,6 +7,7 @@ class MenuItemSerializer(serializers.ModelSerializer):
     is_extra = serializers.SerializerMethodField() # Changed from ReadOnlyField
     is_bolt = serializers.SerializerMethodField()
     is_wix = serializers.SerializerMethodField()
+    display_name = serializers.SerializerMethodField()
 
     @extend_schema_field(serializers.BooleanField())
     def get_is_extra(self, obj: MenuItem) -> bool:
@@ -19,9 +20,14 @@ class MenuItemSerializer(serializers.ModelSerializer):
     @extend_schema_field(serializers.BooleanField())
     def get_is_wix(self, obj: MenuItem) -> bool:
         return obj.is_wix
-
+    
+    @extend_schema_field(serializers.CharField())
+    def get_display_name(self, obj: MenuItem) -> str:
+        """Return the name without prefix for frontend display"""
+        return obj.get_display_name()
+    
     def validate_name(self, value):
-        """Ensure name has appropriate prefix based on item_type"""
+        """Ensure name has appropriate prefix based on item_type for backend storage"""
         item_type = self.initial_data.get('item_type', 'regular')
         
         # For updates, check if we're changing the item_type
@@ -35,7 +41,7 @@ class MenuItemSerializer(serializers.ModelSerializer):
         elif clean_name.startswith('WIX-'):
             clean_name = clean_name[4:]
         
-        # Add appropriate prefix based on item_type
+        # Add appropriate prefix based on item_type for backend storage
         if item_type == 'bolt':
             return f'BOLT-{clean_name}'
         elif item_type == 'wix':
@@ -43,10 +49,17 @@ class MenuItemSerializer(serializers.ModelSerializer):
         else:
             # For regular and extra items, use the clean name without prefix
             return clean_name
+    
+    def to_representation(self, instance):
+        """Override to return clean name without prefix in API responses"""
+        data = super().to_representation(instance)
+        # Replace the prefixed name with the clean display name
+        data['name'] = instance.get_display_name()
+        return data
 
     class Meta:
         model = MenuItem
-        fields = ['id', 'name', 'item_type', 'price', 'is_available', 'created_by', 'created_at', 'updated_at', 'is_extra', 'is_bolt', 'is_wix']
+        fields = ['id', 'name', 'display_name', 'item_type', 'price', 'is_available', 'created_by', 'created_at', 'updated_at', 'is_extra', 'is_bolt', 'is_wix']
         read_only_fields = ['created_at', 'updated_at']
 
 class MenuItemToggleAvailabilitySerializer(serializers.Serializer):

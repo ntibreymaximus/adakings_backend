@@ -13,7 +13,7 @@ class MenuItem(models.Model):
         ('wix', 'WIX Item'),
     ]
     
-    name = models.CharField(max_length=200, unique=True, db_index=True)  # Index for fast name lookups
+    name = models.CharField(max_length=200, db_index=True)  # Index for fast name lookups
     item_type = models.CharField(
         max_length=10,
         choices=ITEM_TYPES,
@@ -39,6 +39,7 @@ class MenuItem(models.Model):
         verbose_name = 'Menu Item'
         verbose_name_plural = 'Menu Items'
         ordering = ['item_type', 'name']
+        unique_together = ('name', 'item_type')
         # Compound indexes for common query patterns
         indexes = [
             models.Index(fields=['item_type', 'is_available'], name='menu_type_available_idx'),
@@ -76,3 +77,11 @@ class MenuItem(models.Model):
     def is_wix(self):
         """Helper method to check if this is a WIX item"""
         return self.item_type == 'wix'
+    
+    def get_display_name(self):
+        """Return the name without prefix for frontend display"""
+        if self.item_type == 'bolt' and self.name.startswith('BOLT-'):
+            return self.name[5:]  # Remove 'BOLT-' prefix
+        elif self.item_type == 'wix' and self.name.startswith('WIX-'):
+            return self.name[4:]  # Remove 'WIX-' prefix
+        return self.name

@@ -91,9 +91,8 @@ def menu_item_created_or_updated(sender, instance, created, **kwargs):
                 'id': instance.id,
                 'name': instance.name,
                 'price': str(instance.price),
-                'availability': instance.availability,
+                'is_available': instance.is_available,
                 'item_type': instance.item_type,
-                'description': instance.description,
                 'updated_at': instance.updated_at.isoformat(),
             }
         }

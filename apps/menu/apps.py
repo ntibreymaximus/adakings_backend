@@ -4,3 +4,7 @@ class MenuConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'apps.menu'
     verbose_name = 'Menu Management'
+    
+    def ready(self):
+        # Import signals to register them
+        import apps.menu.signals

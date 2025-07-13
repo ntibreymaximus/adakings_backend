@@ -2,6 +2,47 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.2] - 2025-07-13
+
+### 🚀 Development Release
+
+**📋 Release Information:**
+- **Environment**: dev
+- **Branch**: `dev/1.6.2`
+- **Version**: `Unknown` → `1.6.2`
+- **Deployment Time**: 2025-07-13 17:34:16
+- **Description**: Development environment deployment with latest features
+
+**📝 Changes Made:**
+Version: 1.6.2 feat: Deploy to dev environment
+
+**📁 Files Modified:**
+  - Modified: `EPLOYMENT_SUMMARY.md`
+  - Modified: `README.md`
+  - Modified: `VERSION`
+  - Modified: `apps/menu/apps.py`
+  - Modified: `apps/menu/models.py`
+  - Modified: `apps/menu/serializers.py`
+  - Modified: `apps/websockets/signals.py`
+  - Deleted: `check_cors_debug.py`
+  - Deleted: `check_delivery_orders.py`
+  - Changed: `apps/menu/migrations/0005_remove_unique_name_add_unique_together.py`
+  - Changed: `apps/menu/signals.py`
+
+**🔄 Deployment Details:**
+- **Source Branch**: `dev/1.6.2`
+- **Target Branch**: `dev/1.6.2`
+- **Merge Strategy**: Automatic merge with main branch
+- **Version Bump Type**: Version update
+
+**🎯 Environment Specific Notes:**
+- Development environment deployment
+- Contains latest features and changes
+- Used for integration testing before production
+- May contain experimental features
+
+---
+
 ## [1.6.1] - 2025-07-13
 
 ### 🚀 Development Release
