@@ -2,6 +2,45 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.1] - 2025-07-13
+
+### 🚀 Development Release
+
+**📋 Release Information:**
+- **Environment**: dev
+- **Branch**: `dev/1.6.1`
+- **Version**: `Unknown` → `1.6.1`
+- **Deployment Time**: 2025-07-13 16:11:59
+- **Description**: Development environment deployment with latest features
+
+**📝 Changes Made:**
+Version: 1.6.1 feat: Deploy to dev environment
+
+**📁 Files Modified:**
+  - Modified: `EPLOYMENT_SUMMARY.md`
+  - Modified: `README.md`
+  - Modified: `VERSION`
+  - Deleted: `deploy_to_railway.md`
+  - Deleted: `frontend_auth_fix.js`
+  - Deleted: `investigate_order.py`
+  - Deleted: `quick_api_test.py`
+  - Deleted: `test_frontend_request.py`
+  - Deleted: `test_orders_api.py`
+
+**🔄 Deployment Details:**
+- **Source Branch**: `dev/1.6.1`
+- **Target Branch**: `dev/1.6.1`
+- **Merge Strategy**: Automatic merge with main branch
+- **Version Bump Type**: Version update
+
+**🎯 Environment Specific Notes:**
+- Development environment deployment
+- Contains latest features and changes
+- Used for integration testing before production
+- May contain experimental features
+
+---
+
 ## [1.6.0] - 2025-07-13
 
 ### 🚀 Development Release
