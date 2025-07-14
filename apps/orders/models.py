@@ -134,12 +134,10 @@ class Order(models.Model):
         return self.balance_due() == Decimal('0.00')
 
     def get_payment_status(self):
-        """Get the payment status: UNPAID, PARTIALLY PAID, PAID, OVERPAID, PENDING PAYMENT, REFUNDED, BOLT, WIX."""
-        # Bolt and Wix orders have their own payment status based on delivery location
+        """Get the payment status: UNPAID, PARTIALLY PAID, PAID, OVERPAID, PENDING PAYMENT, REFUNDED, BOLT."""
+        # Bolt orders have their own payment status based on delivery location
         if self.delivery_location and self.delivery_location.name == "Bolt Delivery":
             return "BOLT"
-        elif self.delivery_location and self.delivery_location.name == "WIX Delivery":
-            return "WIX"
         
         # Check if order is cancelled and has been refunded
         if self.status == self.STATUS_CANCELLED:
@@ -199,9 +197,9 @@ class Order(models.Model):
             if self.delivery_location and self.custom_delivery_location:
                 errors["custom_delivery_location"] = "Cannot specify both a delivery location and custom location. Choose one."
             
-            # Customer phone is required for delivery orders (except Bolt and WIX)
+            # Customer phone is required for delivery orders (except Bolt)
             # Check if this is a special delivery type that doesn't require phone
-            special_delivery_names = ["Bolt Delivery", "WIX Delivery"]
+            special_delivery_names = ["Bolt Delivery"]
             is_special_delivery = (
                 self.delivery_location and 
                 self.delivery_location.name in special_delivery_names
@@ -300,7 +298,7 @@ class Order(models.Model):
         # Only set default status for truly new orders (not during updates)
         if not self.pk and self.status == self.STATUS_PENDING:
             if self.delivery_type == 'Delivery':
-                # All delivery orders (including Bolt and Wix) start as Accepted
+                # All delivery orders (including Bolt) start as Accepted
                 self.status = self.STATUS_ACCEPTED
             # Pickup orders keep the default STATUS_PENDING
         elif self.pk and hasattr(self, '_state') and self._state.adding is False:
@@ -324,12 +322,10 @@ class Order(models.Model):
     
     def get_assigned_rider_name(self):
         """Get the name of the assigned rider"""
-        # Check if this is a Bolt or Wix order
+        # Check if this is a Bolt order
         if self.delivery_location:
             if self.delivery_location.name == "Bolt Delivery":
                 return "Bolt-Delivery"
-            elif self.delivery_location.name == "WIX Delivery":
-                return "Wix-Delivery"
         
         # For regular orders, check delivery assignment
         try:

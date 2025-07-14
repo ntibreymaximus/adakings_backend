@@ -45,7 +45,7 @@ from .serializers import MenuItemSerializer # Added import
     summary="List and Create Menu Items",
     description="Allows authenticated users to list menu items. Allows admin users to create new ones. Supports filtering by item_type, availability, and search term.",
     parameters=[
-        OpenApiParameter(name='item_type', description='Filter by item type (regular, extra, bolt, or wix)', required=False, type=OpenApiTypes.STR),
+        OpenApiParameter(name='item_type', description='Filter by item type (regular, extra, or bolt)', required=False, type=OpenApiTypes.STR),
         OpenApiParameter(name='availability', description='Filter by availability (available or unavailable)', required=False, type=OpenApiTypes.STR),
         OpenApiParameter(name='search', description='Search by item name', required=False, type=OpenApiTypes.STR),
         OpenApiParameter(name='ordering', description='Order by fields (e.g., name, price, -price)', required=False, type=OpenApiTypes.STR),

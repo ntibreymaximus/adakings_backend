@@ -4,7 +4,7 @@ from apps.menu.models import MenuItem
 
 
 class Command(BaseCommand):
-    help = 'Updates menu item names to include proper prefixes for Bolt and WIX items'
+    help = 'Updates menu item names to include proper prefixes for Bolt items'
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -36,46 +36,25 @@ class Command(BaseCommand):
                 
                 bolt_updated += 1
         
-        # Process WIX items
-        wix_items = MenuItem.objects.filter(item_type='wix')
-        wix_updated = 0
-        
-        for item in wix_items:
-            if not item.name.startswith('WIX-'):
-                old_name = item.name
-                new_name = f'WIX-{old_name}'
-                
-                if dry_run:
-                    self.stdout.write(f'Would update WIX item: "{old_name}" -> "{new_name}"')
-                else:
-                    item.name = new_name
-                    item.save()
-                    self.stdout.write(self.style.SUCCESS(f'Updated WIX item: "{old_name}" -> "{new_name}"'))
-                
-                wix_updated += 1
-        
         # Summary
         if dry_run:
             self.stdout.write(
                 self.style.WARNING(
-                    f'\nDry run complete. Would update {bolt_updated} Bolt items and {wix_updated} WIX items.'
+                    f'\nDry run complete. Would update {bolt_updated} Bolt items.'
                 )
             )
         else:
             self.stdout.write(
                 self.style.SUCCESS(
-                    f'\nUpdate complete. Updated {bolt_updated} Bolt items and {wix_updated} WIX items.'
+                    f'\nUpdate complete. Updated {bolt_updated} Bolt items.'
                 )
             )
         
         # Show current status
         total_bolt = MenuItem.objects.filter(item_type='bolt').count()
-        total_wix = MenuItem.objects.filter(item_type='wix').count()
         prefixed_bolt = MenuItem.objects.filter(item_type='bolt', name__startswith='BOLT-').count()
-        prefixed_wix = MenuItem.objects.filter(item_type='wix', name__startswith='WIX-').count()
         
         self.stdout.write(
             f'\nCurrent status:\n'
-            f'  Bolt items: {prefixed_bolt}/{total_bolt} have proper prefix\n'
-            f'  WIX items: {prefixed_wix}/{total_wix} have proper prefix'
+            f'  Bolt items: {prefixed_bolt}/{total_bolt} have proper prefix'
         )

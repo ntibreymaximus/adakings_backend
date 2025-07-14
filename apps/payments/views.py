@@ -147,9 +147,10 @@ class PaymentInitiateAPIView(views.APIView):
                 return Response(PaymentSerializer(payment).data, status=status.HTTP_201_CREATED)
 
             # Handling PAYMENT_TYPE_PAYMENT
-            # Cash-like payments: CASH, TELECEL CASH, MTN MOMO, PAYSTACK(USSD)
+            # Cash-like payments: CASH, TELECEL CASH, MTN MOMO, PAYSTACK(USSD), WIX
             if payment_method in [Payment.PAYMENT_METHOD_CASH, Payment.PAYMENT_METHOD_TELECEL_CASH, 
-                                Payment.PAYMENT_METHOD_MTN_MOMO, Payment.PAYMENT_METHOD_PAYSTACK_USSD]:
+                                Payment.PAYMENT_METHOD_MTN_MOMO, Payment.PAYMENT_METHOD_PAYSTACK_USSD,
+                                Payment.PAYMENT_METHOD_WIX]:
                 if amount > order.balance_due() and order.balance_due() > 0:
                     # If trying to pay more than balance due, only accept up to balance_due for cash here for simplicity
                     # Or adjust to allow overpayment and let order reflect it
@@ -162,6 +163,7 @@ class PaymentInitiateAPIView(views.APIView):
                     payment_type=Payment.PAYMENT_TYPE_PAYMENT,
                     status=Payment.STATUS_COMPLETED,
                     reference=payment_reference,
+                    wix_order_number=validated_data.get('wix_order_number', ''),
                     notes=f"{payment_method} payment of ₵{amount} received by {request.user.username}."
                 )
                 
@@ -180,8 +182,8 @@ class PaymentInitiateAPIView(views.APIView):
                 
                 # Update order status based on order type and current status
                 if order.is_paid():  # Check if order is now fully paid
-                    if order.delivery_type == 'Delivery':
-                        # For delivery orders: Always move to Fulfilled when payment confirmed
+                    if order.delivery_type == 'Delivery' and payment_method != Payment.PAYMENT_METHOD_WIX:
+                        # For delivery orders: Always move to Fulfilled when payment confirmed (except for Wix payments)
                         order.status = Order.STATUS_FULFILLED
                         
                         # Update delivery assignment status to delivered if exists
@@ -392,8 +394,8 @@ class PaystackVerifyAPIView(views.APIView):
                     # Update order status based on order type and current status
                     order = payment.order
                     if order.is_paid():  # Check if order is now fully paid
-                        if order.delivery_type == 'Delivery':
-                            # For delivery orders: Always move to Fulfilled when payment confirmed
+                        if order.delivery_type == 'Delivery' and payment.payment_method != Payment.PAYMENT_METHOD_WIX:
+                            # For delivery orders: Always move to Fulfilled when payment confirmed (except for Wix payments)
                             order.status = Order.STATUS_FULFILLED
                             
                             # Update delivery assignment status to delivered if exists
@@ -514,8 +516,8 @@ class PaystackWebhookAPIView(views.APIView):
                         # Update order status based on order type and current status
                         order = payment.order
                         if order.is_paid():  # Check if order is now fully paid
-                            if order.delivery_type == 'Delivery':
-                                # For delivery orders: Always move to Fulfilled when payment confirmed
+                            if order.delivery_type == 'Delivery' and payment.payment_method != Payment.PAYMENT_METHOD_WIX:
+                                # For delivery orders: Always move to Fulfilled when payment confirmed (except for Wix payments)
                                 order.status = Order.STATUS_FULFILLED
                                 
                                 # Update delivery assignment status to delivered if exists
@@ -759,7 +761,8 @@ class PaymentModesAPIView(views.APIView):
             {"value": "TELECEL CASH", "label": "Telecel Cash", "disabled": False},
             {"value": "MTN MOMO", "label": "MTN MoMo", "disabled": False},
             {"value": "PAYSTACK(USSD)", "label": "Paystack (USSD)", "disabled": False},
-            {"value": "PAYSTACK(API)", "label": "Paystack (API) - Coming Soon", "disabled": True}
+            {"value": "PAYSTACK(API)", "label": "Paystack (API) - Coming Soon", "disabled": True},
+            {"value": "PAID_ON_WIX", "label": "Paid on Wix", "disabled": False}
         ]
         
         return Response({"payment_modes": payment_modes}, status=status.HTTP_200_OK)

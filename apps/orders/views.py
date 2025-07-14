@@ -13,7 +13,7 @@ from apps.users.permissions import IsAdminOrFrontdesk, IsAdminOrFrontdeskNoDelet
 from .models import Order, OrderItem
 from apps.deliveries.models import DeliveryLocation
 from .serializers import OrderSerializer, OrderStatusUpdateSerializer, DeliveryLocationSerializer
-from .serializers_bolt_wix import BoltWixOrderSerializer
+from .serializers_bolt_wix import BoltOrderSerializer
 from apps.audit.utils import log_create, log_update, log_delete, log_status_change, get_model_changes, get_data_changes
 
 
@@ -131,12 +131,12 @@ class OrderListCreateAPIView(generics.ListCreateAPIView):
                     if isinstance(delivery_location, int) or (isinstance(delivery_location, str) and delivery_location.isdigit()):
                         # It's an ID, fetch the location
                         location = DeliveryLocation.objects.get(id=int(delivery_location))
-                        if location.name in ["Bolt Delivery", "WIX Delivery"]:
-                            return BoltWixOrderSerializer
+                        if location.name == "Bolt Delivery":
+                            return BoltOrderSerializer
                     elif isinstance(delivery_location, str):
                         # It's a name, check directly
-                        if delivery_location in ["Bolt Delivery", "WIX Delivery"]:
-                            return BoltWixOrderSerializer
+                        if delivery_location == "Bolt Delivery":
+                            return BoltOrderSerializer
                 except DeliveryLocation.DoesNotExist:
                     pass
         
@@ -338,6 +338,10 @@ class DeliveryLocationListAPIView(generics.ListAPIView):
     permission_classes = [AllowAny]  # Allow unauthenticated access for frontend
     
     def get_queryset(self):
+        # Ensure delivery locations are loaded and up-to-date
+        from apps.deliveries.utils import ensure_delivery_locations_loaded
+        ensure_delivery_locations_loaded()
+        
         # Only return active delivery locations
         return DeliveryLocation.objects.filter(is_active=True).order_by('name')
 

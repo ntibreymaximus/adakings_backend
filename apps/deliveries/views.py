@@ -265,17 +265,10 @@ class AssignRiderToOrderView(viewsets.ViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Prevent assignment of regular riders to Bolt and Wix orders
-        if order.delivery_location and order.delivery_location.name in ["Bolt Delivery", "Wix Delivery"]:
+        # Prevent assignment of regular riders to Bolt orders
+        if order.delivery_location and order.delivery_location.name == "Bolt Delivery":
             return Response(
-                {'error': 'Cannot assign regular riders to Bolt or Wix delivery orders.'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # Prevent assignment of regular riders to Bolt and Wix orders
-        if order.delivery_location and order.delivery_location.name in ["Bolt Delivery", "WIX Delivery"]:
-            return Response(
-                {'error': 'Cannot assign regular riders to Bolt or Wix delivery orders.'},
+                {'error': 'Cannot assign regular riders to Bolt delivery orders.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 

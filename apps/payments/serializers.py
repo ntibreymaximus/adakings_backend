@@ -101,7 +101,7 @@ class PaymentSerializer(serializers.ModelSerializer):
             'id', 'order', 'order_id', 'order_number', 'amount', 'payment_method', 
             'payment_method_display', 'status', 'status_display', 'payment_type', 
             'payment_type_display', 'reference', 'mobile_number', 'paystack_reference',
-            'response_data', 'notes', 'created_at', 'updated_at', 'time_ago',
+            'wix_order_number', 'response_data', 'notes', 'created_at', 'updated_at', 'time_ago',
             
             # Order information
             'order_status', 'order_total_price', 'order_delivery_type', 'order_notes',
@@ -173,6 +173,7 @@ class PaymentInitiateSerializer(serializers.Serializer):
     amount = serializers.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(Decimal('0.01'))])
     payment_method = serializers.ChoiceField(choices=Payment.PAYMENT_METHOD_CHOICES)
     mobile_number = serializers.CharField(max_length=15, required=False, allow_blank=True) # Required if payment_method is PAYSTACK(API)
+    wix_order_number = serializers.CharField(max_length=100, required=False, allow_blank=True) # Required if payment_method is PAID_ON_WIX
     payment_type = serializers.ChoiceField(choices=Payment.PAYMENT_TYPE_CHOICES, default=Payment.PAYMENT_TYPE_PAYMENT)
 
     def validate_order_number(self, value):
@@ -189,6 +190,12 @@ class PaymentInitiateSerializer(serializers.Serializer):
         if payment_method == Payment.PAYMENT_METHOD_PAYSTACK_API and not value:
             raise serializers.ValidationError("Mobile number is required for Paystack API payments.")
         # Add more specific Ghanaian phone number validation if necessary
+        return value
+    
+    def validate_wix_order_number(self, value):
+        payment_method = self.initial_data.get('payment_method')
+        if payment_method == Payment.PAYMENT_METHOD_WIX and not value:
+            raise serializers.ValidationError("Wix order number is required for Paid on Wix payments.")
         return value
 
     def validate(self, data):

@@ -25,12 +25,14 @@ class Payment(models.Model):
     PAYMENT_METHOD_MTN_MOMO = 'MTN MOMO'
     PAYMENT_METHOD_PAYSTACK_USSD = 'PAYSTACK(USSD)'
     PAYMENT_METHOD_PAYSTACK_API = 'PAYSTACK(API)'
+    PAYMENT_METHOD_WIX = 'PAID_ON_WIX'
     PAYMENT_METHOD_CHOICES = [
         (PAYMENT_METHOD_CASH, 'Cash'),
         (PAYMENT_METHOD_TELECEL_CASH, 'Telecel Cash'),
         (PAYMENT_METHOD_MTN_MOMO, 'MTN MoMo'),
         (PAYMENT_METHOD_PAYSTACK_USSD, 'Paystack (USSD)'),
         (PAYMENT_METHOD_PAYSTACK_API, 'Paystack (API)'),
+        (PAYMENT_METHOD_WIX, 'Paid on Wix'),
     ]
     
     # Payment Statuses
@@ -95,6 +97,12 @@ class Payment(models.Model):
         blank=True,
         null=True,
         help_text="Payment processor response data"
+    )
+    wix_order_number = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        help_text="Wix order number for payments made on Wix platform"
     )
     notes = models.TextField(
         blank=True,

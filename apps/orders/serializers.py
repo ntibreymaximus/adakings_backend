@@ -142,7 +142,7 @@ class OrderSerializer(serializers.ModelSerializer):
             errors = {}
             
             # Check if this is a special delivery type that doesn't require phone
-            special_delivery_names = ["Bolt Delivery", "WIX Delivery"]
+            special_delivery_names = ["Bolt Delivery"]
             is_special_delivery = (
                 delivery_location and 
                 hasattr(delivery_location, 'name') and 
@@ -216,12 +216,10 @@ class OrderSerializer(serializers.ModelSerializer):
     @extend_schema_field(serializers.CharField(help_text="Name of the assigned delivery rider", allow_null=True))
     def get_assigned_rider_name(self, obj) -> Optional[str]:
         """Get the name of the assigned delivery rider if any"""
-        # Check if this is a Bolt or Wix order
+        # Check if this is a Bolt order
         if obj.delivery_location:
             if obj.delivery_location.name == "Bolt Delivery":
                 return "Bolt-Delivery"
-            elif obj.delivery_location.name == "WIX Delivery":
-                return "Wix-Delivery"
         
         # For regular orders, check delivery assignment
         try:

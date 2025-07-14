@@ -10,7 +10,6 @@ class MenuItem(models.Model):
         ('regular', 'Regular Item'),
         ('extra', 'Extra Item'),
         ('bolt', 'Bolt Item'),
-        ('wix', 'WIX Item'),
     ]
     
     name = models.CharField(max_length=200, db_index=True)  # Index for fast name lookups
@@ -18,7 +17,7 @@ class MenuItem(models.Model):
         max_length=10,
         choices=ITEM_TYPES,
         default='regular',
-        help_text='Type of menu item: regular, extra, bolt, or wix',
+        help_text='Type of menu item: regular, extra, or bolt',
         db_index=True  # Index for fast filtering by type
     )
     price = models.DecimalField(
@@ -52,7 +51,6 @@ class MenuItem(models.Model):
             'regular': 'Regular',
             'extra': 'Extra',
             'bolt': 'Bolt',
-            'wix': 'WIX'
         }
         return f"{self.name} ({type_display.get(self.item_type, self.item_type)})"
 
@@ -73,15 +71,8 @@ class MenuItem(models.Model):
         """Helper method to check if this is a Bolt item"""
         return self.item_type == 'bolt'
     
-    @property
-    def is_wix(self):
-        """Helper method to check if this is a WIX item"""
-        return self.item_type == 'wix'
-    
     def get_display_name(self):
         """Return the name without prefix for frontend display"""
         if self.item_type == 'bolt' and self.name.startswith('BOLT-'):
             return self.name[5:]  # Remove 'BOLT-' prefix
-        elif self.item_type == 'wix' and self.name.startswith('WIX-'):
-            return self.name[4:]  # Remove 'WIX-' prefix
         return self.name

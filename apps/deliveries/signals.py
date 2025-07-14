@@ -1,9 +1,11 @@
-from django.db.models.signals import post_save, pre_save
+from django.db.models.signals import post_save, pre_save, post_migrate
 from django.dispatch import receiver
 from django.utils import timezone
 from django.db.models import Count, Q
+from django.core.management import call_command
 from .models import OrderAssignment
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -111,3 +113,23 @@ def recalculate_rider_stats(rider):
         rider.total_deliveries = delivered_count
         rider.save(update_fields=['current_orders', 'total_deliveries'])
         logger.info(f"Recalculated stats for {rider.name}: current={current_count}, total={delivered_count}")
+
+
+@receiver(post_migrate)
+def load_delivery_locations_on_migrate(sender, **kwargs):
+    """Load delivery locations from file after migrations"""
+    # Only run this for the deliveries app
+    if sender.name == 'apps.deliveries':
+        # Check if we're not in a testing environment
+        if not os.environ.get('TESTING'):
+            try:
+                # Delay execution to ensure database is ready
+                from django.db import connection
+                with connection.cursor() as cursor:
+                    cursor.execute("SELECT 1")
+                
+                # Now load the delivery locations
+                call_command('load_delivery_locations', '--update')
+                logger.info("Delivery locations loaded successfully after migration")
+            except Exception as e:
+                logger.warning(f"Could not load delivery locations on startup: {e}")

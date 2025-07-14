@@ -2,6 +2,63 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.3] - 2025-07-14
+
+### 🚀 Development Release
+
+**📋 Release Information:**
+- **Environment**: dev
+- **Branch**: `dev/1.6.3`
+- **Version**: `Unknown` → `1.6.3`
+- **Deployment Time**: 2025-07-14 12:12:43
+- **Description**: Development environment deployment with latest features
+
+**📝 Changes Made:**
+Version: 1.6.3 feat: Deploy to dev environment
+
+**📁 Files Modified:**
+  - Modified: `EPLOYMENT_SUMMARY.md`
+  - Modified: `README.md`
+  - Modified: `VERSION`
+  - Modified: `apps/deliveries/apps.py`
+  - Modified: `apps/deliveries/signals.py`
+  - Modified: `apps/deliveries/views.py`
+  - Modified: `apps/menu/management/commands/update_item_prefixes.py`
+  - Modified: `apps/menu/models.py`
+  - Modified: `apps/menu/serializers.py`
+  - Modified: `apps/menu/signals.py`
+  - Modified: `apps/menu/views.py`
+  - Modified: `apps/orders/models.py`
+  - Modified: `apps/orders/serializers.py`
+  - Modified: `apps/orders/serializers_bolt_wix.py`
+  - Modified: `apps/orders/views.py`
+  - Modified: `apps/payments/models.py`
+  - Modified: `apps/payments/serializers.py`
+  - Modified: `apps/payments/views.py`
+  - Changed: `apps/deliveries/management/commands/load_delivery_locations.py`
+  - Changed: `apps/deliveries/management/commands/sync_delivery_locations.py`
+  - Changed: `apps/deliveries/migrations/0009_remove_wix_delivery_location.py`
+  - Changed: `apps/deliveries/utils.py`
+  - Changed: `apps/menu/migrations/0006_remove_wix_item_type.py`
+  - Changed: `apps/payments/migrations/0005_add_wix_order_number.py`
+  - Changed: `apps/payments/migrations/0006_alter_payment_payment_method.py`
+  - Changed: `"delivery locations.txt"`
+  - Changed: `start_location_sync.bat`
+
+**🔄 Deployment Details:**
+- **Source Branch**: `dev/1.6.3`
+- **Target Branch**: `dev/1.6.3`
+- **Merge Strategy**: Automatic merge with main branch
+- **Version Bump Type**: Version update
+
+**🎯 Environment Specific Notes:**
+- Development environment deployment
+- Contains latest features and changes
+- Used for integration testing before production
+- May contain experimental features
+
+---
+
 ## [1.6.2] - 2025-07-13
 
 ### 🚀 Development Release
