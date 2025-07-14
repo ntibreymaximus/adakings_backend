@@ -92,7 +92,11 @@ class OrderAdmin(admin.ModelAdmin):
         if obj.delivery_type == 'Pickup':
             return 'Pickup'
         elif obj.delivery_type == 'Delivery':
-            return f'Delivery to: {obj.delivery_location}'
+            # Use historical name if available
+            location_name = obj.get_effective_delivery_location_name()
+            if location_name:
+                return f'Delivery to: {location_name}'
+            return 'Delivery (No location set)'
         return 'N/A'
     delivery_info.short_description = 'Delivery Info'
     

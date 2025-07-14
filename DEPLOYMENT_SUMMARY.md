@@ -5,7 +5,7 @@
 ### Version Tracking
 ```
 feature=4.0.0      # Continuous across all features
-dev=1.6.3          # Independent dev versioning
+dev=1.7.0          # Independent dev versioning
 production=1.4.0   # Independent production versioning
 ```
 
@@ -18,10 +18,10 @@ adakings_backend/
 ├── .gitignore
 ├── adakings_backend
 ├── adakings_local.db
+├── adakings_menu.txt
 ├── apps
 ├── CHANGELOG.md
 ├── check_env.bat
-├── check_environment.py
 ```
 
 ## ✅ System Features
@@ -47,6 +47,6 @@ python smart_deploy.py feature/name patch "Description"
 
 ## 📊 Latest Deployment
 - **Feature Version**: 4.0.0
-- **Dev Version**: 1.6.3
+- **Dev Version**: 1.7.0
 - **Production Version**: 1.4.0
-- **Last Updated**: 2025-07-14 12:19:52
+- **Last Updated**: 2025-07-14 17:42:07

@@ -33,6 +33,25 @@ class DeliveryLocation(models.Model):
     def __str__(self):
         return f"{self.name} (₵{self.fee:.2f})"
     
+    def delete(self, *args, **kwargs):
+        """Override delete to preserve order history before deletion"""
+        # Import here to avoid circular imports
+        from apps.orders.models import Order
+        
+        # Find all orders using this delivery location
+        orders = Order.objects.filter(delivery_location=self)
+        
+        # Preserve the delivery information for each order
+        for order in orders:
+            if not order.delivery_location_name:
+                order.delivery_location_name = self.name
+            if not order.delivery_location_fee:
+                order.delivery_location_fee = self.fee
+            order.save(update_fields=['delivery_location_name', 'delivery_location_fee'])
+        
+        # Now proceed with the deletion
+        super().delete(*args, **kwargs)
+    
     @classmethod
     def get_active_locations_dict(cls):
         """Return a dictionary of active locations with their fees"""

@@ -101,8 +101,9 @@ class OrderSerializer(serializers.ModelSerializer):
     payment_mode = serializers.SerializerMethodField()
     payments = serializers.SerializerMethodField()
     delivery_location = DeliveryLocationField(allow_null=True, required=False)
-    delivery_location_name = serializers.CharField(source='delivery_location.name', read_only=True)
-    delivery_location_fee = serializers.DecimalField(source='delivery_location.fee', max_digits=6, decimal_places=2, read_only=True)
+    # Use the historical fields directly, not from the relationship
+    delivery_location_name = serializers.CharField(read_only=True)
+    delivery_location_fee = serializers.DecimalField(max_digits=6, decimal_places=2, read_only=True)
     effective_delivery_location_name = serializers.SerializerMethodField()
     time_ago = serializers.SerializerMethodField()
     assigned_rider_name = serializers.SerializerMethodField()
@@ -117,7 +118,7 @@ class OrderSerializer(serializers.ModelSerializer):
             'items', 'amount_paid', 'balance_due', 'amount_overpaid', 
             'payment_status', 'payment_mode', 'payments', 'time_ago', 'assigned_rider_name'
         ]
-        read_only_fields = ['order_number', 'total_price', 'created_at', 'updated_at']
+        read_only_fields = ['order_number', 'total_price', 'created_at', 'updated_at', 'delivery_location_name', 'delivery_location_fee']
         extra_kwargs = {
             'customer_phone': {'required': False, 'allow_blank': True, 'allow_null': True},
         }

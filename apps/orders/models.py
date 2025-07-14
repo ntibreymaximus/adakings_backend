@@ -54,6 +54,22 @@ class Order(models.Model):
         help_text="Select delivery location (Required for delivery orders unless custom location is provided)."
     )
     
+    # Historical delivery location data (preserved even if delivery location is deleted)
+    delivery_location_name = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="Historical delivery location name at time of order"
+    )
+    delivery_location_fee = models.DecimalField(
+        max_digits=6,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0.00"))],
+        help_text="Historical delivery fee at time of order"
+    )
+    
     # Custom location fields for "Other" delivery locations
     custom_delivery_location = models.CharField(
         max_length=255,
@@ -219,8 +235,11 @@ class Order(models.Model):
             return Decimal("0.00")
         elif self.delivery_type == "Delivery":
             logger.debug("Calculating delivery fee for Delivery")
+            # First check if we have historical fee data (for when location is deleted)
+            if self.delivery_location_fee is not None and not self.delivery_location and not self.custom_delivery_fee:
+                return self.delivery_location_fee
             # Use delivery location fee if available
-            if self.delivery_location:
+            elif self.delivery_location:
                 return self.delivery_location.fee
             # Use custom delivery fee if available
             elif self.custom_delivery_fee is not None:
@@ -235,8 +254,12 @@ class Order(models.Model):
         logger.debug(f"Updated delivery fee to {self.delivery_fee}")
     
     def get_effective_delivery_location_name(self):
-        """Get the display name for the delivery location (either from DeliveryLocation or custom)"""
-        if self.delivery_location:
+        """Get the display name for the delivery location (using historical data if available)"""
+        # Use historical data if available (for when delivery location is deleted)
+        if self.delivery_location_name:
+            return self.delivery_location_name
+        # Fallback to current delivery location or custom location
+        elif self.delivery_location:
             return self.delivery_location.name
         elif self.custom_delivery_location:
             return self.custom_delivery_location
@@ -290,6 +313,15 @@ class Order(models.Model):
         
         # Calculate and set delivery fee
         self.delivery_fee = self._calculate_delivery_fee()
+        
+        # Capture historical delivery location data when order is created or delivery location changes
+        if self.delivery_location:
+            self.delivery_location_name = self.delivery_location.name
+            self.delivery_location_fee = self.delivery_location.fee
+        elif self.custom_delivery_location:
+            # For custom locations, use the custom fields
+            self.delivery_location_name = self.custom_delivery_location
+            self.delivery_location_fee = self.custom_delivery_fee
 
         if not self.order_number:
             self.order_number = self.generate_order_number()
@@ -377,8 +409,21 @@ class OrderItem(models.Model):
     )
     menu_item = models.ForeignKey(
         MenuItem,
-        on_delete=models.PROTECT,
+        on_delete=models.SET_NULL,  # Changed from PROTECT to SET_NULL
+        null=True,  # Allow null when menu item is deleted
+        blank=True,
         related_name="order_items"
+    )
+    # Denormalized fields to preserve historical data
+    item_name = models.CharField(
+        max_length=200, 
+        blank=True,
+        help_text="Stored item name for historical reference"
+    )
+    item_type = models.CharField(
+        max_length=10, 
+        blank=True,
+        help_text="Stored item type for historical reference"
     )
     quantity = models.PositiveIntegerField(
         default=1,
@@ -405,10 +450,18 @@ class OrderItem(models.Model):
         return self.subtotal
     
     def save(self, *args, **kwargs):
-        # Decimal('0.00') or None should trigger this. In Python, Decimal(0) is falsy.
-        if not self.unit_price or self.unit_price == Decimal('0.00'): 
-            if self.menu_item and hasattr(self.menu_item, 'price') and self.menu_item.price is not None:
-                self.unit_price = self.menu_item.price
+        # Populate denormalized fields from menu_item if available
+        if self.menu_item:
+            # Store item details for historical reference
+            if not self.item_name:  # Only set if not already set
+                self.item_name = self.menu_item.name
+            if not self.item_type:  # Only set if not already set
+                self.item_type = self.menu_item.item_type
+            
+            # Set unit price from menu item if not already set
+            if not self.unit_price or self.unit_price == Decimal('0.00'): 
+                if hasattr(self.menu_item, 'price') and self.menu_item.price is not None:
+                    self.unit_price = self.menu_item.price
         
         # Ensure quantity is a number, default to 1 if None for calculation safety
         current_quantity = self.quantity if self.quantity is not None else 1
@@ -416,12 +469,13 @@ class OrderItem(models.Model):
 
         # Calculate the subtotal (ensure types are compatible for multiplication)
         self.subtotal = Decimal(current_quantity) * Decimal(current_unit_price)
-        # self.subtotal = self.calculate_subtotal() # calculate_subtotal() might be better if it handles None robustly
         
         super().save(*args, **kwargs)
     
     def __str__(self):
-        return f"{self.quantity}x {self.menu_item.name} (Order {self.order.order_number})"
+        # Use denormalized item_name if menu_item is not available
+        item_display = self.item_name if self.item_name else (self.menu_item.name if self.menu_item else "Unknown Item")
+        return f"{self.quantity}x {item_display} (Order {self.order.order_number})"
     
     class Meta:
         verbose_name = "Order Item"

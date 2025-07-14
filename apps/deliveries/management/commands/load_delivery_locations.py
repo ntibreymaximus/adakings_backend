@@ -3,7 +3,9 @@ import re
 from decimal import Decimal
 from django.core.management.base import BaseCommand
 from django.conf import settings
+from django.db import transaction
 from apps.deliveries.models import DeliveryLocation
+from apps.core.db_utils import retry_on_db_lock
 
 
 class Command(BaseCommand):
@@ -13,7 +15,7 @@ class Command(BaseCommand):
         parser.add_argument(
             '--file',
             type=str,
-            default='delivery locations.txt',
+            default='delivery_locations.txt',
             help='Path to the delivery locations file'
         )
         parser.add_argument(
@@ -27,6 +29,7 @@ class Command(BaseCommand):
             help='Update existing locations if they exist'
         )
 
+    @retry_on_db_lock(max_retries=5, delay=1.0)
     def handle(self, *args, **options):
         file_path = options['file']
         clear_existing = options['clear']
@@ -42,6 +45,23 @@ class Command(BaseCommand):
         
         # Clear existing locations if requested
         if clear_existing:
+            # First, capture historical data for all orders with delivery locations
+            from apps.orders.models import Order
+            orders_to_update = Order.objects.filter(
+                delivery_location__isnull=False
+            ).select_related('delivery_location')
+            
+            updated_count = 0
+            for order in orders_to_update:
+                if order.delivery_location and not order.delivery_location_name:
+                    order.delivery_location_name = order.delivery_location.name
+                    order.delivery_location_fee = order.delivery_location.fee
+                    order.save(update_fields=['delivery_location_name', 'delivery_location_fee'])
+                    updated_count += 1
+            
+            if updated_count > 0:
+                self.stdout.write(self.style.SUCCESS(f"Preserved historical data for {updated_count} orders"))
+            
             count = DeliveryLocation.objects.count()
             DeliveryLocation.objects.all().delete()
             self.stdout.write(self.style.WARNING(f"Cleared {count} existing locations"))

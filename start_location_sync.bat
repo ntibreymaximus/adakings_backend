@@ -1,6 +1,6 @@
 @echo off
 echo Starting Delivery Location Sync Service...
-echo This will sync delivery locations every 6 hours.
+echo This will sync delivery locations from delivery_locations.txt every 6 hours.
 echo Press Ctrl+C to stop the service.
 echo.
 

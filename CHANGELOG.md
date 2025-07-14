@@ -2,6 +2,65 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.7.0] - 2025-07-14
+
+### 🚀 Development Release
+
+**📋 Release Information:**
+- **Environment**: dev
+- **Branch**: `dev/1.7.0`
+- **Version**: `Unknown` → `1.7.0`
+- **Deployment Time**: 2025-07-14 17:42:07
+- **Description**: Development environment deployment with latest features
+
+**📝 Changes Made:**
+Version: 1.7.0 feat: Deploy to dev environment
+
+**📁 Files Modified:**
+  - Modified: `EPLOYMENT_SUMMARY.md`
+  - Modified: `README.md`
+  - Modified: `VERSION`
+  - Modified: `apps/deliveries/apps.py`
+  - Modified: `apps/deliveries/management/commands/load_delivery_locations.py`
+  - Modified: `apps/deliveries/models.py`
+  - Modified: `apps/deliveries/utils.py`
+  - Modified: `apps/menu/apps.py`
+  - Modified: `apps/orders/admin.py`
+  - Modified: `apps/orders/models.py`
+  - Modified: `apps/orders/serializers.py`
+  - Modified: `apps/orders/signals.py`
+  - Deleted: `"delivery locations.txt"`
+  - Modified: `start_location_sync.bat`
+  - Changed: `adakings_menu.txt`
+  - Changed: `apps/core/`
+  - Changed: `apps/menu/management/commands/load_menu_items.py`
+  - Changed: `apps/menu/utils.py`
+  - Changed: `apps/orders/management/commands/ensure_delivery_history.py`
+  - Changed: `apps/orders/migrations/0019_add_denormalized_item_fields.py`
+  - Changed: `apps/orders/migrations/0020_alter_orderitem_menu_item.py`
+  - Changed: `apps/orders/migrations/0021_add_historical_delivery_location_fields.py`
+  - Changed: `apps/orders/migrations/0022_populate_historical_delivery_data.py`
+  - Changed: `apps/orders/migrations/0023_fix_missing_delivery_history.py`
+  - Changed: `apps/orders/migrations/0024_fix_missing_delivery_history.py`
+  - Changed: `apps/orders/migrations/0025_populate_delivery_names_from_fees.py`
+  - Changed: `delivery_locations.txt`
+  - Changed: `test_delivery_history.py`
+  - Changed: `test_serializer_output.py`
+
+**🔄 Deployment Details:**
+- **Source Branch**: `dev/1.7.0`
+- **Target Branch**: `dev/1.7.0`
+- **Merge Strategy**: Automatic merge with main branch
+- **Version Bump Type**: Version update
+
+**🎯 Environment Specific Notes:**
+- Development environment deployment
+- Contains latest features and changes
+- Used for integration testing before production
+- May contain experimental features
+
+---
+
 ## [1.4.0] - 2025-07-14
 
 ### 🎯 Production Release

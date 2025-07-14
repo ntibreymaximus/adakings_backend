@@ -1,6 +1,7 @@
-from django.db.models.signals import post_save, post_delete, pre_save
+from django.db.models.signals import post_save, post_delete, pre_save, pre_delete
 from django.dispatch import receiver
 from .models import OrderItem, Order
+from apps.deliveries.models import DeliveryLocation
 import logging
 
 logger = logging.getLogger(__name__)
@@ -66,11 +67,20 @@ def update_order_total_on_item_delete(sender, instance, **kwargs):
 def track_order_status_change(sender, instance, **kwargs):
     """
     Track when order status is about to change to detect Fulfilled status.
+    Also preserve delivery location history when needed.
     """
     if instance.pk:
         try:
             old_instance = Order.objects.get(pk=instance.pk)
             instance._old_status = old_instance.status
+            
+            # Preserve delivery history if delivery location is being changed or removed
+            if old_instance.delivery_location != instance.delivery_location:
+                # If we had a delivery location and don't have historical data yet
+                if old_instance.delivery_location and not instance.delivery_location_name:
+                    instance.delivery_location_name = old_instance.delivery_location.name
+                    instance.delivery_location_fee = old_instance.delivery_location.fee
+                    logger.info(f"Preserved delivery history for order {instance.order_number} before location change")
         except Order.DoesNotExist:
             instance._old_status = None
     else:
@@ -116,4 +126,25 @@ def update_delivery_assignment_on_fulfilled(sender, instance, created, **kwargs)
         except OrderAssignment.DoesNotExist:
             # No delivery assignment exists for this order (might be a pickup order)
             logger.debug(f"No delivery assignment found for order {instance.order_number}")
+
+
+@receiver(pre_delete, sender=DeliveryLocation)
+def preserve_order_history_before_location_delete(sender, instance, **kwargs):
+    """
+    Before deleting a delivery location, ensure all orders have historical data.
+    """
+    # Find all orders using this delivery location that don't have historical data
+    orders_to_update = Order.objects.filter(
+        delivery_location=instance,
+        delivery_location_name__isnull=True
+    )
+    
+    count = orders_to_update.count()
+    if count > 0:
+        logger.info(f"Preserving historical data for {count} orders before deleting location '{instance.name}'")
+        
+        for order in orders_to_update:
+            order.delivery_location_name = instance.name
+            order.delivery_location_fee = instance.fee
+            order.save(update_fields=['delivery_location_name', 'delivery_location_fee'])
 

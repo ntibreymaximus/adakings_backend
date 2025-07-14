@@ -23,7 +23,7 @@ def get_file_hash(file_path):
 
 def check_and_reload_delivery_locations():
     """Check if delivery locations file has changed and reload if necessary"""
-    file_path = os.path.join(settings.BASE_DIR, 'delivery locations.txt')
+    file_path = os.path.join(settings.BASE_DIR, 'delivery_locations.txt')
     cache_key = 'delivery_locations_file_hash'
     
     if not os.path.exists(file_path):
