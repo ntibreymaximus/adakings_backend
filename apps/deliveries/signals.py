@@ -27,6 +27,7 @@ def track_assignment_status_change(sender, instance, **kwargs):
 def update_rider_stats_on_assignment_change(sender, instance, created, **kwargs):
     """Update rider statistics when assignment status changes"""
     if not instance.rider:
+        logger.warning(f"Assignment {instance.id} has no rider assigned")
         return
     
     old_status = getattr(instance, '_old_status', None)
@@ -34,9 +35,10 @@ def update_rider_stats_on_assignment_change(sender, instance, created, **kwargs)
     
     # Skip if status hasn't changed
     if old_status == new_status and not created:
+        logger.debug(f"Assignment {instance.id} status unchanged at {new_status}")
         return
     
-    logger.info(f"Assignment {instance.id} status changed from {old_status} to {new_status}")
+    logger.info(f"Assignment {instance.id} for order {instance.order.order_number} status changed from {old_status} to {new_status} (created={created})")
     
     # For critical status changes (delivered, returned, cancelled), 
     # always recalculate from database to ensure accuracy
@@ -50,19 +52,21 @@ def update_rider_stats_on_assignment_change(sender, instance, created, **kwargs)
         if new_status == 'delivered':
             from apps.orders.models import Order
             try:
-                # Only update if order status is a valid status and not already fulfilled
-                valid_statuses = [choice[0] for choice in Order.STATUS_CHOICES]
-                if instance.order.status in valid_statuses and instance.order.status != Order.STATUS_FULFILLED:
-                    # Set flag to prevent circular update from order signal
-                    instance.order._updating_from_delivery = True
-                    instance.order.status = Order.STATUS_FULFILLED
-                    # Use update_fields to skip validation and avoid triggering full save logic
-                    instance.order.save(update_fields=['status', 'updated_at'])
-                    logger.info(f"Order {instance.order.order_number} marked as Fulfilled")
-                elif instance.order.status not in valid_statuses:
-                    logger.warning(f"Order {instance.order.order_number} has invalid status '{instance.order.status}'. Using direct database update.")
-                    # Direct database update to fix invalid status
-                    Order.objects.filter(pk=instance.order.pk).update(status=Order.STATUS_FULFILLED)
+                    # Only update if order status is a valid status and not already fulfilled
+                    valid_statuses = [choice[0] for choice in Order.STATUS_CHOICES]
+                    logger.info(f"Order {instance.order.order_number} current status: '{instance.order.status}', valid statuses: {valid_statuses}")
+                    if instance.order.status in valid_statuses and instance.order.status != Order.STATUS_FULFILLED:
+                        # Set flag to prevent circular update from order signal
+                        instance.order._updating_from_delivery = True
+                        instance.order.status = Order.STATUS_FULFILLED
+                        # Use update_fields to skip validation and avoid triggering full save logic
+                        instance.order.save(update_fields=['status', 'updated_at'])
+                        logger.info(f"Order {instance.order.order_number} marked as Fulfilled")
+                    elif instance.order.status not in valid_statuses:
+                        logger.warning(f"Order {instance.order.order_number} has invalid status '{instance.order.status}'. Using direct database update.")
+                        # Direct database update to fix invalid status
+                        Order.objects.filter(pk=instance.order.pk).update(status=Order.STATUS_FULFILLED)
+                        logger.info(f"Order {instance.order.order_number} status updated directly to Fulfilled")
             except Exception as e:
                 logger.error(f"Error updating order status for {instance.order.order_number}: {str(e)}")
             
@@ -79,9 +83,10 @@ def update_rider_stats_on_assignment_change(sender, instance, created, **kwargs)
     
     # Handle new assignment
     if created and new_status in ['assigned', 'accepted']:
+        old_count = instance.rider.current_orders
         instance.rider.current_orders += 1
-        instance.rider.save(update_fields=['current_orders'])
-        logger.info(f"Incremented current_orders for rider {instance.rider.name}")
+        instance.rider.save(update_fields=['current_orders', 'updated_at'])
+        logger.info(f"Incremented current_orders for rider {instance.rider.name} from {old_count} to {instance.rider.current_orders}")
     
     # Handle status transitions
     elif old_status and old_status != new_status:

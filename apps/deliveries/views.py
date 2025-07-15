@@ -2,7 +2,7 @@ from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
-from django.db import transaction
+from django.db import transaction, IntegrityError
 from django.utils import timezone
 from django.db.models import Q, Count, Avg, Sum
 from datetime import timedelta
@@ -275,12 +275,15 @@ class AssignRiderToOrderView(viewsets.ViewSet):
             )
         
         # Check if order is already assigned
-        if hasattr(order, 'delivery_assignment'):
-            logger.warning(f"Order {order.order_number} is already assigned")
-            return Response(
-                {'error': 'Order is already assigned to a rider'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        try:
+            if hasattr(order, 'delivery_assignment') and order.delivery_assignment:
+                logger.warning(f"Order {order.order_number} is already assigned to rider {order.delivery_assignment.rider.name if order.delivery_assignment.rider else 'Unknown'}")
+                return Response(
+                    {'error': 'Order is already assigned to a rider'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        except Exception as e:
+            logger.error(f"Error checking delivery assignment for order {order.order_number}: {e}", exc_info=True)
 
         # Prevent assignment of regular riders to Bolt orders
         if order.delivery_location and order.delivery_location.name == "Bolt Delivery":
@@ -297,10 +300,11 @@ class AssignRiderToOrderView(viewsets.ViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        if order.status not in ['Accepted', 'Out for Delivery']:
+        # Use the status constants from Order model
+        if order.status not in [Order.STATUS_ACCEPTED, Order.STATUS_OUT_FOR_DELIVERY]:
             logger.warning(f"Order {order.order_number} is not ready for delivery (Status: {order.status})")
             return Response(
-                {'error': f'Order is not ready for delivery assignment (Status: {order.status}). Order must be in Accepted status.'},
+                {'error': f'Order is not ready for delivery assignment (Status: {order.status}). Order must be in Accepted or Out for Delivery status.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
@@ -317,6 +321,18 @@ class AssignRiderToOrderView(viewsets.ViewSet):
             
             try:
                 with transaction.atomic():
+                    # Double-check that order doesn't have an assignment (in case of race condition)
+                    if OrderAssignment.objects.filter(order=order).exists():
+                        logger.error(f"Race condition: Order {order.order_number} was assigned while processing")
+                        return Response(
+                            {'error': 'Order was already assigned to another rider'},
+                            status=status.HTTP_409_CONFLICT
+                        )
+                    
+                    # Log current order state
+                    logger.info(f"Creating assignment for order {order.order_number} (ID: {order.id}, Status: {order.status})")
+                    logger.info(f"Assigning to rider {rider.name} (ID: {rider.id}, Available: {rider.is_available}, Current orders: {rider.current_orders})")
+                    
                     # Create assignment
                     assignment = OrderAssignment.objects.create(
                         order=order,
@@ -324,21 +340,34 @@ class AssignRiderToOrderView(viewsets.ViewSet):
                         delivery_instructions=serializer.validated_data.get('delivery_instructions', ''),
                         picked_up_at=timezone.now()  # Set picked_up_at when order is assigned
                     )
+                    logger.info(f"Assignment created with ID: {assignment.id}")
                     
-                    # Update order status
-                    order.status = 'Out for Delivery'
-                    order.save()
+                    # Update order status with proper status constant
+                    order.status = Order.STATUS_OUT_FOR_DELIVERY  # Use the constant instead of string
+                    order.save(update_fields=['status', 'updated_at'])
+                    logger.info(f"Order {order.order_number} status updated to {order.status}")
                     
                     # Rider stats will be updated by signal
                     
+                    # Serialize the response
+                    response_data = OrderAssignmentSerializer(assignment).data
+                    logger.info(f"Assignment successful for order {order.order_number}")
+                    
                     return Response(
-                        OrderAssignmentSerializer(assignment).data,
+                        response_data,
                         status=status.HTTP_201_CREATED
                     )
-            except Exception as e:
-                logger.error(f"Error creating assignment: {e}", exc_info=True)
+            except IntegrityError as e:
+                logger.error(f"Database integrity error creating assignment for order {order.order_number}: {e}", exc_info=True)
                 return Response(
-                    {'error': 'Failed to create assignment. Please try again.'},
+                    {'error': 'Order is already assigned or database constraint violated'},
+                    status=status.HTTP_409_CONFLICT
+                )
+            except Exception as e:
+                logger.error(f"Unexpected error creating assignment for order {order.order_number}: {e}", exc_info=True)
+                logger.error(f"Error type: {type(e).__name__}")
+                return Response(
+                    {'error': f'Failed to create assignment: {str(e)}'},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
         
