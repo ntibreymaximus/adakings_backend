@@ -96,7 +96,6 @@ class Command(BaseCommand):
                     # Check if location already exists
                     if DeliveryLocation.objects.filter(name=location_name).exists():
                         skipped_count += 1
-                        self.stdout.write(f"Skipped existing location: {location_name}")
                     else:
                         DeliveryLocation.objects.create(
                             name=location_name,
@@ -114,10 +113,12 @@ class Command(BaseCommand):
             f"  Total in database: {DeliveryLocation.objects.count()} locations"
         ))
         
-        # Show all locations grouped by price
-        self.stdout.write("\nCurrent delivery locations by price:")
-        for location in DeliveryLocation.objects.all().order_by('fee', 'name'):
-            self.stdout.write(f"  ₵{location.fee:.2f} - {location.name}")
+        # Show only counts by price instead of listing all locations
+        self.stdout.write("\nDelivery locations by price:")
+        from django.db.models import Count
+        price_counts = DeliveryLocation.objects.values('fee').annotate(count=Count('fee')).order_by('fee')
+        for price_group in price_counts:
+            self.stdout.write(f"  ₵{price_group['fee']:.2f}: {price_group['count']} locations")
     
     def parse_delivery_file(self, file_path):
         """Parse the delivery locations file and return a dictionary of {price: [locations]}"""

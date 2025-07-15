@@ -208,9 +208,10 @@ else:
             'ENGINE': 'django.db.backends.sqlite3',
             'NAME': BASE_DIR / database_name,
             'OPTIONS': {
-                'timeout': 20,
+                'timeout': 30,  # Increased timeout for better lock handling
             },
-            'CONN_MAX_AGE': 300,  # Keep connections alive for 5 minutes for better performance
+            'CONN_MAX_AGE': 0,  # Disable connection pooling to prevent lock issues
+            'ATOMIC_REQUESTS': True,  # Wrap each request in a transaction
         }
     }
 

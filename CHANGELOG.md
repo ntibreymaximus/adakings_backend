@@ -2,6 +2,49 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.8.0] - 2025-07-15
+
+### 🚀 Development Release
+
+**📋 Release Information:**
+- **Environment**: dev
+- **Branch**: `dev/1.8.0`
+- **Version**: `Unknown` → `1.8.0`
+- **Deployment Time**: 2025-07-15 06:33:32
+- **Description**: Development environment deployment with latest features
+
+**📝 Changes Made:**
+Version: 1.8.0 feat: Deploy to dev environment
+
+**📁 Files Modified:**
+  - Modified: `EPLOYMENT_SUMMARY.md`
+  - Modified: `README.md`
+  - Modified: `VERSION`
+  - Modified: `adakings_backend/settings.py`
+  - Modified: `adakings_menu.txt`
+  - Modified: `apps/deliveries/management/commands/load_delivery_locations.py`
+  - Modified: `apps/menu/management/commands/load_menu_items.py`
+  - Changed: `enable_wal_mode.py`
+  - Changed: `test_api_response.py`
+  - Changed: `test_delivery_validation.py`
+  - Changed: `test_historical_data.py`
+  - Changed: `test_payment_endpoint.py`
+  - Changed: `test_payment_final.py`
+
+**🔄 Deployment Details:**
+- **Source Branch**: `dev/1.8.0`
+- **Target Branch**: `dev/1.8.0`
+- **Merge Strategy**: Automatic merge with main branch
+- **Version Bump Type**: Version update
+
+**🎯 Environment Specific Notes:**
+- Development environment deployment
+- Contains latest features and changes
+- Used for integration testing before production
+- May contain experimental features
+
+---
+
 ## [1.7.0] - 2025-07-14
 
 ### 🚀 Development Release

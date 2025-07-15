@@ -144,15 +144,13 @@ class Command(BaseCommand):
             f"  Total in database: {MenuItem.objects.count()} items"
         ))
         
-        # Show all available items grouped by type
-        self.stdout.write("\nCurrent available menu items by type:")
+        # Show only counts by type instead of listing all items
+        self.stdout.write("\nMenu items by type:")
         for item_type in ['regular', 'extra', 'bolt']:
             type_label = 'REGULAR' if item_type == 'regular' else item_type.upper()
-            items = MenuItem.objects.filter(item_type=item_type, is_available=True).order_by('name')
-            if items.exists():
-                self.stdout.write(f"\n{{{type_label}}}:")
-                for item in items:
-                    self.stdout.write(f"  {item.name} - ₵{item.price:.2f}")
+            count = MenuItem.objects.filter(item_type=item_type, is_available=True).count()
+            if count > 0:
+                self.stdout.write(f"  {type_label}: {count} items")
     
     def parse_menu_file(self, file_path):
         """Parse the menu file and return a dictionary of {category: [(name, price)]}"""
@@ -262,7 +260,6 @@ class Command(BaseCommand):
             else:
                 # Check if item already exists
                 if MenuItem.objects.filter(name=item_name, item_type=item_type).exists():
-                    self.stdout.write(f"Skipped existing item: {item_name}")
                     return 'skipped'
                 else:
                     MenuItem.objects.create(
