@@ -18,7 +18,8 @@ import uuid # For generating references
 from decimal import Decimal
 import logging
 
-from apps.orders.models import Order, DeliveryLocation
+from apps.orders.models import Order
+from apps.deliveries.models import DeliveryLocation
 from .models import Payment, PaymentTransaction
 from .serializers import (
     PaymentSerializer,
