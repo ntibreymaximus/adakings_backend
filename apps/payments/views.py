@@ -4,6 +4,7 @@ from django.shortcuts import get_object_or_404, redirect # redirect might be for
 from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
+from django.core.exceptions import ValidationError
 from rest_framework import generics, status, views
 from rest_framework.permissions import IsAdminUser, IsAuthenticated, AllowAny
 from apps.users.permissions import IsAdminOrFrontdesk, IsAdminOrSuperuser
@@ -15,8 +16,9 @@ import hashlib
 import json # For webhook processing
 import uuid # For generating references
 from decimal import Decimal
+import logging
 
-from apps.orders.models import Order
+from apps.orders.models import Order, DeliveryLocation
 from .models import Payment, PaymentTransaction
 from .serializers import (
     PaymentSerializer,
@@ -201,7 +203,25 @@ class PaymentInitiateAPIView(views.APIView):
                         # For pickup orders: Pending -> Accepted when payment received
                         order.status = Order.STATUS_ACCEPTED
                 
-                order.save() # Recalculate order totals
+                # Try to save the order, but handle validation errors for missing delivery location
+                try:
+                    order.save() # Recalculate order totals
+                except ValidationError as e:
+                    # Check if this is a delivery location error
+                    if 'delivery_location' in str(e) and order.delivery_type == 'Delivery':
+                        # Auto-fix the delivery location issue
+                        if self._auto_fix_delivery_location(order):
+                            order.save() # Try again after fixing
+                        else:
+                            # If auto-fix failed, return error
+                            return Response(
+                                {"detail": "Order has invalid delivery data. Please contact support."},
+                                status=status.HTTP_400_BAD_REQUEST
+                            )
+                    else:
+                        # Re-raise other validation errors
+                        raise
+                
                 return Response(PaymentSerializer(payment).data, status=status.HTTP_201_CREATED)
 
             elif payment_method == Payment.PAYMENT_METHOD_PAYSTACK_API:
@@ -336,6 +356,64 @@ class PaymentInitiateAPIView(views.APIView):
                     return Response({"detail": f"Payment processing error: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             else:
                 return Response({"detail": "Invalid payment method."}, status=status.HTTP_400_BAD_REQUEST)
+    
+    def _auto_fix_delivery_location(self, order):
+        """
+        Attempt to automatically fix missing delivery location data.
+        Returns True if successful, False otherwise.
+        """
+        logger = logging.getLogger(__name__)
+        logger.info(f"Attempting to auto-fix delivery location for order {order.order_number}")
+        
+        try:
+            # Check if we have historical data
+            if order.delivery_location_name or order.get_effective_delivery_location_name():
+                historical_name = order.delivery_location_name or order.get_effective_delivery_location_name()
+                historical_fee = order.delivery_location_fee or order.delivery_fee or Decimal('0.00')
+                
+                logger.info(f"Found historical data: {historical_name} (₵{historical_fee})")
+                
+                # Set as custom location
+                order.custom_delivery_location = historical_name
+                order.custom_delivery_fee = historical_fee
+                
+                # Save without triggering full validation
+                order.save(update_fields=['custom_delivery_location', 'custom_delivery_fee', 'updated_at'])
+                
+                logger.info(f"Successfully auto-fixed order {order.order_number}")
+                
+                # Log the auto-fix action
+                log_update(
+                    user=None,  # System action
+                    obj=order,
+                    old_values={'custom_delivery_location': None, 'custom_delivery_fee': None},
+                    new_values={'custom_delivery_location': historical_name, 'custom_delivery_fee': str(historical_fee)},
+                    request=None,
+                    notes=f"Auto-fixed missing delivery location during payment processing"
+                )
+                
+                return True
+            
+            # Try to match by delivery fee
+            elif order.delivery_fee and order.delivery_fee > 0:
+                matching_locations = DeliveryLocation.objects.filter(fee=order.delivery_fee)
+                if matching_locations.count() == 1:
+                    location = matching_locations.first()
+                    logger.info(f"Found matching location by fee: {location.name} (₵{location.fee})")
+                    
+                    order.custom_delivery_location = location.name
+                    order.custom_delivery_fee = location.fee
+                    order.save(update_fields=['custom_delivery_location', 'custom_delivery_fee', 'updated_at'])
+                    
+                    logger.info(f"Successfully auto-fixed order {order.order_number} using fee match")
+                    return True
+            
+            logger.warning(f"Could not auto-fix order {order.order_number} - no historical data available")
+            return False
+            
+        except Exception as e:
+            logger.error(f"Error auto-fixing order {order.order_number}: {str(e)}")
+            return False
 
 class PaystackVerifyAPIView(views.APIView):
     permission_classes = [AllowAny] # Paystack redirects here, user might not be logged in on this browser session

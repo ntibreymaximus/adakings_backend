@@ -209,9 +209,10 @@ else:
             'NAME': BASE_DIR / database_name,
             'OPTIONS': {
                 'timeout': 30,  # Increased timeout for better lock handling
+                'check_same_thread': False,  # Allow connections from different threads
             },
             'CONN_MAX_AGE': 0,  # Disable connection pooling to prevent lock issues
-            'ATOMIC_REQUESTS': True,  # Wrap each request in a transaction
+            'ATOMIC_REQUESTS': False,  # Disable atomic requests for SQLite to prevent locks
         }
     }
 

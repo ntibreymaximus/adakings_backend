@@ -2,6 +2,45 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.4] - 2025-07-15
+
+### 🎯 Production Release
+
+**📋 Release Information:**
+- **Environment**: production
+- **Branch**: `prod`
+- **Version**: `4.0.0` → `2.0.4`
+- **Deployment Time**: 2025-07-15 18:04:56
+- **Description**: Production deployment - stable release
+
+**📝 Changes Made:**
+Version: 2.0.4 feat: Deploy to production environment
+
+**📁 Files Modified:**
+  - Modified: `EPLOYMENT_SUMMARY.md`
+  - Modified: `README.md`
+  - Modified: `VERSION`
+  - Modified: `adakings_backend/settings.py`
+  - Deleted: `adakings_local.db-journal`
+  - Modified: `apps/payments/views.py`
+  - Changed: `adakings_backend/management/commands/enable_wal_mode.py`
+  - Changed: `apps/orders/management/commands/fix_delivery_orders.py`
+  - Changed: `fix_database_lock.py`
+
+**🔄 Deployment Details:**
+- **Source Branch**: `prod/2.0.4`
+- **Target Branch**: `prod`
+- **Merge Strategy**: Automatic merge with main branch
+- **Version Bump Type**: Patch (bug fixes)
+
+**🎯 Environment Specific Notes:**
+- Production environment deployment
+- Stable and tested release
+- Ready for end users
+- All features have been thoroughly tested
+
+---
+
 ## [2.0.3] - 2025-07-15
 
 ### 🎯 Production Release
