@@ -273,10 +273,19 @@ if DEBUG:
     CORS_ALLOW_ALL_ORIGINS = True
     CORS_ALLOW_CREDENTIALS = True
 else:
-    cors_origins = os.environ.get('CORS_ALLOWED_ORIGINS', '').split(',')
-    # Clean up origins - remove trailing slashes and empty strings
-    CORS_ALLOWED_ORIGINS = [origin.strip().rstrip('/') for origin in cors_origins if origin.strip()]
-    CORS_ALLOW_CREDENTIALS = False
+    # Default allowed origins for production
+    default_cors_origins = [
+        'https://adaresmansys.up.railway.app',
+        'https://adakingsbackend-prod.up.railway.app'
+    ]
+    
+    # Get additional origins from environment variable
+    cors_origins_env = os.environ.get('CORS_ALLOWED_ORIGINS', '')
+    additional_origins = [origin.strip().rstrip('/') for origin in cors_origins_env.split(',') if origin.strip()]
+    
+    # Combine default and additional origins
+    CORS_ALLOWED_ORIGINS = list(set(default_cors_origins + additional_origins))
+    CORS_ALLOW_CREDENTIALS = True
 
 # Session settings
 SESSION_COOKIE_SAMESITE = 'Lax'
