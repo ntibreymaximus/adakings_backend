@@ -248,14 +248,31 @@ class AssignRiderToOrderView(viewsets.ViewSet):
         # Try to find order by ID first, then by order_number
         try:
             if order_id.isdigit():
-                order = get_object_or_404(Order, id=int(order_id))
-                logger.info(f"Found order by ID: {order.id} (Number: {order.order_number})")
+                try:
+                    order = Order.objects.get(id=int(order_id))
+                    logger.info(f"Found order by ID: {order.id} (Number: {order.order_number})")
+                except Order.DoesNotExist:
+                    logger.warning(f"Order not found by ID: {order_id}")
+                    return Response(
+                        {'error': f'Order with ID {order_id} not found'},
+                        status=status.HTTP_404_NOT_FOUND
+                    )
             else:
-                order = get_object_or_404(Order, order_number=order_id)
-                logger.info(f"Found order by number: {order.order_number} (ID: {order.id})")
-        except (ValueError, AttributeError) as e:
-            logger.warning(f"Error finding order: {e}")
-            order = get_object_or_404(Order, order_number=order_id)
+                try:
+                    order = Order.objects.get(order_number=order_id)
+                    logger.info(f"Found order by number: {order.order_number} (ID: {order.id})")
+                except Order.DoesNotExist:
+                    logger.warning(f"Order not found by order_number: {order_id}")
+                    return Response(
+                        {'error': f'Order with number {order_id} not found'},
+                        status=status.HTTP_404_NOT_FOUND
+                    )
+        except Exception as e:
+            logger.error(f"Unexpected error finding order: {e}", exc_info=True)
+            return Response(
+                {'error': 'An unexpected error occurred while finding the order'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
         
         # Check if order is already assigned
         if hasattr(order, 'delivery_assignment'):
@@ -289,28 +306,43 @@ class AssignRiderToOrderView(viewsets.ViewSet):
         
         serializer = AssignRiderSerializer(data=request.data)
         if serializer.is_valid():
-            rider = DeliveryRider.objects.get(id=serializer.validated_data['rider_id'])
-            
-            with transaction.atomic():
-                # Create assignment
-                assignment = OrderAssignment.objects.create(
-                    order=order,
-                    rider=rider,
-                    delivery_instructions=serializer.validated_data.get('delivery_instructions', ''),
-                    picked_up_at=timezone.now()  # Set picked_up_at when order is assigned
+            try:
+                rider = DeliveryRider.objects.get(id=serializer.validated_data['rider_id'])
+            except DeliveryRider.DoesNotExist:
+                logger.error(f"Rider not found with ID: {serializer.validated_data['rider_id']}")
+                return Response(
+                    {'error': 'Selected rider not found'},
+                    status=status.HTTP_404_NOT_FOUND
                 )
-                
-                # Update order status
-                order.status = 'Out for Delivery'
-                order.save()
-                
-                # Rider stats will be updated by signal
             
-            return Response(
-                OrderAssignmentSerializer(assignment).data,
-                status=status.HTTP_201_CREATED
-            )
+            try:
+                with transaction.atomic():
+                    # Create assignment
+                    assignment = OrderAssignment.objects.create(
+                        order=order,
+                        rider=rider,
+                        delivery_instructions=serializer.validated_data.get('delivery_instructions', ''),
+                        picked_up_at=timezone.now()  # Set picked_up_at when order is assigned
+                    )
+                    
+                    # Update order status
+                    order.status = 'Out for Delivery'
+                    order.save()
+                    
+                    # Rider stats will be updated by signal
+                    
+                    return Response(
+                        OrderAssignmentSerializer(assignment).data,
+                        status=status.HTTP_201_CREATED
+                    )
+            except Exception as e:
+                logger.error(f"Error creating assignment: {e}", exc_info=True)
+                return Response(
+                    {'error': 'Failed to create assignment. Please try again.'},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
         
+        logger.warning(f"Invalid serializer data: {serializer.errors}")
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 

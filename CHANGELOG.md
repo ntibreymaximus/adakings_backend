@@ -2,6 +2,41 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.8.2] - 2025-07-15
+
+### 🚀 Development Release
+
+**📋 Release Information:**
+- **Environment**: dev
+- **Branch**: `dev/1.8.2`
+- **Version**: `Unknown` → `1.8.2`
+- **Deployment Time**: 2025-07-15 12:51:24
+- **Description**: Development environment deployment with latest features
+
+**📝 Changes Made:**
+Version: 1.8.2 feat: Deploy to dev environment
+
+**📁 Files Modified:**
+  - Modified: `EPLOYMENT_SUMMARY.md`
+  - Modified: `README.md`
+  - Modified: `VERSION`
+  - Modified: `adakings_menu.txt`
+  - Modified: `apps/deliveries/views.py`
+
+**🔄 Deployment Details:**
+- **Source Branch**: `dev/1.8.2`
+- **Target Branch**: `dev/1.8.2`
+- **Merge Strategy**: Automatic merge with main branch
+- **Version Bump Type**: Version update
+
+**🎯 Environment Specific Notes:**
+- Development environment deployment
+- Contains latest features and changes
+- Used for integration testing before production
+- May contain experimental features
+
+---
+
 ## [2.0.1] - 2025-07-15
 
 ### 🎯 Production Release
