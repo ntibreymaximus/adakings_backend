@@ -280,27 +280,46 @@ class Order(models.Model):
     
     def generate_order_number(self):
         """Generate a unique order number in the format DDMMYY-XXX"""
+        from django.db import transaction
+        
         # Get current date in DDMMYY format
         date_part = timezone.now().strftime("%d%m%y")
         
-        # Get the latest order with the same date part
-        latest_orders = Order.objects.filter(
-            order_number__startswith=date_part
-        ).order_by('-order_number')
-        
-        if latest_orders.exists():
-            # Extract the numeric part after the hyphen
-            latest_number = latest_orders.first().order_number
-            try:
-                seq_number = int(latest_number.split('-')[1]) + 1
-            except (IndexError, ValueError):
-                seq_number = 1
-        else:
-            # No orders for today yet
-            seq_number = 1
+        # Use a database lock to prevent race conditions
+        with transaction.atomic():
+            # Get all orders with the same date part
+            existing_orders = Order.objects.filter(
+                order_number__startswith=date_part
+            ).select_for_update().order_by('-order_number')
             
-        # Format with leading zeros (e.g., 001, 012, 123)
-        return f"{date_part}-{seq_number:03d}"
+            # Extract all existing sequence numbers for today
+            existing_numbers = set()
+            for order in existing_orders:
+                try:
+                    seq_num = int(order.order_number.split('-')[1])
+                    existing_numbers.add(seq_num)
+                except (IndexError, ValueError):
+                    continue
+            
+            # Find the next available sequence number
+            seq_number = 1
+            while seq_number in existing_numbers:
+                seq_number += 1
+            
+            # Keep trying until we get a unique order number
+            max_attempts = 10
+            for attempt in range(max_attempts):
+                candidate_order_number = f"{date_part}-{seq_number:03d}"
+                
+                # Double-check that this order number doesn't exist
+                if not Order.objects.filter(order_number=candidate_order_number).exists():
+                    return candidate_order_number
+                
+                # If it exists (rare race condition), try the next number
+                seq_number += 1
+            
+            # If we've exhausted attempts, raise an error
+            raise ValueError(f"Unable to generate unique order number after {max_attempts} attempts")
     
     def save(self, *args, **kwargs):
         # Skip validation if we're only updating specific fields (like from signals)

@@ -2,6 +2,49 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.8.1] - 2025-07-15
+
+### 🚀 Development Release
+
+**📋 Release Information:**
+- **Environment**: dev
+- **Branch**: `dev/1.8.1`
+- **Version**: `Unknown` → `1.8.1`
+- **Deployment Time**: 2025-07-15 09:03:29
+- **Description**: Development environment deployment with latest features
+
+**📝 Changes Made:**
+Version: 1.8.1 feat: Deploy to dev environment
+
+**📁 Files Modified:**
+  - Modified: `EPLOYMENT_SUMMARY.md`
+  - Modified: `README.md`
+  - Modified: `VERSION`
+  - Modified: `adakings_menu.txt`
+  - Modified: `apps/orders/models.py`
+  - Modified: `apps/orders/views.py`
+  - Deleted: `test_api_response.py`
+  - Deleted: `test_delivery_history.py`
+  - Deleted: `test_delivery_validation.py`
+  - Deleted: `test_historical_data.py`
+  - Deleted: `test_payment_endpoint.py`
+  - Deleted: `test_payment_final.py`
+  - Deleted: `test_serializer_output.py`
+
+**🔄 Deployment Details:**
+- **Source Branch**: `dev/1.8.1`
+- **Target Branch**: `dev/1.8.1`
+- **Merge Strategy**: Automatic merge with main branch
+- **Version Bump Type**: Version update
+
+**🎯 Environment Specific Notes:**
+- Development environment deployment
+- Contains latest features and changes
+- Used for integration testing before production
+- May contain experimental features
+
+---
+
 ## [1.8.0] - 2025-07-15
 
 ### 🚀 Development Release

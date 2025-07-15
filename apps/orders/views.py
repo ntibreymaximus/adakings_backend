@@ -41,19 +41,33 @@ class OrderListPagination(PageNumberPagination):
 @authentication_classes([JWTAuthentication])
 @permission_classes([IsAuthenticated])
 def next_order_number(request):
-    last_order = Order.objects.all().order_by('id').last()
-    if not last_order or not last_order.order_number:
-        next_number = 1
-    else:
+    """Get the next available order number for preview purposes"""
+    from django.utils import timezone
+    
+    # Get current date in DDMMYY format
+    date_part = timezone.now().strftime("%d%m%y")
+    
+    # Get all orders with the same date part
+    existing_orders = Order.objects.filter(
+        order_number__startswith=date_part
+    ).order_by('-order_number')
+    
+    # Extract all existing sequence numbers for today
+    existing_numbers = set()
+    for order in existing_orders:
         try:
-            # Assumes order_number format is 'ADA-XXXX'
-            last_number = int(last_order.order_number.split('-')[-1])
-            next_number = last_number + 1
-        except (ValueError, IndexError):
-            # Fallback if the format is unexpected
-            next_number = (Order.objects.count() + 1)
-
-    return Response({'next_order_number': f'ADA-{next_number:04d}'})
+            seq_num = int(order.order_number.split('-')[1])
+            existing_numbers.add(seq_num)
+        except (IndexError, ValueError):
+            continue
+    
+    # Find the next available sequence number
+    seq_number = 1
+    while seq_number in existing_numbers:
+        seq_number += 1
+    
+    # Return the next available order number
+    return Response({'next_order_number': f'{date_part}-{seq_number:03d}'})
 
 @extend_schema(
     summary="Get Today's Orders",
