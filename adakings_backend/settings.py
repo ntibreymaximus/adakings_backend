@@ -351,9 +351,7 @@ if redis_url and not DEBUG:
         'default': {
             'BACKEND': 'django.core.cache.backends.redis.RedisCache',
             'LOCATION': redis_url,
-            'TIMEOUT': 300,  # 5 minutes default timeout
             'OPTIONS': {
-                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
                 'CONNECTION_POOL_KWARGS': {
                     'max_connections': 50,
                     'retry_on_timeout': True,
