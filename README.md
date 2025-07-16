@@ -8,7 +8,7 @@ This is the Adakings Backend API with a comprehensive **branch-specific versioni
 ```
 feature=4.0.0
 dev=1.9.0
-production=2.0.5
+production=2.0.6
 ```
 
 ## 📁 Project Structure
@@ -18,13 +18,13 @@ adakings_backend/
 ├── .deploy_backup
 ├── .dockerignore
 ├── .env
+├── .env.google_sheets
+├── .env.google_sheets.example
 ├── .gitignore
 ├── adakings_backend
 ├── adakings_local.db
 ├── adakings_menu.txt
 ├── apps
-├── CHANGELOG.md
-├── check_env.bat
 ```
 
 ## 🔧 Branch-Specific Versioning
@@ -52,5 +52,5 @@ The VERSION file tracks all three branch types independently:
 ```
 feature=4.0.0      # Latest feature version
 dev=1.9.0          # Latest dev version
-production=2.0.5   # Latest production version
+production=2.0.6   # Latest production version
 ```

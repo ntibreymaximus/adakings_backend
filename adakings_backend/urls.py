@@ -88,6 +88,9 @@ urlpatterns = [
     
     # Deliveries app API URLs
     path('api/deliveries/', include(('apps.deliveries.urls', 'deliveries'), namespace='deliveries')),
+    
+    # Google Sheets API URLs - Temporarily disabled
+    # path('api/google-sheets/', include(('apps.google_sheets.urls', 'google_sheets'), namespace='google_sheets')),
 
 
     # JWT token endpoints

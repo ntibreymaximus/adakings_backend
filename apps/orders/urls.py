@@ -9,6 +9,11 @@ from .views import (
     next_order_number,
     todays_orders
 )
+from .views_export_import import (
+    export_orders,
+    import_orders,
+    download_import_template
+)
 
 app_name = 'orders_api'
 
@@ -17,8 +22,11 @@ app_name = 'orders_api'
 # router.register(r'orders', OrderViewSet, basename='order')
 
 urlpatterns = [
-    # path('', include(router.urls)),
+# path('', include(router.urls)),
     path('', OrderListCreateAPIView.as_view(), name='order-list-create'),
+    path('export/', export_orders, name='order-export'),
+    path('import/', import_orders, name='order-import'),
+    path('download-template/', download_import_template, name='import-template'),
     path('today/', todays_orders, name='todays-orders'),
     path('next-order-number/', next_order_number, name='next-order-number'),
     path('delivery-locations/', DeliveryLocationListAPIView.as_view(), name='delivery-locations'),

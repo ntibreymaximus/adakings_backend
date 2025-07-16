@@ -2,6 +2,55 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.6] - 2025-07-16
+
+### 🎯 Production Release
+
+**📋 Release Information:**
+- **Environment**: production
+- **Branch**: `prod`
+- **Version**: `4.0.0` → `2.0.6`
+- **Deployment Time**: 2025-07-16 11:21:23
+- **Description**: Production deployment - stable release
+
+**📝 Changes Made:**
+Version: 2.0.6 feat: Deploy to production environment
+
+**📁 Files Modified:**
+  - Modified: `EPLOYMENT_SUMMARY.md`
+  - Modified: `README.md`
+  - Modified: `VERSION`
+  - Modified: `adakings_backend/asgi.py`
+  - Modified: `adakings_backend/settings.py`
+  - Modified: `adakings_backend/urls.py`
+  - Modified: `apps/orders/urls.py`
+  - Modified: `apps/websockets/signals.py`
+  - Modified: `requirements.txt`
+  - Changed: `GOOGLE_SHEETS_SETUP.md`
+  - Changed: `apps/google_sheets/`
+  - Changed: `apps/orders/export_utils.py`
+  - Changed: `apps/orders/import_utils.py`
+  - Changed: `apps/orders/views_export_import.py`
+  - Changed: `cleanup_google_drive.py`
+  - Changed: `credentials/`
+  - Changed: `direct_cleanup_drive.py`
+  - Changed: `docs/`
+  - Changed: `test_google_sheets_integration.py`
+
+**🔄 Deployment Details:**
+- **Source Branch**: `prod/2.0.6`
+- **Target Branch**: `prod`
+- **Merge Strategy**: Automatic merge with main branch
+- **Version Bump Type**: Patch (bug fixes)
+
+**🎯 Environment Specific Notes:**
+- Production environment deployment
+- Stable and tested release
+- Ready for end users
+- All features have been thoroughly tested
+
+---
+
 ## [2.0.5] - 2025-07-16
 
 ### 🎯 Production Release

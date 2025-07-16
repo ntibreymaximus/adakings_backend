@@ -13,14 +13,21 @@ channel_layer = get_channel_layer()
 
 def send_websocket_notification(group_name, event_type, payload):
     """Send notification to WebSocket group."""
-    if channel_layer:
-        async_to_sync(channel_layer.group_send)(
-            group_name,
-            {
-                'type': event_type,
-                'payload': payload
-            }
-        )
+    try:
+        if channel_layer:
+            async_to_sync(channel_layer.group_send)(
+                group_name,
+                {
+                    'type': event_type,
+                    'payload': payload
+                }
+            )
+    except RuntimeError as e:
+        # Handle "cannot schedule new futures after interpreter shutdown"
+        if "cannot schedule new futures after interpreter shutdown" in str(e):
+            logger.debug(f"WebSocket notification skipped during shutdown: {group_name}")
+        else:
+            raise
 
 # Order-related signals
 @receiver(post_save, sender='orders.Order')

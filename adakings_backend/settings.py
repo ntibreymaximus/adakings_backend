@@ -9,8 +9,12 @@ import sys
 import logging
 from datetime import timedelta
 
-# Load environment variables from .env file
-from dotenv import load_dotenv
+# Load environment variables from .env files
+from dotenv import load_dotenv, dotenv_values
+import environ
+
+# Initialize environ
+env = environ.Env()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -90,6 +94,7 @@ INSTALLED_APPS = [
     'apps.websockets',
     'apps.audit',
     'apps.deliveries',
+    # 'apps.google_sheets',  # Temporarily disabled
     
     # Third-party apps
     'rest_framework',
@@ -142,6 +147,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'adakings_backend.middleware.EnvironmentTagMiddleware',
+    # 'apps.google_sheets.middleware.CurrentUserMiddleware',  # Temporarily disabled
 ] + MIDDLEWARE_DEBUG
 
 ROOT_URLCONF = 'adakings_backend.urls'
@@ -231,6 +237,13 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
+
+# Google Sheets Configuration
+load_dotenv('.env.google_sheets')  # Load Google Sheets specific env vars
+
+GOOGLE_SHEETS_SYNC_ENABLED = env.bool('GOOGLE_SHEETS_SYNC_ENABLED', default=False)
+GOOGLE_SHEETS_SPREADSHEET_ID = env.str('GOOGLE_SHEETS_SPREADSHEET_ID', default='')
+GOOGLE_SHEETS_SHARE_EMAIL = env.str('GOOGLE_SHEETS_SHARE_EMAIL', default='')
 
 # Internationalization
 LANGUAGE_CODE = 'en-us'
