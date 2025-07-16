@@ -1,10 +1,26 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.utils.translation import gettext_lazy as _
+from import_export import resources
+from import_export.admin import ImportExportModelAdmin
 from .models import CustomUser
 from .forms import CustomUserCreationForm, CustomUserChangeForm
 
-class CustomUserAdmin(UserAdmin):
+class CustomUserResource(resources.ModelResource):
+    """Resource class for importing/exporting Custom Users"""
+    class Meta:
+        model = CustomUser
+        fields = ('id', 'username', 'email', 'first_name', 'last_name', 'staff_id', 
+                 'role', 'is_active', 'is_staff', 'is_superuser', 'date_joined')
+        export_order = ('id', 'username', 'email', 'first_name', 'last_name', 'staff_id', 
+                       'role', 'is_active', 'date_joined')
+        import_id_fields = ('username',)
+        skip_unchanged = True
+        report_skipped = True
+        exclude = ('password',)  # Don't export passwords
+
+class CustomUserAdmin(UserAdmin, ImportExportModelAdmin):
+    resource_class = CustomUserResource
     """
     Custom admin class for CustomUser model with role-based fields
     and enhanced user management capabilities.

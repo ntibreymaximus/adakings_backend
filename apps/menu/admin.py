@@ -1,8 +1,21 @@
 from django.contrib import admin
+from import_export import resources
+from import_export.admin import ImportExportModelAdmin
 from .models import MenuItem
 
+class MenuItemResource(resources.ModelResource):
+    """Resource class for importing/exporting Menu Items"""
+    class Meta:
+        model = MenuItem
+        fields = ('id', 'name', 'item_type', 'price', 'is_available', 'created_by', 'created_at', 'updated_at')
+        export_order = ('id', 'name', 'item_type', 'price', 'is_available', 'created_at')
+        import_id_fields = ('id',)
+        skip_unchanged = True
+        report_skipped = True
+
 @admin.register(MenuItem)
-class MenuItemAdmin(admin.ModelAdmin):
+class MenuItemAdmin(ImportExportModelAdmin):
+    resource_class = MenuItemResource
     list_display = ['name', 'item_type', 'price', 'is_available', 'created_by', 'created_at']
     list_filter = ['item_type', 'is_available', 'created_at']
     search_fields = ['name']

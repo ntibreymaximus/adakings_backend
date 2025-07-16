@@ -3,12 +3,27 @@ from django.utils.html import format_html
 from django.urls import reverse
 from django.utils.safestring import mark_safe
 import json
+from import_export import resources
+from import_export.admin import ImportExportModelAdmin
 
 from .models import AuditLog, UserActivitySummary
 
 
+class AuditLogResource(resources.ModelResource):
+    """Resource class for importing/exporting Audit Logs"""
+    class Meta:
+        model = AuditLog
+        fields = ('id', 'user', 'action', 'timestamp', 'content_type', 'object_id', 
+                 'object_repr', 'changes', 'ip_address', 'user_agent', 'app_label', 'model_name')
+        export_order = ('id', 'timestamp', 'user', 'action', 'app_label', 'model_name', 
+                       'object_repr', 'ip_address')
+        import_id_fields = ('id',)
+        skip_unchanged = True
+        report_skipped = True
+
 @admin.register(AuditLog)
-class AuditLogAdmin(admin.ModelAdmin):
+class AuditLogAdmin(ImportExportModelAdmin):
+    resource_class = AuditLogResource
     list_display = [
         'timestamp', 
         'user_display', 
@@ -94,8 +109,21 @@ class AuditLogAdmin(admin.ModelAdmin):
         return request.user.is_superuser
 
 
+class UserActivitySummaryResource(resources.ModelResource):
+    """Resource class for importing/exporting User Activity Summaries"""
+    class Meta:
+        model = UserActivitySummary
+        fields = ('id', 'user', 'date', 'total_actions', 'creates', 'updates', 
+                 'deletes', 'payments', 'last_activity')
+        export_order = ('id', 'date', 'user', 'total_actions', 'creates', 'updates', 
+                       'deletes', 'payments', 'last_activity')
+        import_id_fields = ('id',)
+        skip_unchanged = True
+        report_skipped = True
+
 @admin.register(UserActivitySummary)
-class UserActivitySummaryAdmin(admin.ModelAdmin):
+class UserActivitySummaryAdmin(ImportExportModelAdmin):
+    resource_class = UserActivitySummaryResource
     list_display = [
         'user',
         'date',
