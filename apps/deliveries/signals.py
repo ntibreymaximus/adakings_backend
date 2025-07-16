@@ -1,4 +1,4 @@
-from django.db.models.signals import post_save, pre_save, post_migrate
+from django.db.models.signals import post_save, pre_save, post_delete, post_migrate
 from django.dispatch import receiver
 from django.utils import timezone
 from django.db.models import Count, Q
@@ -118,6 +118,20 @@ def recalculate_rider_stats(rider):
         rider.total_deliveries = delivered_count
         rider.save(update_fields=['current_orders', 'total_deliveries'])
         logger.info(f"Recalculated stats for {rider.name}: current={current_count}, total={delivered_count}")
+
+
+@receiver(post_delete, sender=OrderAssignment)
+def update_rider_stats_on_assignment_delete(sender, instance, **kwargs):
+    """Update rider statistics when an assignment is deleted"""
+    if instance.rider:
+        logger.info(f"Assignment deleted for order {instance.order.order_number} - updating rider {instance.rider.name} stats")
+        
+        # Recalculate rider stats after deletion
+        recalculate_rider_stats(instance.rider)
+        
+        # Refresh rider instance to get updated values
+        instance.rider.refresh_from_db()
+        logger.info(f"After deletion - Rider {instance.rider.name}: current_orders={instance.rider.current_orders}, total_deliveries={instance.rider.total_deliveries}")
 
 
 @receiver(post_migrate)

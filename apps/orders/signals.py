@@ -88,9 +88,11 @@ def track_order_status_change(sender, instance, **kwargs):
 
 
 @receiver(post_save, sender=Order)
-def update_delivery_assignment_on_fulfilled(sender, instance, created, **kwargs):
+def update_delivery_assignment_on_status_change(sender, instance, created, **kwargs):
     """
-    Automatically update delivery assignment status to 'delivered' when order status becomes 'Fulfilled'.
+    Handle delivery assignment changes when order status changes:
+    - Automatically update to 'delivered' when order becomes 'Fulfilled'
+    - Remove assignment when order status changes back to 'Accepted'
     """
     # Skip for new orders
     if created:
@@ -100,14 +102,37 @@ def update_delivery_assignment_on_fulfilled(sender, instance, created, **kwargs)
     if getattr(instance, '_updating_from_delivery', False):
         return
     
-    # Check if status changed to Fulfilled
+    # Check if status changed
     old_status = getattr(instance, '_old_status', None)
     new_status = instance.status
     
-    if old_status != new_status and new_status == Order.STATUS_FULFILLED:
-        # Import here to avoid circular imports
-        from apps.deliveries.models import OrderAssignment
-        
+    # If status hasn't changed, nothing to do
+    if old_status == new_status:
+        return
+    
+    # Import here to avoid circular imports
+    from apps.deliveries.models import OrderAssignment
+    
+    # Handle status change to Accepted - remove delivery assignment
+    if new_status == Order.STATUS_ACCEPTED:
+        try:
+            assignment = instance.delivery_assignment
+            if assignment:
+                logger.info(f"Order {instance.order_number} status changed back to Accepted - removing delivery assignment")
+                
+                # Update rider stats before deleting
+                if assignment.rider:
+                    # The deletion will trigger signals to update rider stats
+                    logger.info(f"Removing assignment from rider {assignment.rider.name}")
+                
+                # Delete the assignment
+                assignment.delete()
+                logger.info(f"Delivery assignment removed for order {instance.order_number}")
+        except OrderAssignment.DoesNotExist:
+            pass  # No assignment to remove
+    
+    # Handle status change to Fulfilled
+    elif new_status == Order.STATUS_FULFILLED:
         try:
             # Get the delivery assignment for this order
             assignment = instance.delivery_assignment
