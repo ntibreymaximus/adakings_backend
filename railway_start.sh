@@ -54,23 +54,17 @@ fi
 echo "=== Creating superuser if needed ==="
 python manage.py create_superuser_if_none_exists || echo "Superuser creation skipped (may already exist)"
 
-echo "=== Testing WSGI application ==="
-python -c "from adakings_backend.wsgi import application; print('WSGI application loaded successfully')"
+echo "=== Testing ASGI application ==="
+python -c "from adakings_backend.asgi import application; print('ASGI application loaded successfully')"
 if [ $? -ne 0 ]; then
-    echo "WSGI application test failed!"
+    echo "ASGI application test failed!"
     exit 1
 fi
 
-echo "=== Starting Gunicorn with enhanced logging ==="
-exec gunicorn adakings_backend.wsgi:application \
-    --bind 0.0.0.0:$PORT \
-    --workers 2 \
-    --worker-class sync \
-    --timeout 60 \
-    --keep-alive 5 \
-    --max-requests 1000 \
-    --max-requests-jitter 100 \
-    --access-logfile - \
-    --error-logfile - \
-    --log-level info \
-    --preload
+echo "=== Starting Daphne for WebSocket support ==="
+exec daphne \
+    -b 0.0.0.0 \
+    -p $PORT \
+    --access-log - \
+    -v 2 \
+    adakings_backend.asgi:application
