@@ -352,12 +352,6 @@ if redis_url and not DEBUG:
         'default': {
             'BACKEND': 'django.core.cache.backends.redis.RedisCache',
             'LOCATION': redis_url,
-            'OPTIONS': {
-                'CONNECTION_POOL_KWARGS': {
-                    'max_connections': 50,
-                    'retry_on_timeout': True,
-                }
-            }
         }
     }
 else:
