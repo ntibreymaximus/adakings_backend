@@ -190,5 +190,7 @@ class OrderItemAdmin(admin.ModelAdmin):
     order_id.short_description = 'Order'
     
     def menu_item_name(self, obj):
-        return obj.menu_item.name
+        if obj.menu_item:
+            return obj.menu_item.name
+        return "(No menu item)"
     menu_item_name.short_description = 'Menu Item'
