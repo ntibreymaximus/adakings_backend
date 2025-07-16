@@ -103,6 +103,7 @@ INSTALLED_APPS = [
     'drf_spectacular',
     'corsheaders',
     'channels',
+    'import_export',
 ]
 
 # Enable development tools if available and in debug mode

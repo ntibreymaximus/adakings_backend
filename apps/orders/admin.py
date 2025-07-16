@@ -6,7 +6,12 @@ from django.utils.html import format_html
 from django.urls import reverse
 from django.utils.http import urlencode
 from django.http import HttpResponseRedirect
+from import_export import resources
+from import_export.admin import ImportExportModelAdmin
+from import_export import fields
+from import_export.widgets import ForeignKeyWidget
 from .models import Order, OrderItem
+from apps.deliveries.models import DeliveryLocation
 
 class OrderItemInline(admin.TabularInline):
     model = OrderItem
@@ -22,8 +27,32 @@ class OrderItemInline(admin.TabularInline):
     def has_delete_permission(self, request, obj=None):
         return True
 
+class OrderResource(resources.ModelResource):
+    """Resource class for importing/exporting Orders"""
+    delivery_location = fields.Field(
+        column_name='delivery_location',
+        attribute='delivery_location',
+        widget=ForeignKeyWidget(DeliveryLocation, 'name')
+    )
+    
+    class Meta:
+        model = Order
+        fields = (
+            'order_number', 'customer_phone', 'delivery_type', 
+            'delivery_location', 'status', 'total_price', 'delivery_fee',
+            'notes', 'created_at', 'updated_at'
+        )
+        export_order = (
+            'order_number', 'created_at', 'customer_phone', 'delivery_type',
+            'delivery_location', 'status', 'total_price', 'delivery_fee', 'notes'
+        )
+        import_id_fields = ('order_number',)
+        skip_unchanged = True
+        report_skipped = True
+
 @admin.register(Order)
-class OrderAdmin(admin.ModelAdmin):
+class OrderAdmin(ImportExportModelAdmin):
+    resource_class = OrderResource
     list_display = ('order_number', 'customer_phone', 'delivery_info', 
                    'total_price_display', 'status', 'created_at')
     list_filter = ('status', 'created_at', 'delivery_type')
