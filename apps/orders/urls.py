@@ -9,7 +9,8 @@ from .views import (
     next_order_number,
     todays_orders,
     order_options,
-    order_stats
+    order_stats,
+    quick_stats
 )
 from .views_export_import import (
     export_orders,
@@ -35,6 +36,7 @@ urlpatterns = [
     path('delivery-locations/', DeliveryLocationListAPIView.as_view(), name='delivery-locations'),
     path('status-history/', OrderStatusHistoryAPIView.as_view(), name='order-status-history'),
     path('stats/', order_stats, name='order-stats'),
+    path('stats/quick/', quick_stats, name='quick-stats'),
     path('<str:order_number>/', OrderRetrieveUpdateDestroyAPIView.as_view(), name='order-detail'),
     path('<str:order_number>/status/', OrderStatusUpdateAPIView.as_view(), name='order-status-update'),
 ]

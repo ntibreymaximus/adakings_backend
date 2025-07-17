@@ -2,6 +2,111 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.2.0] - 2025-07-17
+
+### 🎯 Production Release
+
+**📋 Release Information:**
+- **Environment**: production
+- **Branch**: `prod`
+- **Version**: `4.0.0` → `2.2.0`
+- **Deployment Time**: 2025-07-17 17:08:34
+- **Description**: Production deployment - stable release
+
+**📝 Changes Made:**
+Version: 2.2.0 feat: Deploy to production environment
+
+**📁 Files Modified:**
+  - Modified: `EPLOYMENT_SUMMARY.md`
+  - Modified: `README.md`
+  - Modified: `VERSION`
+
+**🔄 Deployment Details:**
+- **Source Branch**: `prod/2.2.0`
+- **Target Branch**: `prod`
+- **Merge Strategy**: Automatic merge with main branch
+- **Version Bump Type**: Minor (new features)
+
+**🎯 Environment Specific Notes:**
+- Production environment deployment
+- Stable and tested release
+- Ready for end users
+- All features have been thoroughly tested
+
+---
+
+## [2.1.0] - 2025-07-17
+
+### 🚀 Development Release
+
+**📋 Release Information:**
+- **Environment**: dev
+- **Branch**: `dev/2.1.0`
+- **Version**: `Unknown` → `2.1.0`
+- **Deployment Time**: 2025-07-17 16:34:25
+- **Description**: Development environment deployment with latest features
+
+**📝 Changes Made:**
+Version: 2.1.0 feat: Deploy to dev environment
+
+**📁 Files Modified:**
+  - Modified: `EPLOYMENT_SUMMARY.md`
+  - Modified: `README.md`
+  - Modified: `VERSION`
+  - Modified: `apps/websockets/signals.py`
+
+**🔄 Deployment Details:**
+- **Source Branch**: `dev/2.1.0`
+- **Target Branch**: `dev/2.1.0`
+- **Merge Strategy**: Automatic merge with main branch
+- **Version Bump Type**: Version update
+
+**🎯 Environment Specific Notes:**
+- Development environment deployment
+- Contains latest features and changes
+- Used for integration testing before production
+- May contain experimental features
+
+---
+
+## [2.0.1] - 2025-07-17
+
+### 🚀 Development Release
+
+**📋 Release Information:**
+- **Environment**: dev
+- **Branch**: `dev/2.0.1`
+- **Version**: `Unknown` → `2.0.1`
+- **Deployment Time**: 2025-07-17 16:17:55
+- **Description**: Development environment deployment with latest features
+
+**📝 Changes Made:**
+Version: 2.0.1 feat: Deploy to dev environment
+
+**📁 Files Modified:**
+  - Modified: `EPLOYMENT_SUMMARY.md`
+  - Modified: `README.md`
+  - Modified: `VERSION`
+  - Modified: `adakings_menu.txt`
+  - Modified: `apps/orders/serializers.py`
+  - Modified: `apps/orders/urls.py`
+  - Modified: `apps/orders/views.py`
+  - Modified: `delivery_locations.txt`
+
+**🔄 Deployment Details:**
+- **Source Branch**: `dev/2.0.1`
+- **Target Branch**: `dev/2.0.1`
+- **Merge Strategy**: Automatic merge with main branch
+- **Version Bump Type**: Version update
+
+**🎯 Environment Specific Notes:**
+- Development environment deployment
+- Contains latest features and changes
+- Used for integration testing before production
+- May contain experimental features
+
+---
+
 ## [2.1.0] - 2025-07-17
 
 ### 🎯 Production Release
