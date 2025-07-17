@@ -105,7 +105,7 @@ class Order(models.Model):
     status = models.CharField(
         max_length=20,
         choices=STATUS_CHOICES,
-        default="Pending"
+        default=STATUS_ACCEPTED
     )
     
     total_price = models.DecimalField(
@@ -142,6 +142,22 @@ class Order(models.Model):
         """Calculates the amount overpaid by the customer."""
         overpaid = self.amount_paid() - self.total_price
         return max(overpaid, Decimal('0.00'))
+    
+    def refund_amount(self):
+        """Calculates the refund amount due to the customer."""
+        # Calculate overpayment amount
+        overpaid = self.amount_overpaid()
+        
+        # Calculate total refunds already processed
+        completed_refunds = self.payments.filter(
+            status=self.payments.model.STATUS_COMPLETED, 
+            payment_type=self.payments.model.PAYMENT_TYPE_REFUND
+        )
+        total_refunded = completed_refunds.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        
+        # Refund amount due = overpayment - refunds already processed
+        refund_due = overpaid - total_refunded
+        return max(refund_due, Decimal('0.00'))
 
     def is_paid(self):
         """Check if order's balance due is zero (i.e., fully paid or overpaid)."""
@@ -325,7 +341,7 @@ class Order(models.Model):
         # Skip validation if we're only updating specific fields (like from signals)
         # This prevents validation errors during partial updates
         update_fields = kwargs.get('update_fields')
-        skip_validation = update_fields and all(field in ['total_price', 'updated_at', 'delivery_fee'] for field in update_fields)
+        skip_validation = update_fields and all(field in ['total_price', 'updated_at', 'delivery_fee', 'status'] for field in update_fields)
         
         if not skip_validation:
             self.full_clean() # Validate fields

@@ -97,6 +97,7 @@ class OrderSerializer(serializers.ModelSerializer):
     amount_paid = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
     balance_due = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
     amount_overpaid = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    refund_amount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
     payment_status = serializers.SerializerMethodField()
     payment_mode = serializers.SerializerMethodField()
     payments = serializers.SerializerMethodField()
@@ -115,7 +116,7 @@ class OrderSerializer(serializers.ModelSerializer):
             'delivery_type', 'delivery_location', 'delivery_location_name', 'delivery_location_fee',
             'custom_delivery_location', 'custom_delivery_fee', 'effective_delivery_location_name',
             'status', 'total_price', 'delivery_fee', 'notes', 'created_at', 'updated_at',
-            'items', 'amount_paid', 'balance_due', 'amount_overpaid', 
+            'items', 'amount_paid', 'balance_due', 'amount_overpaid', 'refund_amount',
             'payment_status', 'payment_mode', 'payments', 'time_ago', 'assigned_rider_name'
         ]
         read_only_fields = ['order_number', 'total_price', 'created_at', 'updated_at', 'delivery_location_name', 'delivery_location_fee']
@@ -345,22 +346,12 @@ class OrderStatusUpdateSerializer(serializers.ModelSerializer):
                 )
             # No payment requirement for "Out for Delivery" - only delivery type check
         
-        # Payment validation based on order type
-        if order.delivery_type == 'Delivery':
-            # For delivery orders: payment only required for "Fulfilled" status
-            if value == Order.STATUS_FULFILLED and not is_payment_confirmed:
-                raise serializers.ValidationError(
-                    'Fulfilled status requires full payment for delivery orders. Current payment status: {}'
-                    .format(payment_status)
-                )
-        else:
-            # For pickup orders: payment required for Accepted and Fulfilled statuses (simplified workflow)
-            restricted_statuses = [Order.STATUS_ACCEPTED, Order.STATUS_FULFILLED]
-            if value in restricted_statuses and not is_payment_confirmed:
-                raise serializers.ValidationError(
-                    'Payment is required for {} status in pickup orders. Current payment status: {}'
-                    .format(value, payment_status)
-                )
+        # Payment validation - only "Fulfilled" status requires payment for all order types
+        if value == Order.STATUS_FULFILLED and not is_payment_confirmed:
+            raise serializers.ValidationError(
+                'Fulfilled status requires full payment. Current payment status: {}'
+                .format(payment_status)
+            )
         
         return value
 

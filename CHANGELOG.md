@@ -2,6 +2,47 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.13] - 2025-07-17
+
+### 🎯 Production Release
+
+**📋 Release Information:**
+- **Environment**: production
+- **Branch**: `prod`
+- **Version**: `4.0.0` → `2.0.13`
+- **Deployment Time**: 2025-07-17 11:35:13
+- **Description**: Production deployment - stable release
+
+**📝 Changes Made:**
+Version: 2.0.13 feat: Deploy to production environment
+
+**📁 Files Modified:**
+  - Modified: `EPLOYMENT_SUMMARY.md`
+  - Modified: `README.md`
+  - Modified: `VERSION`
+  - Modified: `apps/orders/admin.py`
+  - Modified: `apps/orders/models.py`
+  - Modified: `apps/orders/serializers.py`
+  - Modified: `apps/orders/urls.py`
+  - Modified: `apps/orders/views.py`
+  - Modified: `apps/payments/views.py`
+  - Changed: `apps/orders/migrations/0026_change_default_order_status.py`
+  - Changed: `apps/payments/management/commands/process_refunds.py`
+
+**🔄 Deployment Details:**
+- **Source Branch**: `prod/2.0.13`
+- **Target Branch**: `prod`
+- **Merge Strategy**: Automatic merge with main branch
+- **Version Bump Type**: Patch (bug fixes)
+
+**🎯 Environment Specific Notes:**
+- Production environment deployment
+- Stable and tested release
+- Ready for end users
+- All features have been thoroughly tested
+
+---
+
 ## [2.0.12] - 2025-07-16
 
 ### 🎯 Production Release
