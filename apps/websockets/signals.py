@@ -1,15 +1,19 @@
-from django.db.models.signals import post_save, post_delete
+from django.db.models.signals import post_save, post_delete, pre_save
 from django.dispatch import receiver
 from django.utils import timezone
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 import json
 import logging
+from typing import Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
 
 # Get channel layer
 channel_layer = get_channel_layer()
+
+# Track previous states for change detection
+_previous_states = {}
 
 def send_websocket_notification(group_name, event_type, payload):
     """Send notification to WebSocket group."""
@@ -28,26 +32,83 @@ def send_websocket_notification(group_name, event_type, payload):
             logger.debug(f"WebSocket notification skipped during shutdown: {group_name}")
         else:
             raise
+    except Exception as e:
+        logger.error(f"Error sending WebSocket notification to {group_name}: {e}")
+
+def get_model_changes(old_data: Dict, new_data: Dict) -> Dict[str, Dict]:
+    """Compare two dictionaries and return changes."""
+    changes = {}
+    all_keys = set(old_data.keys()) | set(new_data.keys())
+    
+    for key in all_keys:
+        old_value = old_data.get(key)
+        new_value = new_data.get(key)
+        
+        if old_value != new_value:
+            changes[key] = {
+                'old': old_value,
+                'new': new_value
+            }
+    
+    return changes
+
+def send_autoreload_notification(event_type: str, model_name: str, instance_data: Dict, changes: Optional[Dict] = None):
+    """Send autoreload notification to all connected clients."""
+    payload = {
+        'event': 'autoreload',
+        'type': event_type,
+        'model': model_name,
+        'data': instance_data,
+        'changes': changes or {},
+        'timestamp': timezone.now().isoformat()
+    }
+    
+    # Send to general autoreload channel
+    send_websocket_notification('autoreload', 'autoreload_update', payload)
+    
+    # Send to specific model channels
+    model_channel = f'{model_name.lower()}_autoreload'
+    send_websocket_notification(model_channel, 'autoreload_update', payload)
 
 # Order-related signals
+@receiver(pre_save, sender='orders.Order')
+def track_order_changes(sender, instance, **kwargs):
+    """Track order changes before save."""
+    if instance.pk:
+        try:
+            old_instance = sender.objects.get(pk=instance.pk)
+            instance._old_order_data = {
+                'status': old_instance.status,
+                'total_price': str(old_instance.total_price),
+                'customer_phone': old_instance.customer_phone,
+                'delivery_type': old_instance.delivery_type,
+            }
+        except sender.DoesNotExist:
+            instance._old_order_data = None
+    else:
+        instance._old_order_data = None
+
 @receiver(post_save, sender='orders.Order')
 def order_created_or_updated(sender, instance, created, **kwargs):
     """Send order update notification via WebSocket."""
     try:
         event_type = 'order_created' if created else 'order_updated'
         
+        # Get current order data
+        current_data = {
+            'id': instance.id,
+            'order_number': instance.order_number,
+            'status': instance.status,
+            'total_amount': str(instance.total_price),
+            'customer_phone': instance.customer_phone,
+            'delivery_type': instance.delivery_type,
+            'created_at': instance.created_at.isoformat(),
+            'updated_at': instance.updated_at.isoformat(),
+        }
+        
         payload = {
             'event': event_type,
-            'order': {
-                'id': instance.id,
-                'order_number': instance.order_number,
-                'status': instance.status,
-                'total_amount': str(instance.total_price),
-                'customer_phone': instance.customer_phone,
-                'delivery_type': instance.delivery_type,
-                'created_at': instance.created_at.isoformat(),
-                'updated_at': instance.updated_at.isoformat(),
-            }
+            'order': current_data
         }
         
         # Send to orders group
@@ -60,6 +121,20 @@ def order_created_or_updated(sender, instance, created, **kwargs):
                 'user_notification', 
                 payload
             )
+        
+        # Send autoreload notification if not created
+        if not created and hasattr(instance, '_old_order_data') and instance._old_order_data:
+            changes = get_model_changes(instance._old_order_data, {
+                'status': instance.status,
+                'total_price': str(instance.total_price),
+                'customer_phone': instance.customer_phone,
+                'delivery_type': instance.delivery_type,
+            })
+            
+            if changes:
+                send_autoreload_notification('updated', 'Order', current_data, changes)
+        elif created:
+            send_autoreload_notification('created', 'Order', current_data)
             
         logger.info(f"Order {event_type} WebSocket notification sent: {instance.order_number}")
         
