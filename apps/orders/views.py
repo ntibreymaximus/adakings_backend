@@ -1,7 +1,7 @@
 from rest_framework.permissions import AllowAny
 from rest_framework.pagination import PageNumberPagination
 
-from django.db.models import Q
+from django.db.models import Q, Sum
 from django.utils import timezone
 from rest_framework import generics, status, filters, serializers
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
@@ -15,6 +15,7 @@ from apps.deliveries.models import DeliveryLocation
 from .serializers import OrderSerializer, OrderStatusUpdateSerializer, DeliveryLocationSerializer
 from .serializers_bolt_wix import BoltOrderSerializer
 from apps.audit.utils import log_create, log_update, log_delete, log_status_change, get_model_changes, get_data_changes
+from decimal import Decimal
 
 
 class OrderListPagination(PageNumberPagination):
@@ -127,7 +128,7 @@ class OrderListCreateAPIView(generics.ListCreateAPIView):
     serializer_class = OrderSerializer
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
-    pagination_class = OrderListPagination  # Use custom pagination to show all orders
+    pagination_class = None  # Remove pagination to show all orders
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['customer_phone', 'order_number', 'delivery_location__name']
     ordering_fields = ['created_at', 'total_price', 'status']
@@ -442,3 +443,149 @@ class OrderStatusHistoryAPIView(generics.ListAPIView):
             'results': status_history
         })
 
+
+@extend_schema(
+    summary="Get Order Options",
+    description="Returns available options for orders including status choices, delivery types, and other field options.",
+    responses={200: inline_serializer(
+        name='OrderOptions',
+        fields={
+            'status_choices': serializers.ListField(
+                child=inline_serializer(
+                    name='StatusChoice',
+                    fields={
+                        'value': serializers.CharField(),
+                        'display': serializers.CharField(),
+                    }
+                )
+            ),
+            'delivery_type_choices': serializers.ListField(
+                child=inline_serializer(
+                    name='DeliveryTypeChoice',
+                    fields={
+                        'value': serializers.CharField(),
+                        'display': serializers.CharField(),
+                    }
+                )
+            ),
+        }
+    )},
+    tags=['Orders']
+)
+@api_view(['GET'])
+@permission_classes([AllowAny])  # Allow unauthenticated access for frontend
+def order_options(request):
+    """Get available options for order fields"""
+    # Get status choices from the Order model
+    status_choices = [
+        {'value': value, 'display': display} 
+        for value, display in Order.STATUS_CHOICES
+    ]
+    
+    # Get delivery type choices
+    delivery_type_choices = [
+        {'value': value, 'display': display} 
+        for value, display in Order.DELIVERY_CHOICES
+    ]
+    
+    return Response({
+        'status_choices': status_choices,
+        'delivery_type_choices': delivery_type_choices,
+    })
+
+
+@extend_schema(
+    summary="Get Order Statistics",
+    description="Returns aggregated statistics about orders including refund amounts, payment status, and other metrics.",
+    parameters=[
+        OpenApiParameter(
+            name='date',
+            description='Filter by specific date (YYYY-MM-DD)',
+            required=False,
+            type=OpenApiTypes.DATE
+        ),
+        OpenApiParameter(
+            name='days',
+            description='Number of days to look back (default: 30)',
+            required=False,
+            type=OpenApiTypes.INT
+        ),
+    ],
+    responses={200: inline_serializer(
+        name='OrderStats',
+        fields={
+            'total_orders': serializers.IntegerField(),
+            'total_revenue': serializers.DecimalField(max_digits=10, decimal_places=2),
+            'total_refunds_due': serializers.DecimalField(max_digits=10, decimal_places=2),
+            'payment_status_breakdown': serializers.DictField(),
+            'status_breakdown': serializers.DictField(),
+            'delivery_type_breakdown': serializers.DictField(),
+        }
+    )},
+    tags=['Orders']
+)
+@api_view(['GET'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+def order_stats(request):
+    """Get order statistics including refund amounts"""
+    from django.db.models import Count, Sum, Case, When, Value, IntegerField
+    from django.utils import timezone
+    from datetime import timedelta
+    
+    # Get query parameters
+    date_filter = request.query_params.get('date')
+    days_param = request.query_params.get('days', '30')
+    
+    # Build base queryset
+    queryset = Order.objects.select_related('delivery_location').prefetch_related('payments')
+    
+    # Apply date filtering
+    if date_filter:
+        try:
+            target_date = timezone.datetime.strptime(date_filter, '%Y-%m-%d').date()
+            queryset = queryset.filter(created_at__date=target_date)
+        except ValueError:
+            pass  # Invalid date format, ignore filter
+    else:
+        # Default to last X days
+        try:
+            days = int(days_param)
+            cutoff_date = timezone.now() - timedelta(days=days)
+            queryset = queryset.filter(created_at__gte=cutoff_date)
+        except ValueError:
+            pass  # Invalid days parameter, ignore filter
+    
+    # Calculate basic metrics
+    total_orders = queryset.count()
+    total_revenue = queryset.aggregate(Sum('total_price'))['total_price__sum'] or Decimal('0.00')
+    
+    # Calculate total refunds due by iterating through orders (since refund_amount is a method)
+    total_refunds_due = Decimal('0.00')
+    for order in queryset:
+        total_refunds_due += order.refund_amount()
+    
+    # Payment status breakdown
+    payment_status_breakdown = {}
+    for order in queryset:
+        status = order.get_payment_status()
+        payment_status_breakdown[status] = payment_status_breakdown.get(status, 0) + 1
+    
+    # Order status breakdown
+    status_breakdown = dict(queryset.values('status').annotate(count=Count('id')).values_list('status', 'count'))
+    
+    # Delivery type breakdown
+    delivery_type_breakdown = dict(queryset.values('delivery_type').annotate(count=Count('id')).values_list('delivery_type', 'count'))
+    
+    return Response({
+        'total_orders': total_orders,
+        'total_revenue': total_revenue,
+        'total_refunds_due': total_refunds_due,
+        'payment_status_breakdown': payment_status_breakdown,
+        'status_breakdown': status_breakdown,
+        'delivery_type_breakdown': delivery_type_breakdown,
+        'date_range': {
+            'specific_date': date_filter,
+            'days_back': days_param if not date_filter else None
+        }
+    })

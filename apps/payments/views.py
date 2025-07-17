@@ -737,7 +737,16 @@ class TransactionTableAPIView(views.APIView):
         failed_count = 0
         
         # Map through each payment
+        payment_amount = Decimal('0.00')
+        refund_amount = Decimal('0.00')
+        
         for payment in payments:
+            # Track payment vs refund amounts
+            if payment.payment_type == Payment.PAYMENT_TYPE_PAYMENT and payment.status == Payment.STATUS_COMPLETED:
+                payment_amount += payment.amount
+            elif payment.payment_type == Payment.PAYMENT_TYPE_REFUND and payment.status == Payment.STATUS_COMPLETED:
+                refund_amount += payment.amount
+            
             # Get basic payment/order info that will be shared across transactions
             base_row_data = {
                 'order_number': payment.order.order_number,
@@ -795,7 +804,10 @@ class TransactionTableAPIView(views.APIView):
             'total_transactions': len(transaction_rows),
             'total_amount': float(total_amount),
             'successful_transactions': successful_count,
-            'failed_transactions': failed_count
+            'failed_transactions': failed_count,
+            'payment_amount': float(payment_amount),
+            'refund_amount': float(refund_amount),
+            'net_amount': float(payment_amount - refund_amount)
         }
         
         return Response({

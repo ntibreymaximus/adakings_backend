@@ -75,7 +75,7 @@ class OrderAdmin(ImportExportModelAdmin):
         }),
     )
     
-    actions = ['mark_as_confirmed', 'mark_as_processing', 'mark_as_ready', 'mark_as_delivered', 'mark_as_cancelled']
+    actions = ['mark_as_pending', 'mark_as_accepted', 'mark_as_ready', 'mark_as_out_for_delivery', 'mark_as_fulfilled', 'mark_as_cancelled']
 
     def get_queryset(self, request):
         queryset = super().get_queryset(request)
@@ -134,24 +134,28 @@ class OrderAdmin(ImportExportModelAdmin):
     total_price_display.admin_order_field = 'calculated_total'
     total_price_display.short_description = 'Total Price'
     
-    def mark_as_confirmed(self, request, queryset):
-        queryset.update(status='Confirmed')
-    mark_as_confirmed.short_description = "Mark selected orders as confirmed"
+    def mark_as_pending(self, request, queryset):
+        queryset.update(status=Order.STATUS_PENDING)
+    mark_as_pending.short_description = "Mark selected orders as pending"
     
-    def mark_as_processing(self, request, queryset):
-        queryset.update(status='Processing')
-    mark_as_processing.short_description = "Mark selected orders as processing"
+    def mark_as_accepted(self, request, queryset):
+        queryset.update(status=Order.STATUS_ACCEPTED)
+    mark_as_accepted.short_description = "Mark selected orders as accepted"
     
     def mark_as_ready(self, request, queryset):
-        queryset.update(status='Ready')
+        queryset.update(status=Order.STATUS_READY)
     mark_as_ready.short_description = "Mark selected orders as ready"
     
-    def mark_as_delivered(self, request, queryset):
-        queryset.update(status='Delivered')
-    mark_as_delivered.short_description = "Mark selected orders as delivered"
+    def mark_as_out_for_delivery(self, request, queryset):
+        queryset.update(status=Order.STATUS_OUT_FOR_DELIVERY)
+    mark_as_out_for_delivery.short_description = "Mark selected orders as out for delivery"
+    
+    def mark_as_fulfilled(self, request, queryset):
+        queryset.update(status=Order.STATUS_FULFILLED)
+    mark_as_fulfilled.short_description = "Mark selected orders as fulfilled"
     
     def mark_as_cancelled(self, request, queryset):
-        queryset.update(status='Cancelled')
+        queryset.update(status=Order.STATUS_CANCELLED)
     mark_as_cancelled.short_description = "Mark selected orders as cancelled"
     
     def has_related_payments(self, obj):
