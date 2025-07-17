@@ -2,6 +2,73 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.1.0] - 2025-07-17
+
+### 🎯 Production Release
+
+**📋 Release Information:**
+- **Environment**: production
+- **Branch**: `prod`
+- **Version**: `4.0.0` → `2.1.0`
+- **Deployment Time**: 2025-07-17 12:14:54
+- **Description**: Production deployment - stable release
+
+**📝 Changes Made:**
+Version: 2.1.0 feat: Deploy to production environment
+
+**📁 Files Modified:**
+  - Modified: `EPLOYMENT_SUMMARY.md`
+  - Modified: `README.md`
+  - Modified: `VERSION`
+
+**🔄 Deployment Details:**
+- **Source Branch**: `prod/2.1.0`
+- **Target Branch**: `prod`
+- **Merge Strategy**: Automatic merge with main branch
+- **Version Bump Type**: Minor (new features)
+
+**🎯 Environment Specific Notes:**
+- Production environment deployment
+- Stable and tested release
+- Ready for end users
+- All features have been thoroughly tested
+
+---
+
+## [2.0.0] - 2025-07-17
+
+### 🚀 Development Release
+
+**📋 Release Information:**
+- **Environment**: dev
+- **Branch**: `dev/2.0.0`
+- **Version**: `Unknown` → `2.0.0`
+- **Deployment Time**: 2025-07-17 12:00:49
+- **Description**: Development environment deployment with latest features
+
+**📝 Changes Made:**
+Version: 2.0.0 feat: Deploy to dev environment
+
+**📁 Files Modified:**
+  - Modified: `EPLOYMENT_SUMMARY.md`
+  - Modified: `README.md`
+  - Modified: `VERSION`
+  - Modified: `apps/deliveries/views.py`
+
+**🔄 Deployment Details:**
+- **Source Branch**: `dev/2.0.0`
+- **Target Branch**: `dev/2.0.0`
+- **Merge Strategy**: Automatic merge with main branch
+- **Version Bump Type**: Version update
+
+**🎯 Environment Specific Notes:**
+- Development environment deployment
+- Contains latest features and changes
+- Used for integration testing before production
+- May contain experimental features
+
+---
+
 ## [2.0.13] - 2025-07-17
 
 ### 🎯 Production Release

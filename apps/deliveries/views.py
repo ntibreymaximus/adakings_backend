@@ -301,10 +301,10 @@ class AssignRiderToOrderView(viewsets.ViewSet):
             )
         
         # Use the status constants from Order model
-        if order.status not in [Order.STATUS_ACCEPTED, Order.STATUS_OUT_FOR_DELIVERY]:
+        if order.status not in [Order.STATUS_ACCEPTED, Order.STATUS_READY, Order.STATUS_OUT_FOR_DELIVERY]:
             logger.warning(f"Order {order.order_number} is not ready for delivery (Status: {order.status})")
             return Response(
-                {'error': f'Order is not ready for delivery assignment (Status: {order.status}). Order must be in Accepted or Out for Delivery status.'},
+                {'error': f'Order is not ready for delivery assignment (Status: {order.status}). Order must be in Accepted, Ready, or Out for Delivery status.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
