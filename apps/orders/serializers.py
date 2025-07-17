@@ -10,6 +10,8 @@ from apps.menu.models import MenuItem
 from .models import Order, OrderItem # OrderItem model no longer has parent_item
 from apps.deliveries.models import DeliveryLocation
 import logging
+from datetime import datetime, timedelta
+from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
@@ -241,11 +243,16 @@ class OrderSerializer(serializers.ModelSerializer):
         return order
 
     def update(self, instance, validated_data):
-        # Prevent editing of fulfilled and paid orders
+        # Prevent editing of fulfilled and paid orders with a 2-hour grace period
         if instance.status == 'Fulfilled' and instance.is_paid():
-            raise serializers.ValidationError(
-                "Cannot edit orders that are both fulfilled and fully paid."
-            )
+            now = timezone.now()
+            grace_period = timedelta(hours=2)
+            last_edit_time = max(instance.updated_at, instance.created_at)
+            
+            if now > last_edit_time + grace_period:
+                raise serializers.ValidationError(
+                    "Cannot edit orders that are both fulfilled and fully paid after the 2-hour grace period."
+                )
         
         items_data = validated_data.pop('items', None)
 

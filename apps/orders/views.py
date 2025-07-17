@@ -589,3 +589,54 @@ def order_stats(request):
             'days_back': days_param if not date_filter else None
         }
     })
+
+
+@extend_schema(
+    summary="Get Quick Statistics",
+    description="Returns today's quick statistics including today's orders, today's revenue, pending orders, and monthly revenue.",
+    responses={200: inline_serializer(
+        name='QuickStats',
+        fields={
+            'todayOrders': serializers.IntegerField(),
+            'todayRevenue': serializers.DecimalField(max_digits=10, decimal_places=2),
+            'pendingOrders': serializers.IntegerField(),
+            'monthlyRevenue': serializers.DecimalField(max_digits=10, decimal_places=2),
+        }
+    )},
+    tags=['Orders']
+)
+@api_view(['GET'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+def quick_stats(request):
+    """Get today's quick statistics for dashboard"""
+    from django.db.models import Sum
+    from django.utils import timezone
+    from decimal import Decimal
+    
+    # Get today's date
+    today = timezone.now().date()
+    
+    # Get this month's start date
+    month_start = today.replace(day=1)
+    
+    # Today's orders
+    today_orders = Order.objects.filter(created_at__date=today)
+    todayOrders = today_orders.count()
+    
+    # Today's revenue (sum of total_price for today's orders)
+    todayRevenue = today_orders.aggregate(Sum('total_price'))['total_price__sum'] or Decimal('0.00')
+    
+    # Pending orders (all pending orders, not just today's)
+    pendingOrders = Order.objects.filter(status='pending').count()
+    
+    # Monthly revenue (sum of total_price for this month's orders)
+    monthly_orders = Order.objects.filter(created_at__date__gte=month_start)
+    monthlyRevenue = monthly_orders.aggregate(Sum('total_price'))['total_price__sum'] or Decimal('0.00')
+    
+    return Response({
+        'todayOrders': todayOrders,
+        'todayRevenue': float(todayRevenue),
+        'pendingOrders': pendingOrders,
+        'monthlyRevenue': float(monthlyRevenue),
+    })
