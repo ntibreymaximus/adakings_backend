@@ -91,6 +91,9 @@ urlpatterns = [
     
     # Google Sheets API URLs - Temporarily disabled
     # path('api/google-sheets/', include(('apps.google_sheets.urls', 'google_sheets'), namespace='google_sheets')),
+    
+    # Stats API URLs
+    path('api/stats/', include('apps.stats.urls')),
 
 
     # JWT token endpoints
