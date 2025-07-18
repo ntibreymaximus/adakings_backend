@@ -119,6 +119,12 @@ class AdakingsWebSocketConsumer(AsyncWebsocketConsumer):
                     self.channel_name
                 )
                 
+                # Join autoreload group for real-time updates
+                await self.channel_layer.group_add(
+                    'autoreload',
+                    self.channel_name
+                )
+                
                 await self.send(text_data=json.dumps({
                     'type': 'authentication_status',
                     'status': 'authenticated',
@@ -266,6 +272,13 @@ class AdakingsWebSocketConsumer(AsyncWebsocketConsumer):
         """Handle user-specific notifications."""
         await self.send(text_data=json.dumps({
             'type': 'notification',
+            'payload': event['payload']
+        }))
+        
+    async def autoreload_update(self, event):
+        """Handle autoreload update notifications."""
+        await self.send(text_data=json.dumps({
+            'type': 'autoreload_update',
             'payload': event['payload']
         }))
         

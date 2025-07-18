@@ -2,6 +2,40 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.2.1] - 2025-07-18
+
+### 🚀 Development Release
+
+**📋 Release Information:**
+- **Environment**: dev
+- **Branch**: `dev/2.2.1`
+- **Version**: `Unknown` → `2.2.1`
+- **Deployment Time**: 2025-07-18 15:02:52
+- **Description**: Development environment deployment with latest features
+
+**📝 Changes Made:**
+Version: 2.2.1 feat: Deploy to dev environment
+
+**📁 Files Modified:**
+  - Modified: `EPLOYMENT_SUMMARY.md`
+  - Modified: `README.md`
+  - Modified: `VERSION`
+  - Modified: `apps/websockets/consumers.py`
+
+**🔄 Deployment Details:**
+- **Source Branch**: `dev/2.2.1`
+- **Target Branch**: `dev/2.2.1`
+- **Merge Strategy**: Automatic merge with main branch
+- **Version Bump Type**: Version update
+
+**🎯 Environment Specific Notes:**
+- Development environment deployment
+- Contains latest features and changes
+- Used for integration testing before production
+- May contain experimental features
+
+---
+
 ## [2.2.0] - 2025-07-17
 
 ### 🚀 Development Release
