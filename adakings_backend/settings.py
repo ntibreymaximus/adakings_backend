@@ -95,6 +95,7 @@ INSTALLED_APPS = [
     'apps.audit',
     'apps.deliveries',
     # 'apps.google_sheets',  # Temporarily disabled
+    'apps.stats',
     
     # Third-party apps
     'rest_framework',
