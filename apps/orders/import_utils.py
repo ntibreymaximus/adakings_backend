@@ -127,15 +127,42 @@ class OrderImporter:
                     
                     # Parse delivery location
                     delivery_location = None
+                    custom_delivery_location = None
+                    custom_delivery_fee = None
+                    
                     location_name = row.get('Delivery Location', '').strip()
-                    if location_name and location_name.lower() not in ['n/a', 'none', '']:
-                        delivery_location = self._find_or_create_delivery_location(location_name)
+                    delivery_type = row.get('Delivery Type', 'Pickup').strip()
+                    
+                    if delivery_type == 'Delivery':
+                        if location_name and location_name.lower() not in ['n/a', 'none', '']:
+                            # Try to find existing delivery location
+                            try:
+                                delivery_location = DeliveryLocation.objects.get(name__iexact=location_name)
+                            except DeliveryLocation.DoesNotExist:
+                                # If not found, use as custom location instead of creating new
+                                custom_delivery_location = location_name
+                                # Try to parse delivery fee from the row
+                                delivery_fee_str = row.get('Delivery Fee', '0').strip()
+                                try:
+                                    custom_delivery_fee = Decimal(delivery_fee_str)
+                                except:
+                                    custom_delivery_fee = Decimal('0.00')
+                        else:
+                            # For delivery orders without location, set a default custom location
+                            custom_delivery_location = "Customer Location"
+                            delivery_fee_str = row.get('Delivery Fee', '0').strip()
+                            try:
+                                custom_delivery_fee = Decimal(delivery_fee_str)
+                            except:
+                                custom_delivery_fee = Decimal('0.00')
                     
                     # Create order
                     order = Order(
                         customer_phone=row.get('Customer Phone', '').strip() or None,
-                        delivery_type=row.get('Delivery Type', 'Pickup').strip(),
+                        delivery_type=delivery_type,
                         delivery_location=delivery_location,
+                        custom_delivery_location=custom_delivery_location,
+                        custom_delivery_fee=custom_delivery_fee,
                         status=row.get('Status', Order.STATUS_PENDING).strip(),
                         notes=row.get('Notes', '').strip()
                     )
@@ -208,9 +235,32 @@ class OrderImporter:
                     
                     # Parse delivery location
                     delivery_location = None
+                    custom_delivery_location = None
+                    custom_delivery_fee = None
+                    
                     location_name = str(row.get('Delivery Location', '')).strip()
-                    if location_name and location_name.lower() not in ['n/a', 'none', 'nan', '']:
-                        delivery_location = self._find_or_create_delivery_location(location_name)
+                    delivery_type = str(row.get('Delivery Type', 'Pickup')).strip()
+                    
+                    if delivery_type == 'Delivery':
+                        if location_name and location_name.lower() not in ['n/a', 'none', 'nan', '']:
+                            # Try to find existing delivery location
+                            try:
+                                delivery_location = DeliveryLocation.objects.get(name__iexact=location_name)
+                            except DeliveryLocation.DoesNotExist:
+                                # If not found, use as custom location instead of creating new
+                                custom_delivery_location = location_name
+                                # Try to parse delivery fee from the row
+                                try:
+                                    custom_delivery_fee = Decimal(str(row.get('Delivery Fee', 0)))
+                                except:
+                                    custom_delivery_fee = Decimal('0.00')
+                        else:
+                            # For delivery orders without location, set a default custom location
+                            custom_delivery_location = "Customer Location"
+                            try:
+                                custom_delivery_fee = Decimal(str(row.get('Delivery Fee', 0)))
+                            except:
+                                custom_delivery_fee = Decimal('0.00')
                     
                     # Create order
                     customer_phone = str(row.get('Customer Phone', '')).strip()
@@ -219,8 +269,10 @@ class OrderImporter:
                     
                     order = Order(
                         customer_phone=customer_phone,
-                        delivery_type=str(row.get('Delivery Type', 'Pickup')).strip(),
+                        delivery_type=delivery_type,
                         delivery_location=delivery_location,
+                        custom_delivery_location=custom_delivery_location,
+                        custom_delivery_fee=custom_delivery_fee,
                         status=str(row.get('Status', Order.STATUS_PENDING)).strip(),
                         notes=str(row.get('Notes', '')).strip()
                     )
@@ -326,15 +378,33 @@ class OrderImporter:
                     
                     # Parse delivery location
                     delivery_location = None
+                    custom_delivery_location = None
+                    custom_delivery_fee = None
+                    
                     location_name = order_data.get('delivery_location', '').strip()
-                    if location_name:
-                        delivery_location = self._find_or_create_delivery_location(location_name)
+                    delivery_type = order_data.get('delivery_type', 'Pickup')
+                    
+                    if delivery_type == 'Delivery':
+                        if location_name:
+                            # Try to find existing delivery location
+                            try:
+                                delivery_location = DeliveryLocation.objects.get(name__iexact=location_name)
+                            except DeliveryLocation.DoesNotExist:
+                                # If not found, use as custom location instead of creating new
+                                custom_delivery_location = location_name
+                                custom_delivery_fee = Decimal(str(order_data.get('delivery_fee', 0)))
+                        else:
+                            # For delivery orders without location, set a default custom location
+                            custom_delivery_location = "Customer Location"
+                            custom_delivery_fee = Decimal(str(order_data.get('delivery_fee', 0)))
                     
                     # Create order
                     order = Order(
                         customer_phone=order_data.get('customer_phone'),
-                        delivery_type=order_data.get('delivery_type', 'Pickup'),
+                        delivery_type=delivery_type,
                         delivery_location=delivery_location,
+                        custom_delivery_location=custom_delivery_location,
+                        custom_delivery_fee=custom_delivery_fee,
                         status=order_data.get('status', Order.STATUS_PENDING),
                         notes=order_data.get('notes', '')
                     )

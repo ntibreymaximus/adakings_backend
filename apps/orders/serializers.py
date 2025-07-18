@@ -136,11 +136,24 @@ class OrderSerializer(serializers.ModelSerializer):
         """
         Validate that customer phone and location are provided when delivery is selected.
         """
+        # For updates, check if we're actually changing the delivery type
+        is_update = self.instance is not None
+        
+        # Get current and new values
         delivery_type = data.get('delivery_type', self.instance.delivery_type if self.instance else 'Pickup')
         customer_phone = data.get('customer_phone', self.instance.customer_phone if self.instance else None)
         delivery_location = data.get('delivery_location', self.instance.delivery_location if self.instance else None)
         custom_delivery_location = data.get('custom_delivery_location', self.instance.custom_delivery_location if self.instance else None)
         custom_delivery_fee = data.get('custom_delivery_fee', self.instance.custom_delivery_fee if self.instance else None)
+        
+        # For partial updates, handle missing fields differently
+        if is_update and self.partial:
+            # If delivery_location is being explicitly set to None
+            if 'delivery_location' in data and data['delivery_location'] is None:
+                # Check if custom location is provided or exists
+                if not custom_delivery_location and not self.instance.custom_delivery_location:
+                    # Don't raise error yet, the update method will handle this
+                    pass
         
         if delivery_type == 'Delivery':
             errors = {}
@@ -154,16 +167,32 @@ class OrderSerializer(serializers.ModelSerializer):
             )
             
             # Check customer phone (except for Bolt and WIX deliveries)
-            if not is_special_delivery and (not customer_phone or customer_phone.strip() == ''):
+            if not is_special_delivery and (not customer_phone or (isinstance(customer_phone, str) and customer_phone.strip() == '')):
                 errors['customer_phone'] = ['Customer phone number is required for delivery orders.']
             
             # Check that either delivery_location OR custom_delivery_location is provided
-            if not delivery_location and not custom_delivery_location:
-                errors['delivery_location'] = ['Either a delivery location or custom location name is required for delivery orders.']
+            # For updates, only check if we're actually modifying location fields
+            if is_update:
+                # Check if any location fields are being modified
+                location_fields_in_data = any(field in data for field in ['delivery_location', 'custom_delivery_location'])
+                if location_fields_in_data or delivery_type != self.instance.delivery_type:
+                    if not delivery_location and not custom_delivery_location:
+                        # Don't raise error immediately for partial updates
+                        if not self.partial or delivery_type != self.instance.delivery_type:
+                            errors['delivery_location'] = ['Either a delivery location or custom location name is required for delivery orders.']
+            else:
+                # For creates, always check
+                if not delivery_location and not custom_delivery_location:
+                    errors['delivery_location'] = ['Either a delivery location or custom location name is required for delivery orders.']
             
             # If custom location is provided, custom fee must also be provided
             if custom_delivery_location and custom_delivery_fee is None:
-                errors['custom_delivery_fee'] = ['Custom delivery fee is required when using a custom delivery location.']
+                # For updates, check if we already have a fee
+                if is_update and self.instance.custom_delivery_fee is not None:
+                    # Use existing fee if not provided
+                    pass
+                else:
+                    errors['custom_delivery_fee'] = ['Custom delivery fee is required when using a custom delivery location.']
             
             # Cannot specify both delivery_location and custom fields
             if delivery_location and custom_delivery_location:
@@ -280,6 +309,13 @@ class OrderSerializer(serializers.ModelSerializer):
             instance.delivery_location = None
             instance.custom_delivery_location = None
             instance.custom_delivery_fee = None
+        # When switching to or updating delivery, ensure location is set
+        elif instance.delivery_type == 'Delivery':
+            # If no location fields are set, use a default custom location
+            if not instance.delivery_location and not instance.custom_delivery_location:
+                instance.custom_delivery_location = "Customer Location"
+                if instance.custom_delivery_fee is None:
+                    instance.custom_delivery_fee = instance.delivery_fee or Decimal('0.00')
             
         instance.status = validated_data.get('status', instance.status)
         instance.notes = validated_data.get('notes', instance.notes)
