@@ -98,7 +98,7 @@ def update_rider_stats_on_assignment_change(sender, instance, created, **kwargs)
 
 def recalculate_rider_stats(rider):
     """Recalculate rider statistics from actual database records"""
-    from .models import OrderAssignment
+    from .models import OrderAssignment, DailyDeliveryStats
     
     # Count current active orders
     current_count = OrderAssignment.objects.filter(
@@ -112,12 +112,28 @@ def recalculate_rider_stats(rider):
         status__in=['delivered', 'returned']
     ).count()
     
+    # Count today's deliveries
+    today = timezone.now().date()
+    today_count = OrderAssignment.objects.filter(
+        rider=rider,
+        status__in=['delivered', 'returned'],
+        delivered_at__date=today
+    ).count()
+    
     # Update rider stats if they've changed
-    if rider.current_orders != current_count or rider.total_deliveries != delivered_count:
+    if rider.current_orders != current_count or rider.total_deliveries != delivered_count or rider.today_deliveries != today_count:
         rider.current_orders = current_count
         rider.total_deliveries = delivered_count
-        rider.save(update_fields=['current_orders', 'total_deliveries'])
-        logger.info(f"Recalculated stats for {rider.name}: current={current_count}, total={delivered_count}")
+        rider.today_deliveries = today_count
+        rider.save(update_fields=['current_orders', 'total_deliveries', 'today_deliveries'])
+        logger.info(f"Recalculated stats for {rider.name}: current={current_count}, total={delivered_count}, today={today_count}")
+        
+        # Also update or create daily stats record
+        DailyDeliveryStats.objects.update_or_create(
+            rider=rider,
+            date=today,
+            defaults={'deliveries_count': today_count}
+        )
 
 
 @receiver(post_delete, sender=OrderAssignment)

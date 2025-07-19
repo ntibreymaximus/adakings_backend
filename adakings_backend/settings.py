@@ -105,6 +105,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'channels',
     'import_export',
+    'django_celery_beat',
 ]
 
 # Enable development tools if available and in debug mode
@@ -409,8 +410,7 @@ REST_FRAMEWORK = {
         'rest_framework.authentication.BasicAuthentication',
     ),
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
-    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 100,  # Increased page size for fewer API calls and instant loading
+    # Pagination disabled - removed DEFAULT_PAGINATION_CLASS and PAGE_SIZE
     'DEFAULT_FILTER_BACKENDS': [
         'django_filters.rest_framework.DjangoFilterBackend',
         'rest_framework.filters.SearchFilter',
@@ -657,6 +657,35 @@ if DEBUG:
 
 # API rate limiting
 RATELIMIT_ENABLE = os.environ.get('RATE_LIMIT_ENABLE', 'False').lower() == 'true'
+
+# Celery Configuration
+# Using Redis as the message broker for both development and production
+REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+
+# Celery settings
+CELERY_BROKER_URL = REDIS_URL
+CELERY_RESULT_BACKEND = REDIS_URL
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_ENABLE_UTC = True
+
+# Celery Beat settings for periodic tasks
+CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
+
+# Task routing for different environments
+if ENVIRONMENT == 'production':
+    CELERY_TASK_ALWAYS_EAGER = False
+    CELERY_TASK_EAGER_PROPAGATES = False
+else:
+    # In development, you can run tasks synchronously for debugging
+    CELERY_TASK_ALWAYS_EAGER = os.environ.get('CELERY_ALWAYS_EAGER', 'False').lower() == 'true'
+    CELERY_TASK_EAGER_PROPAGATES = True
+
+# Task time limits
+CELERY_TASK_SOFT_TIME_LIMIT = 60  # 60 seconds
+CELERY_TASK_TIME_LIMIT = 120  # 120 seconds
 
 # Debug toolbar configuration
 if DEBUG:

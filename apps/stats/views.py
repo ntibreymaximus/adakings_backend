@@ -119,7 +119,12 @@ class ComprehensiveStatsAPIView(APIView):
         # Order statistics
         total_orders = orders_in_range.count()
         pending_orders = orders_in_range.filter(status='Pending').count()
-        completed_orders = orders_in_range.filter(status='Completed').count()
+        # Count Accepted, Ready, and Out for Delivery as processing
+        processing_orders = orders_in_range.filter(
+            status__in=['Accepted', 'Ready', 'Out for Delivery']
+        ).count()
+        # Fulfilled is the same as Completed in the database
+        fulfilled_orders = orders_in_range.filter(status='Fulfilled').count()
         cancelled_orders = orders_in_range.filter(status='Cancelled').count()
         
         # Revenue statistics
@@ -279,8 +284,11 @@ class ComprehensiveStatsAPIView(APIView):
         stats = {
             'totalOrders': total_orders,
             'pendingOrders': pending_orders,
-            'completedOrders': completed_orders,
+            'processingOrders': processing_orders,
+            'fulfilledOrders': fulfilled_orders,
             'cancelledOrders': cancelled_orders,
+            # Keep completedOrders for backward compatibility
+            'completedOrders': fulfilled_orders,
             'totalRevenue': float(total_revenue),
             'todayRevenue': float(today_revenue),
             'monthlyRevenue': float(monthly_revenue),

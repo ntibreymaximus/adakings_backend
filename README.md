@@ -7,8 +7,8 @@ This is the Adakings Backend API with a comprehensive **branch-specific versioni
 
 ```
 feature=4.0.0
-dev=2.3.0
-production=2.3.1
+dev=2.3.1
+production=2.4.0
 ```
 
 ## 📁 Project Structure
@@ -51,6 +51,6 @@ python smart_deploy.py production major "Major release"
 The VERSION file tracks all three branch types independently:
 ```
 feature=4.0.0      # Latest feature version
-dev=2.3.0          # Latest dev version
-production=2.3.1   # Latest production version
+dev=2.3.1          # Latest dev version
+production=2.4.0   # Latest production version
 ```
