@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from django.utils import timezone
-from django.db.models import Sum, Count, Q, F, Avg, Min, Case, When, Value, IntegerField
+from django.db.models import Sum, Count, Q, F, Avg, Min, Case, When, Value, IntegerField, CharField
 from django.db.models.functions import TruncDate, TruncHour, TruncMonth
 from datetime import timedelta, datetime
 from decimal import Decimal
@@ -144,9 +144,9 @@ class ComprehensiveStatsAPIView(APIView):
             total=Sum('total_price')
         )['total'] or Decimal('0.00')
         
-        # Customer statistics
-        # Count unique customers by phone number
-        total_customers = Order.objects.filter(
+        # Customer statistics (apply date filter)
+        # Count unique customers by phone number in the date range
+        total_customers = orders_in_range.filter(
             customer_phone__isnull=False
         ).values('customer_phone').distinct().count()
         
@@ -178,8 +178,8 @@ class ComprehensiveStatsAPIView(APIView):
             for item in top_products_data
         ]
         
-        # Recent orders
-        recent_orders_qs = Order.objects.select_related(
+        # Recent orders (apply date filter)
+        recent_orders_qs = orders_in_range.select_related(
             'delivery_location'
         ).order_by('-created_at')[:10]
         
@@ -225,23 +225,88 @@ class ComprehensiveStatsAPIView(APIView):
         # Payment methods statistics
         payment_methods_data = Payment.objects.filter(
             order__in=orders_in_range,
-            status='success'
+            status='completed'
         ).values('payment_method').annotate(
             count=Count('id'),
             total=Sum('amount')
         )
         
-        payment_methods = {
-            item['payment_method']: {
+        # Initialize all payment methods with zero values
+        from apps.payments.models import Payment as PaymentModel
+        payment_methods = {}
+        for method_code, method_name in PaymentModel.PAYMENT_METHOD_CHOICES:
+            payment_methods[method_code] = {
+                'count': 0,
+                'total': 0.0
+            }
+        
+        # Update with actual data
+        for item in payment_methods_data:
+            payment_methods[item['payment_method']] = {
                 'count': item['count'],
                 'total': float(item['total'] or 0)
             }
-            for item in payment_methods_data
+        
+        # Refund statistics - include both actual pending refunds AND overpayments due
+        # Actual pending refund records
+        pending_refund_records = Payment.objects.filter(
+            order__in=orders_in_range,
+            payment_type='refund',
+            status__in=['pending', 'processing']
+        ).aggregate(
+            count=Count('id'),
+            total=Sum('amount')
+        )
+        
+        # Overpayments that need refunds (calculate refund_amount for all orders)
+        total_pending_refunds = Decimal('0.00')
+        pending_refund_count = pending_refund_records['count'] or 0
+        
+        # Add refunds due from overpayments
+        for order in orders_in_range:
+            try:
+                refund_due = order.refund_amount()
+                if refund_due > Decimal('0.00'):
+                    total_pending_refunds += refund_due
+                    # Only count as pending if there's no existing refund record
+                    has_pending_refund = Payment.objects.filter(
+                        order=order,
+                        payment_type='refund',
+                        status__in=['pending', 'processing']
+                    ).exists()
+                    if not has_pending_refund:
+                        pending_refund_count += 1
+            except Exception as e:
+                logger.error(f"Error calculating refund for order {order.order_number}: {e}")
+                continue
+        
+        # Add any existing pending refund amounts
+        total_pending_refunds += Decimal(str(pending_refund_records['total'] or 0))
+        
+        completed_refunds_data = Payment.objects.filter(
+            order__in=orders_in_range,
+            payment_type='refund',
+            status='completed'
+        ).aggregate(
+            count=Count('id'),
+            total=Sum('amount')
+        )
+        
+        # Add refund data to payment methods
+        payment_methods['PENDING_REFUNDS'] = {
+            'count': pending_refund_count,
+            'total': float(total_pending_refunds)
         }
         
-        # Hourly orders (for today)
+        payment_methods['COMPLETED_REFUNDS'] = {
+            'count': completed_refunds_data['count'] or 0,
+            'total': float(completed_refunds_data['total'] or 0)
+        }
+        
+        # Hourly orders (apply date filter - use filtered date range if single day, otherwise today)
+        hourly_date = start_date if start_date == end_date else today
         hourly_orders_data = Order.objects.filter(
-            created_at__date=today
+            created_at__date=hourly_date
         ).annotate(
             hour=TruncHour('created_at')
         ).values('hour').annotate(
@@ -265,20 +330,93 @@ class ComprehensiveStatsAPIView(APIView):
             is_available=True
         ).count()
         
-        deliveries_today = OrderAssignment.objects.filter(
-            order__created_at__date=today
+        # Pending deliveries (assigned, accepted, picked_up, in_transit)
+        pending_deliveries = OrderAssignment.objects.filter(
+            status__in=['assigned', 'accepted', 'picked_up', 'in_transit'],
+            order__created_at__gte=start_datetime,
+            order__created_at__lte=end_datetime
         ).count()
         
-        pending_deliveries = OrderAssignment.objects.filter(
-            status__in=['assigned', 'accepted', 'picked_up', 'in_transit']
+        # Completed deliveries (delivered status)
+        completed_deliveries = OrderAssignment.objects.filter(
+            status='delivered',
+            order__created_at__gte=start_datetime,
+            order__created_at__lte=end_datetime
         ).count()
+        
+        # Completed pickups (orders with Pickup delivery_type that are fulfilled)
+        completed_pickups = orders_in_range.filter(
+            delivery_type='Pickup',
+            status='Fulfilled'
+        ).count()
+        
+        # Top delivery locations (exclude pickup orders and include both regular and custom locations)
+        top_delivery_locations_data = orders_in_range.filter(
+            delivery_type='Delivery'
+        ).exclude(
+            delivery_location__isnull=True,
+            custom_delivery_location__isnull=True
+        ).annotate(
+            # Use delivery_location name or custom_delivery_location as the location name
+            location_name=Case(
+                When(delivery_location__isnull=False, then='delivery_location__name'),
+                default='custom_delivery_location',
+                output_field=CharField()
+            )
+        ).values(
+            'location_name'
+        ).annotate(
+            count=Count('id'),
+            total_revenue=Sum('total_price')
+        ).order_by('-count')[:5]
+        
+        top_delivery_locations = [
+            {
+                'location': item['location_name'],
+                'orders': item['count'],
+                'revenue': float(item['total_revenue'] or 0)
+            }
+            for item in top_delivery_locations_data
+            if item['location_name']
+        ]
         
         delivery_stats = {
             'activeRiders': active_riders,
             'availableRiders': available_riders,
-            'deliveriesToday': deliveries_today,
-            'pendingDeliveries': pending_deliveries
+            'pendingDeliveries': pending_deliveries,
+            'completedDeliveries': completed_deliveries,
+            'completedPickups': completed_pickups,
+            'topDeliveryLocations': top_delivery_locations
         }
+        
+        # Calculate percentage changes for period comparison
+        # Get comparison period (same duration before the current period)
+        period_duration = (end_date - start_date).days + 1  # +1 to include both start and end dates
+        comparison_end = start_date - timedelta(days=1)
+        comparison_start = comparison_end - timedelta(days=period_duration - 1)
+        
+        comparison_start_datetime = timezone.make_aware(datetime.combine(comparison_start, datetime.min.time()))
+        comparison_end_datetime = timezone.make_aware(datetime.combine(comparison_end, datetime.max.time()))
+        
+        # Previous period orders and revenue
+        previous_orders = Order.objects.filter(
+            created_at__gte=comparison_start_datetime,
+            created_at__lte=comparison_end_datetime
+        ).count()
+        
+        previous_revenue = Order.objects.filter(
+            created_at__gte=comparison_start_datetime,
+            created_at__lte=comparison_end_datetime
+        ).aggregate(total=Sum('total_price'))['total'] or Decimal('0.00')
+        
+        # Calculate percentage changes
+        def calculate_percentage_change(current, previous):
+            if not previous or previous == 0:
+                return 100.0 if current > 0 else 0.0
+            return round(((current - previous) / previous) * 100, 1)
+        
+        orders_percentage_change = calculate_percentage_change(total_orders, previous_orders)
+        revenue_percentage_change = calculate_percentage_change(float(total_revenue), float(previous_revenue))
         
         # Compile all statistics
         stats = {
@@ -301,6 +439,99 @@ class ComprehensiveStatsAPIView(APIView):
             'paymentMethods': payment_methods,
             'hourlyOrders': hourly_orders,
             'deliveryStats': delivery_stats,
+            # Percentage changes
+            'ordersPercentageChange': orders_percentage_change,
+            'revenuePercentageChange': revenue_percentage_change,
+        }
+        
+        return Response(stats)
+
+
+class MenuItemsServedAPIView(APIView):
+    """API view for menu items served statistics"""
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+    
+    @extend_schema(
+        summary="Get Menu Items Served Statistics",
+        description="Returns statistics about menu items served for a specific date.",
+        parameters=[
+            OpenApiParameter(
+                name='date',
+                type=OpenApiTypes.DATE,
+                location=OpenApiParameter.QUERY,
+                description='Date for filtering (YYYY-MM-DD). Defaults to today.',
+                required=False
+            ),
+        ],
+        responses={
+            200: inline_serializer(
+                name='MenuItemsServedResponse',
+                fields={
+                    'totalItemsServed': serializers.IntegerField(),
+                    'uniqueItemsServed': serializers.IntegerField(),
+                    'topItems': serializers.ListField(
+                        child=serializers.DictField()
+                    ),
+                }
+            )
+        },
+        tags=['Statistics']
+    )
+    def get(self, request):
+        # Get date parameter
+        date_str = request.GET.get('date')
+        
+        # Parse date or use today
+        if date_str:
+            try:
+                target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+            except ValueError:
+                target_date = timezone.now().date()
+        else:
+            target_date = timezone.now().date()
+        
+        # Convert to datetime with timezone
+        start_datetime = timezone.make_aware(datetime.combine(target_date, datetime.min.time()))
+        end_datetime = timezone.make_aware(datetime.combine(target_date, datetime.max.time()))
+        
+        # Get all regular menu items (not extras)
+        all_menu_items = MenuItem.objects.filter(is_extra=False)
+        
+        # Initialize all menu items with 0 count
+        items_count = {item.name: 0 for item in all_menu_items}
+        
+        # Get orders for the specific date
+        orders = Order.objects.filter(
+            created_at__gte=start_datetime,
+            created_at__lte=end_datetime
+        )
+        
+        total_items_served = 0
+        
+        # Calculate menu items statistics from orders
+        for order in orders:
+            order_items = OrderItem.objects.filter(order=order)
+            for item in order_items:
+                item_name = item.menu_item.name if item.menu_item else 'Unknown Item'
+                quantity = item.quantity or 0
+                
+                # Only count if the item exists in our menu
+                if item_name in items_count:
+                    items_count[item_name] += quantity
+                    total_items_served += quantity
+        
+        # Get all items sorted by count (descending), including items with 0 count
+        top_items = sorted(
+            [{'name': name, 'count': count} for name, count in items_count.items()],
+            key=lambda x: x['count'],
+            reverse=True
+        )
+        
+        stats = {
+            'totalItemsServed': total_items_served,
+            'uniqueItemsServed': len(all_menu_items),  # Total number of menu items
+            'topItems': top_items
         }
         
         return Response(stats)
