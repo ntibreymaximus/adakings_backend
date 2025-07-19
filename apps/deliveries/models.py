@@ -72,19 +72,14 @@ class DeliveryRider(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
     current_orders = models.IntegerField(default=0)
     total_deliveries = models.IntegerField(default=0)
-    rating = models.DecimalField(
-        max_digits=3, 
-        decimal_places=2, 
-        default=5.00,
-        validators=[MinValueValidator(0.00), MaxValueValidator(5.00)]
-    )
+    today_deliveries = models.IntegerField(default=0, help_text="Number of deliveries completed today")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_available = models.BooleanField(default=True)
     max_concurrent_orders = models.IntegerField(default=3)
     
     class Meta:
-        ordering = ['-rating', 'current_orders']
+        ordering = ['current_orders', 'name']
         indexes = [
             models.Index(fields=['status', 'is_available']),
             models.Index(fields=['current_orders']),
@@ -133,5 +128,30 @@ class OrderAssignment(models.Model):
     
     def __str__(self):
         return f"Assignment: Order #{self.order.order_number} - {self.rider.name if self.rider else 'Unassigned'}"
+
+
+class DailyDeliveryStats(models.Model):
+    """Model for tracking daily delivery statistics for riders"""
+    rider = models.ForeignKey(
+        DeliveryRider, 
+        on_delete=models.CASCADE, 
+        related_name='daily_stats'
+    )
+    date = models.DateField(default=timezone.now)
+    deliveries_count = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Daily Delivery Stats"
+        verbose_name_plural = "Daily Delivery Stats"
+        ordering = ['-date']
+        unique_together = [['rider', 'date']]
+        indexes = [
+            models.Index(fields=['rider', 'date'], name='del_daily_rider_date_idx'),
+        ]
+    
+    def __str__(self):
+        return f"{self.rider.name} - {self.date}: {self.deliveries_count} deliveries"
 
 

@@ -15,11 +15,11 @@ class DeliveryRiderSerializer(serializers.ModelSerializer):
         model = DeliveryRider
         fields = [
             'id', 'name', 'phone', 'status', 'current_orders',
-            'total_deliveries', 'rating', 'created_at',
+            'total_deliveries', 'today_deliveries', 'created_at',
             'updated_at', 'is_available', 'max_concurrent_orders',
             'can_accept_orders'
         ]
-        read_only_fields = ['created_at', 'updated_at', 'rating', 'total_deliveries']
+        read_only_fields = ['created_at', 'updated_at', 'total_deliveries', 'today_deliveries']
 
 
 class DeliveryRiderCreateSerializer(serializers.ModelSerializer):

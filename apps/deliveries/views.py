@@ -8,7 +8,7 @@ from django.db.models import Q, Count, Avg, Sum
 from datetime import timedelta
 
 from .models import (
-    DeliveryRider, OrderAssignment, DeliveryLocation
+    DeliveryRider, OrderAssignment, DeliveryLocation, DailyDeliveryStats
 )
 from .serializers import (
     DeliveryRiderSerializer, DeliveryRiderCreateSerializer,
@@ -43,7 +43,7 @@ class DeliveryRiderViewSet(viewsets.ModelViewSet):
             status='active',
             is_available=True,
             current_orders__lt=F('max_concurrent_orders')  # Dynamic max based on rider settings
-        ).order_by('current_orders', '-rating')
+        ).order_by('current_orders', 'name')
         
         serializer = self.get_serializer(riders, many=True)
         return Response(serializer.data)
@@ -113,6 +113,52 @@ class DeliveryRiderViewSet(viewsets.ModelViewSet):
         summary['end_date'] = end_date.isoformat()
         
         return Response(summary)
+    
+    @action(detail=True, methods=['get'])
+    def daily_stats(self, request, pk=None):
+        """Get daily delivery statistics for a rider"""
+        rider = self.get_object()
+        days = int(request.query_params.get('days', 30))  # Default to last 30 days
+        
+        end_date = timezone.now().date()
+        start_date = end_date - timedelta(days=days)
+        
+        daily_stats = DailyDeliveryStats.objects.filter(
+            rider=rider,
+            date__gte=start_date,
+            date__lte=end_date
+        ).order_by('-date')
+        
+        stats_data = [
+            {
+                'date': stat.date.isoformat(),
+                'deliveries': stat.deliveries_count
+            }
+            for stat in daily_stats
+        ]
+        
+        # Include today's count
+        today_stat = {
+            'date': end_date.isoformat(),
+            'deliveries': rider.today_deliveries,
+            'is_today': True
+        }
+        
+        # Only add today if it's not already in the stats
+        if not daily_stats.filter(date=end_date).exists():
+            stats_data.insert(0, today_stat)
+        
+        return Response({
+            'rider': rider.name,
+            'total_deliveries': rider.total_deliveries,
+            'today_deliveries': rider.today_deliveries,
+            'daily_stats': stats_data,
+            'period': {
+                'start': start_date.isoformat(),
+                'end': end_date.isoformat(),
+                'days': days
+            }
+        })
 
 
 class OrderAssignmentViewSet(viewsets.ModelViewSet):

@@ -4,7 +4,7 @@ from django.utils.html import format_html
 from import_export import resources
 from import_export.admin import ImportExportModelAdmin
 from .models import (
-    DeliveryRider, OrderAssignment, DeliveryLocation
+    DeliveryRider, OrderAssignment, DeliveryLocation, DailyDeliveryStats
 )
 
 
@@ -13,8 +13,8 @@ class DeliveryRiderResource(resources.ModelResource):
     class Meta:
         model = DeliveryRider
         fields = ('id', 'name', 'phone', 'status', 'is_available', 'current_orders', 
-                 'max_concurrent_orders', 'total_deliveries', 'rating', 'created_at', 'updated_at')
-        export_order = ('id', 'name', 'phone', 'status', 'total_deliveries', 'rating', 'created_at')
+                 'max_concurrent_orders', 'total_deliveries', 'today_deliveries', 'created_at', 'updated_at')
+        export_order = ('id', 'name', 'phone', 'status', 'total_deliveries', 'today_deliveries', 'created_at')
         import_id_fields = ('id',)
         skip_unchanged = True
         report_skipped = True
@@ -24,11 +24,11 @@ class DeliveryRiderAdmin(ImportExportModelAdmin):
     resource_class = DeliveryRiderResource
     list_display = [
         'name', 'phone', 'status', 'current_orders_display', 
-        'total_deliveries', 'rating', 'availability_status', 'view_current_orders'
+        'total_deliveries', 'today_deliveries', 'availability_status', 'view_current_orders'
     ]
     list_filter = ['status', 'is_available', 'created_at']
     search_fields = ['name', 'phone']
-    readonly_fields = ['created_at', 'updated_at', 'total_deliveries', 'rating', 'current_assignments_display']
+    readonly_fields = ['created_at', 'updated_at', 'total_deliveries', 'today_deliveries', 'current_assignments_display']
     fieldsets = (
         ('Basic Information', {
             'fields': ('name', 'phone', 'user')
@@ -37,7 +37,7 @@ class DeliveryRiderAdmin(ImportExportModelAdmin):
             'fields': ('status', 'is_available', 'current_orders', 'max_concurrent_orders')
         }),
         ('Performance', {
-            'fields': ('total_deliveries', 'rating')
+            'fields': ('total_deliveries', 'today_deliveries')
         }),
         ('Current Assignments', {
             'fields': ('current_assignments_display',),
@@ -182,5 +182,26 @@ class DeliveryLocationAdmin(ImportExportModelAdmin):
     search_fields = ['name']
     readonly_fields = ['created_at', 'updated_at']
     ordering = ['name']
+
+
+class DailyDeliveryStatsResource(resources.ModelResource):
+    """Resource class for importing/exporting Daily Delivery Stats"""
+    class Meta:
+        model = DailyDeliveryStats
+        fields = ('id', 'rider', 'date', 'deliveries_count', 'created_at', 'updated_at')
+        export_order = ('id', 'rider', 'date', 'deliveries_count')
+        import_id_fields = ('id',)
+        skip_unchanged = True
+        report_skipped = True
+
+@admin.register(DailyDeliveryStats)
+class DailyDeliveryStatsAdmin(ImportExportModelAdmin):
+    resource_class = DailyDeliveryStatsResource
+    list_display = ['rider', 'date', 'deliveries_count', 'created_at']
+    list_filter = ['date', 'rider']
+    search_fields = ['rider__name']
+    readonly_fields = ['created_at', 'updated_at']
+    ordering = ['-date', 'rider__name']
+    date_hierarchy = 'date'
 
 

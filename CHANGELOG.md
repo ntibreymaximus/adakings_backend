@@ -2,6 +2,60 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.3.1] - 2025-07-19
+
+### 🚀 Development Release
+
+**📋 Release Information:**
+- **Environment**: dev
+- **Branch**: `dev/2.3.1`
+- **Version**: `Unknown` → `2.3.1`
+- **Deployment Time**: 2025-07-19 10:50:18
+- **Description**: Development environment deployment with latest features
+
+**📝 Changes Made:**
+Version: 2.3.1 feat: Deploy to dev environment
+
+**📁 Files Modified:**
+  - Modified: `EPLOYMENT_SUMMARY.md`
+  - Modified: `Procfile`
+  - Modified: `README.md`
+  - Modified: `VERSION`
+  - Modified: `adakings_backend/__init__.py`
+  - Modified: `adakings_backend/settings.py`
+  - Modified: `apps/deliveries/admin.py`
+  - Modified: `apps/deliveries/management/commands/fix_rider_stats.py`
+  - Modified: `apps/deliveries/models.py`
+  - Modified: `apps/deliveries/serializers.py`
+  - Modified: `apps/deliveries/signals.py`
+  - Modified: `apps/deliveries/views.py`
+  - Modified: `railway.toml`
+  - Modified: `requirements.txt`
+  - Changed: `adakings_backend/celery.py`
+  - Changed: `apps/deliveries/management/commands/reset_daily_deliveries.py`
+  - Changed: `apps/deliveries/migrations/0002_add_daily_delivery_stats.py`
+  - Changed: `apps/deliveries/migrations/0003_remove_deliveryrider_rating.py`
+  - Changed: `apps/deliveries/migrations/0010_merge_20250719_0947.py`
+  - Changed: `apps/deliveries/tasks.py`
+  - Changed: `celery_beat_start.sh`
+  - Changed: `celery_worker_start.sh`
+  - Changed: `railway.json`
+  - Changed: `railway_entrypoint.sh`
+
+**🔄 Deployment Details:**
+- **Source Branch**: `dev/2.3.1`
+- **Target Branch**: `dev/2.3.1`
+- **Merge Strategy**: Automatic merge with main branch
+- **Version Bump Type**: Version update
+
+**🎯 Environment Specific Notes:**
+- Development environment deployment
+- Contains latest features and changes
+- Used for integration testing before production
+- May contain experimental features
+
+---
+
 ## [2.3.1] - 2025-07-18
 
 ### 🎯 Production Release
